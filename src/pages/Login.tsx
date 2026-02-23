@@ -14,7 +14,7 @@ const Login = () => {
   const [searchParams] = useSearchParams();
   const codeFromUrl = searchParams.get('code');
 
-  const [isSignup, setIsSignup] = useState(!!codeFromUrl);
+  const isSignup = false;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -70,19 +70,6 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="glass-panel rounded-xl p-6 space-y-4">
-          {isSignup && (
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Nombre completo</Label>
-              <Input
-                id="fullName"
-                placeholder="Tu nombre"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                className="bg-muted/50 border-border/50"
-              />
-            </div>
-          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -109,52 +96,11 @@ const Login = () => {
             />
           </div>
 
-          {isSignup && (
-            <Tabs value={signupTab} onValueChange={setSignupTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="create">Crear empresa</TabsTrigger>
-                <TabsTrigger value="join">Unirme a una</TabsTrigger>
-              </TabsList>
-              <TabsContent value="create" className="space-y-2 mt-3">
-                <Label htmlFor="companyName">Nombre de la empresa</Label>
-                <Input
-                  id="companyName"
-                  placeholder="Mi Tienda S.A."
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="bg-muted/50 border-border/50"
-                />
-              </TabsContent>
-              <TabsContent value="join" className="space-y-2 mt-3">
-                <Label htmlFor="inviteCode">Código de invitación</Label>
-                <Input
-                  id="inviteCode"
-                  placeholder="abc123def456"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  className="bg-muted/50 border-border/50 font-mono"
-                />
-                <p className="text-xs text-muted-foreground">Pedile el código al administrador de la empresa.</p>
-              </TabsContent>
-            </Tabs>
-          )}
-
           <Button type="submit" className="w-full" disabled={submitting || isLoading || !isFormValid()}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {isSignup ? 'Crear Cuenta' : 'Iniciar Sesión'}
+            Iniciar Sesión
           </Button>
         </form>
-
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          {isSignup ? '¿Ya tenés cuenta?' : '¿No tenés cuenta?'}{' '}
-          <button
-            type="button"
-            onClick={() => setIsSignup(!isSignup)}
-            className="text-primary hover:underline font-medium"
-          >
-            {isSignup ? 'Iniciar Sesión' : 'Crear Cuenta'}
-          </button>
-        </p>
       </motion.div>
     </div>
   );
