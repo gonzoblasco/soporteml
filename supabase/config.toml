@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.disconnect-meli]
 verify_jwt = false
+
+[functions.publish-meli-answer]
+verify_jwt = false

@@ -41,19 +41,16 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
 
   const handlePublish = async () => {
     setPublishing(true);
-    const { error } = await supabase
-      .from('questions')
-      .update({
-        final_answer: answer,
-        status: 'published',
-        answered_at: new Date().toISOString(),
-      })
-      .eq('id', question.id);
+    const { data, error } = await supabase.functions.invoke('publish-meli-answer', {
+      body: { question_id: question.id, answer: answer.trim() },
+    });
     setPublishing(false);
     if (error) {
-      toast.error('Error al publicar: ' + error.message);
+      toast.error('Error al publicar en MercadoLibre: ' + (error.message || 'Error desconocido'));
+    } else if (data?.error) {
+      toast.error('Error de MeLi: ' + (data.details || data.error));
     } else {
-      toast.success('Respuesta publicada correctamente');
+      toast.success('Respuesta publicada en MercadoLibre');
       onUpdated?.();
     }
   };
