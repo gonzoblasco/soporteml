@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,13 +14,19 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [signupTab, setSignupTab] = useState<string>('create');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     if (isSignup) {
-      const err = await signup(email, password, fullName);
+      const opts = signupTab === 'create'
+        ? { companyName }
+        : { inviteCode };
+      const err = await signup(email, password, fullName, opts);
       if (err) {
         toast.error(err);
       } else {
@@ -30,6 +37,16 @@ const Login = () => {
       if (err) toast.error(err);
     }
     setSubmitting(false);
+  };
+
+  const isFormValid = () => {
+    if (!email || !password) return false;
+    if (isSignup) {
+      if (!fullName) return false;
+      if (signupTab === 'create' && !companyName.trim()) return false;
+      if (signupTab === 'join' && !inviteCode.trim()) return false;
+    }
+    return true;
   };
 
   return (
@@ -87,7 +104,38 @@ const Login = () => {
               className="bg-muted/50 border-border/50"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={submitting || isLoading}>
+
+          {isSignup && (
+            <Tabs value={signupTab} onValueChange={setSignupTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="create">Crear empresa</TabsTrigger>
+                <TabsTrigger value="join">Unirme a una</TabsTrigger>
+              </TabsList>
+              <TabsContent value="create" className="space-y-2 mt-3">
+                <Label htmlFor="companyName">Nombre de la empresa</Label>
+                <Input
+                  id="companyName"
+                  placeholder="Mi Tienda S.A."
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="bg-muted/50 border-border/50"
+                />
+              </TabsContent>
+              <TabsContent value="join" className="space-y-2 mt-3">
+                <Label htmlFor="inviteCode">Código de invitación</Label>
+                <Input
+                  id="inviteCode"
+                  placeholder="abc123def456"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  className="bg-muted/50 border-border/50 font-mono"
+                />
+                <p className="text-xs text-muted-foreground">Pedile el código al administrador de la empresa.</p>
+              </TabsContent>
+            </Tabs>
+          )}
+
+          <Button type="submit" className="w-full" disabled={submitting || isLoading || !isFormValid()}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             {isSignup ? 'Crear Cuenta' : 'Iniciar Sesión'}
           </Button>
