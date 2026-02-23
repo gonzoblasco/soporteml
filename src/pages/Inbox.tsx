@@ -38,6 +38,7 @@ const Inbox = () => {
         ...q,
         product_title: q.products?.title ?? null,
         product_meli_id: q.products?.meli_item_id ?? null,
+        buyer_nickname: q.buyer_nickname ?? null,
       }));
       setQuestions(mapped);
     }
