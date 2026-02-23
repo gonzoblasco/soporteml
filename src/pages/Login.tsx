@@ -5,15 +5,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { Loader2, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Login = () => {
-  const { login, isLoading } = useAuth();
+  const { login, signup, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
+    setLoading(true);
+    const result = isSignup ? await signup(email, password) : await login(email, password);
+    setLoading(false);
+    if (result.error) {
+      toast.error(result.error);
+    }
   };
 
   return (
@@ -54,18 +62,22 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
               className="bg-muted/50 border-border/50"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Iniciar Sesión
+          <Button type="submit" className="w-full" disabled={loading || isLoading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            {isSignup ? 'Crear Cuenta' : 'Iniciar Sesión'}
           </Button>
+          <button
+            type="button"
+            onClick={() => setIsSignup(!isSignup)}
+            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center"
+          >
+            {isSignup ? '¿Ya tenés cuenta? Iniciá sesión' : '¿No tenés cuenta? Registrate'}
+          </button>
         </form>
-
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          Demo: ingresá cualquier email y contraseña
-        </p>
       </motion.div>
     </div>
   );
