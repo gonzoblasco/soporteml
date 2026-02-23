@@ -11,12 +11,10 @@ async function refreshTokenIfNeeded(
   tokenRow: any,
   appId: string,
   secretKey: string,
-  supabaseUrl: string
 ): Promise<string> {
   const now = new Date();
   const expiresAt = new Date(tokenRow.expires_at);
 
-  // Refresh if expires in less than 10 minutes
   if (expiresAt.getTime() - now.getTime() > 10 * 60 * 1000) {
     return tokenRow.access_token;
   }
@@ -133,6 +131,49 @@ Respondé en JSON con este formato: {"answer": "tu respuesta", "category": "cate
   }
 }
 
+async function fetchMeliCategoryName(categoryId: string): Promise<string> {
+  try {
+    const res = await fetch(`https://api.mercadolibre.com/categories/${categoryId}`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.name || categoryId;
+    }
+  } catch (e) {
+    console.error("Error fetching category name:", e);
+  }
+  return categoryId;
+}
+
+async function autoPublishAnswer(
+  accessToken: string,
+  meliQuestionId: string,
+  answerText: string
+): Promise<boolean> {
+  try {
+    const res = await fetch("https://api.mercadolibre.com/answers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        question_id: Number(meliQuestionId),
+        text: answerText,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Auto-publish failed:", await res.text());
+      return false;
+    }
+    console.log("Auto-published answer for question:", meliQuestionId);
+    return true;
+  } catch (e) {
+    console.error("Auto-publish error:", e);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -149,7 +190,6 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* cron calls with empty body */ }
 
-    // Get all companies with MeLi tokens (or a specific one if meli_user_id provided)
     let query = supabase.from("meli_tokens").select("*");
     if (body.meli_user_id) {
       query = query.eq("meli_user_id", body.meli_user_id);
@@ -168,20 +208,21 @@ Deno.serve(async (req) => {
     for (const tokenRow of tokenRows) {
       try {
         const accessToken = await refreshTokenIfNeeded(
-          supabase, tokenRow, MELI_APP_ID, MELI_SECRET_KEY, SUPABASE_URL
+          supabase, tokenRow, MELI_APP_ID, MELI_SECRET_KEY
         );
 
-        // Fetch AI settings for this company
+        // Fetch AI + auto-reply settings for this company
         const { data: settings } = await supabase
           .from("company_settings")
-          .select("ai_tone, ai_custom_instructions")
+          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_categories")
           .eq("company_id", tokenRow.company_id)
           .maybeSingle();
 
         const aiTone = settings?.ai_tone || "profesional";
         const aiCustomInstructions = settings?.ai_custom_instructions || null;
+        const autoReplyEnabled = settings?.auto_reply_enabled ?? false;
+        const autoReplyCategories: string[] = (settings?.auto_reply_categories as string[]) ?? [];
 
-        // If a specific resource was provided (from webhook), fetch that question directly
         if (body.resource) {
           const qRes = await fetch(`https://api.mercadolibre.com${body.resource}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -189,13 +230,12 @@ Deno.serve(async (req) => {
 
           if (qRes.ok) {
             const q = await qRes.json();
-            await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions);
+            await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, autoReplyCategories);
             totalSynced++;
           }
           continue;
         }
 
-        // Otherwise, fetch recent unanswered questions
         const questionsRes = await fetch(
           `https://api.mercadolibre.com/my/received_questions/search?status=UNANSWERED&seller_id=${tokenRow.meli_user_id}&sort_fields=date_created&sort_types=DESC&limit=50`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -210,7 +250,7 @@ Deno.serve(async (req) => {
         const questions = questionsData.questions || [];
 
         for (const q of questions) {
-          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions);
+          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, autoReplyCategories);
           if (synced) totalSynced++;
         }
       } catch (companyErr) {
@@ -237,11 +277,12 @@ async function processQuestion(
   companyId: string,
   accessToken: string,
   aiTone: string = "profesional",
-  aiCustomInstructions: string | null = null
+  aiCustomInstructions: string | null = null,
+  autoReplyEnabled: boolean = false,
+  autoReplyCategories: string[] = []
 ): Promise<boolean> {
   const meliQuestionId = String(q.id);
 
-  // Check if already exists
   const { data: existing } = await supabase
     .from("questions")
     .select("id")
@@ -250,16 +291,15 @@ async function processQuestion(
 
   if (existing) return false;
 
-  // Get product info with full details from MeLi
   let productTitle = "Producto";
   let productId: string | null = null;
   let productContext = `Título: ${productTitle}`;
+  let productCategoryId: string | null = null;
 
   if (q.item_id) {
-    // Check if product exists in our DB
     const { data: product } = await supabase
       .from("products")
-      .select("id, title, price")
+      .select("id, title, price, meli_category_id")
       .eq("meli_item_id", q.item_id)
       .eq("company_id", companyId)
       .maybeSingle();
@@ -267,9 +307,9 @@ async function processQuestion(
     if (product) {
       productId = product.id;
       productTitle = product.title;
+      productCategoryId = product.meli_category_id;
     }
 
-    // Always fetch full details from MeLi for AI context
     try {
       const itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}?include_attributes=all`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -278,7 +318,14 @@ async function processQuestion(
         const item = await itemRes.json();
         productTitle = item.title;
 
-        // Build rich product context for AI
+        // Extract and save category
+        const itemCategoryId = item.category_id || null;
+        let itemCategoryName: string | null = null;
+        if (itemCategoryId) {
+          itemCategoryName = await fetchMeliCategoryName(itemCategoryId);
+          productCategoryId = itemCategoryId;
+        }
+
         const contextParts: string[] = [`Título: ${item.title}`];
         if (item.price) contextParts.push(`Precio: $${item.price}`);
         if (item.currency_id) contextParts.push(`Moneda: ${item.currency_id}`);
@@ -287,7 +334,6 @@ async function processQuestion(
         if (item.warranty) contextParts.push(`Garantía: ${item.warranty}`);
         if (item.shipping?.free_shipping) contextParts.push(`Envío gratis: Sí`);
 
-        // Attributes (color, size, material, etc.)
         if (item.attributes?.length) {
           const relevantAttrs = item.attributes
             .filter((a: any) => a.value_name && !['ITEM_CONDITION', 'GTIN'].includes(a.id))
@@ -296,7 +342,6 @@ async function processQuestion(
           if (relevantAttrs.length) contextParts.push(`Atributos:\n${relevantAttrs.join('\n')}`);
         }
 
-        // Variations (colors, sizes)
         if (item.variations?.length) {
           const varDescriptions = item.variations.map((v: any) => {
             const combos = v.attribute_combinations?.map((a: any) => `${a.name}: ${a.value_name}`).join(', ') || '';
@@ -308,7 +353,7 @@ async function processQuestion(
 
         productContext = contextParts.join('\n');
 
-        // Store product if not already in DB
+        // Store product if not already in DB (with category)
         if (!productId) {
           const { data: newProduct } = await supabase
             .from("products")
@@ -318,11 +363,23 @@ async function processQuestion(
               title: item.title,
               price: item.price,
               permalink: item.permalink,
+              meli_category_id: itemCategoryId,
+              meli_category_name: itemCategoryName,
             })
             .select("id")
             .single();
 
           if (newProduct) productId = newProduct.id;
+        } else if (itemCategoryId) {
+          // Update existing product with category if missing
+          await supabase
+            .from("products")
+            .update({
+              meli_category_id: itemCategoryId,
+              meli_category_name: itemCategoryName,
+            })
+            .eq("id", productId)
+            .is("meli_category_id", null);
         }
       }
     } catch (e) {
@@ -330,10 +387,40 @@ async function processQuestion(
     }
   }
 
-  // Generate AI answer with full product context
+  // Generate AI answer
   const { answer, category } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions);
 
-  // Insert question
+  // Determine if auto-reply should fire
+  const shouldAutoReply = autoReplyEnabled
+    && answer
+    && productCategoryId
+    && autoReplyCategories.includes(productCategoryId);
+
+  if (shouldAutoReply) {
+    const published = await autoPublishAnswer(accessToken, meliQuestionId, answer);
+
+    const { error: insertErr } = await supabase.from("questions").insert({
+      meli_question_id: meliQuestionId,
+      company_id: companyId,
+      product_id: productId,
+      question_text: q.text,
+      buyer_id: q.from ? String(q.from.id) : null,
+      status: published ? "published" : "pending",
+      ai_suggested_answer: answer,
+      ai_category: category || null,
+      final_answer: published ? answer : null,
+      answered_at: published ? new Date().toISOString() : null,
+      created_at: q.date_created || new Date().toISOString(),
+    });
+
+    if (insertErr) {
+      console.error("Error inserting question:", insertErr);
+      return false;
+    }
+    return true;
+  }
+
+  // Default: insert as pending
   const { error: insertErr } = await supabase.from("questions").insert({
     meli_question_id: meliQuestionId,
     company_id: companyId,
