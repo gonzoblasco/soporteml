@@ -584,40 +584,30 @@ const AutoReplySection = () => {
   const { toast } = useToast();
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const AI_CATEGORIES = [
+    { id: 'Precio', name: 'Precio' },
+    { id: 'Stock', name: 'Stock' },
+    { id: 'Técnico', name: 'Técnico' },
+    { id: 'Envío', name: 'Envío' },
+    { id: 'Garantía', name: 'Garantía' },
+    { id: 'Otro', name: 'Otro' },
+  ];
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
-      // Fetch settings and available categories in parallel
-      const [settingsRes, categoriesRes] = await Promise.all([
-        supabase
-          .from('company_settings')
-          .select('auto_reply_enabled, auto_reply_categories')
-          .eq('company_id', companyId)
-          .maybeSingle(),
-        supabase
-          .from('products')
-          .select('meli_category_id, meli_category_name')
-          .eq('company_id', companyId)
-          .not('meli_category_id', 'is', null),
-      ]);
+      const { data } = await supabase
+        .from('company_settings')
+        .select('auto_reply_enabled, auto_reply_categories')
+        .eq('company_id', companyId)
+        .maybeSingle();
 
-      if (settingsRes.data) {
-        setAutoReplyEnabled(settingsRes.data.auto_reply_enabled ?? false);
-        setSelectedCategories((settingsRes.data.auto_reply_categories as string[]) ?? []);
+      if (data) {
+        setAutoReplyEnabled(data.auto_reply_enabled ?? false);
+        setSelectedCategories((data.auto_reply_categories as string[]) ?? []);
       }
-
-      // Deduplicate categories
-      const catMap = new Map<string, string>();
-      (categoriesRes.data ?? []).forEach((p: any) => {
-        if (p.meli_category_id && !catMap.has(p.meli_category_id)) {
-          catMap.set(p.meli_category_id, p.meli_category_name || p.meli_category_id);
-        }
-      });
-      setAvailableCategories(Array.from(catMap.entries()).map(([id, name]) => ({ id, name })));
       setLoading(false);
     })();
   }, [companyId]);
@@ -678,28 +668,23 @@ const AutoReplySection = () => {
             <div className="space-y-3">
               <Label className="text-sm">Categorías habilitadas</Label>
               <p className="text-xs text-muted-foreground">
-                Seleccioná en qué categorías de producto las respuestas de IA se publicarán automáticamente.
+                Seleccioná en qué categorías de pregunta las respuestas de IA se publicarán automáticamente. Las demás llegarán al Inbox para revisión humana.
               </p>
-              {availableCategories.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">
-                  No se encontraron categorías. Las categorías se cargan automáticamente al sincronizar preguntas de MercadoLibre.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {availableCategories.map((cat) => (
-                    <div key={cat.id} className="flex items-center gap-3 py-1">
-                      <Checkbox
-                        id={`cat-${cat.id}`}
-                        checked={selectedCategories.includes(cat.id)}
-                        onCheckedChange={() => handleToggleCategory(cat.id)}
-                      />
-                      <Label htmlFor={`cat-${cat.id}`} className="text-sm font-normal cursor-pointer">
-                        {cat.name}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="space-y-2">
+                {AI_CATEGORIES.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-3 py-1">
+                    <Checkbox
+                      id={`cat-${cat.id}`}
+                      checked={selectedCategories.includes(cat.id)}
+                      onCheckedChange={() => handleToggleCategory(cat.id)}
+                    />
+                    <Label htmlFor={`cat-${cat.id}`} className="text-sm font-normal cursor-pointer">
+                      {cat.name}
+                    </Label>
+                  </div>
+                ))
+              }
+              </div>
             </div>
 
             <div className="rounded-lg bg-muted/50 border border-border p-3 flex gap-2">

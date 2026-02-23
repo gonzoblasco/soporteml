@@ -390,11 +390,11 @@ async function processQuestion(
   // Generate AI answer
   const { answer, category } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions);
 
-  // Determine if auto-reply should fire
+  // Determine if auto-reply should fire (based on AI question category)
   const shouldAutoReply = autoReplyEnabled
     && answer
-    && productCategoryId
-    && autoReplyCategories.includes(productCategoryId);
+    && category
+    && autoReplyCategories.includes(category);
 
   if (shouldAutoReply) {
     const published = await autoPublishAnswer(accessToken, meliQuestionId, answer);
