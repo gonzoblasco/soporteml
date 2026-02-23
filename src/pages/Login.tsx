@@ -5,15 +5,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { Loader2, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Login = () => {
-  const { login, isLoading } = useAuth();
+  const { login, signup, isLoading } = useAuth();
+  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
+    setSubmitting(true);
+    if (isSignup) {
+      const err = await signup(email, password, fullName);
+      if (err) {
+        toast.error(err);
+      } else {
+        toast.success('Revisá tu correo para confirmar la cuenta');
+      }
+    } else {
+      const err = await login(email, password);
+      if (err) toast.error(err);
+    }
+    setSubmitting(false);
   };
 
   return (
@@ -33,6 +49,19 @@ const Login = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="glass-panel rounded-xl p-6 space-y-4">
+          {isSignup && (
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Nombre completo</Label>
+              <Input
+                id="fullName"
+                placeholder="Tu nombre"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="bg-muted/50 border-border/50"
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -54,17 +83,25 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
               className="bg-muted/50 border-border/50"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Iniciar Sesión
+          <Button type="submit" className="w-full" disabled={submitting || isLoading}>
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            {isSignup ? 'Crear Cuenta' : 'Iniciar Sesión'}
           </Button>
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-4">
-          Demo: ingresá cualquier email y contraseña
+          {isSignup ? '¿Ya tenés cuenta?' : '¿No tenés cuenta?'}{' '}
+          <button
+            type="button"
+            onClick={() => setIsSignup(!isSignup)}
+            className="text-primary hover:underline font-medium"
+          >
+            {isSignup ? 'Iniciar Sesión' : 'Crear Cuenta'}
+          </button>
         </p>
       </motion.div>
     </div>

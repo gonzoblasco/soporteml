@@ -10,7 +10,7 @@ const navItems = [
 ];
 
 const AppSidebar = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, profileName } = useAuth();
 
   return (
     <aside className="w-60 h-screen flex flex-col bg-sidebar border-r border-sidebar-border shrink-0">
@@ -42,14 +42,14 @@ const AppSidebar = () => {
       <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-2 px-3 py-1 mb-2">
           <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">
-            {user?.name?.charAt(0).toUpperCase()}
+            {(profileName ?? user?.email ?? '?').charAt(0).toUpperCase()}
           </div>
           <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          onClick={logout}
+          onClick={() => logout()}
           className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
         >
           <LogOut className="w-4 h-4" />
