@@ -103,7 +103,7 @@ const AppSidebar = () => {
   }
 
   return (
-    <aside className="w-60 h-screen flex flex-col bg-sidebar border-r border-sidebar-border shrink-0">
+    <aside className="w-60 h-screen flex flex-col bg-sidebar border-r border-sidebar-border shrink-0 sticky top-0">
       {sidebarContent}
     </aside>
   );
