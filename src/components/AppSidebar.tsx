@@ -7,8 +7,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
-  { title: 'Inbox', url: '/', icon: Inbox },
-  { title: 'Priority', url: '/priority', icon: AlertTriangle, badge: true },
+  { title: 'Inbox', url: '/', icon: Inbox, badgeKey: 'inbox' as const },
+  { title: 'Priority', url: '/priority', icon: AlertTriangle, badgeKey: 'priority' as const },
   { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
@@ -18,22 +18,23 @@ const AppSidebar = () => {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [priorityCount, setPriorityCount] = useState(0);
+  const [inboxCount, setInboxCount] = useState(0);
 
   useEffect(() => {
-    const fetchCount = async () => {
-      const { count } = await supabase
-        .from('questions')
-        .select('*', { count: 'exact', head: true })
-        .eq('requires_human', true)
-        .eq('status', 'pending');
-      setPriorityCount(count ?? 0);
+    const fetchCounts = async () => {
+      const [priorityRes, inboxRes] = await Promise.all([
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('requires_human', true).eq('status', 'pending'),
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]);
+      setPriorityCount(priorityRes.count ?? 0);
+      setInboxCount(inboxRes.count ?? 0);
     };
-    fetchCount();
+    fetchCounts();
 
     const channel = supabase
       .channel('priority-count')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => {
-        fetchCount();
+        fetchCounts();
       })
       .subscribe();
 
@@ -70,11 +71,14 @@ const AppSidebar = () => {
           >
             <item.icon className="w-4 h-4" />
             <span className="flex-1">{item.title}</span>
-            {item.badge && priorityCount > 0 && (
-              <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold px-1.5">
-                {priorityCount > 99 ? '99+' : priorityCount}
-              </span>
-            )}
+            {item.badgeKey && (() => {
+              const count = item.badgeKey === 'priority' ? priorityCount : inboxCount;
+              return count > 0 ? (
+                <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold px-1.5">
+                  {count > 99 ? '99+' : count}
+                </span>
+              ) : null;
+            })()}
           </NavLink>
         ))}
       </nav>
