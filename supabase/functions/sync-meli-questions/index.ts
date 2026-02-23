@@ -337,12 +337,29 @@ async function fetchAndStoreProduct(
   // Check if product already exists in DB
   const { data: existingProduct } = await supabase
     .from("products")
-    .select("id")
+    .select("id, title")
     .eq("meli_item_id", itemId)
     .eq("company_id", companyId)
     .maybeSingle();
 
-  if (existingProduct) return existingProduct.id;
+  if (existingProduct) {
+    // If title is a placeholder (equals meli_item_id), try to repair it
+    if (existingProduct.title === itemId) {
+      const item = await fetchItemFromMeli(itemId, accessToken);
+      if (item && item.title && item.title !== itemId) {
+        console.log(`Repairing product title for ${itemId}: "${existingProduct.title}" -> "${item.title}"`);
+        await supabase
+          .from("products")
+          .update({
+            title: item.title,
+            price: item.price ?? undefined,
+            permalink: item.permalink ?? undefined,
+          })
+          .eq("id", existingProduct.id);
+      }
+    }
+    return existingProduct.id;
+  }
 
   const item = await fetchItemFromMeli(itemId, accessToken);
 
