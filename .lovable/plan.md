@@ -1,48 +1,57 @@
 
 
-## Plan: Multi-usuario por compania con invite_code
+## Plan: Borrado de consultas (solo Admins) + Papelera en Settings
+
+### Contexto
+Actualmente las preguntas pueden archivarse (`status = 'archived'`) pero nunca eliminarse. Se necesita un flujo de "soft delete" → "hard delete" exclusivo para administradores.
+
+### Diseño
+
+**Nuevo estado `deleted`**: Las preguntas borradas desde el Inbox pasan a `status = 'deleted'` (soft delete). Desde una nueva sección "Papelera" en Settings, el admin puede restaurarlas o eliminarlas permanentemente.
 
 ### Cambios
 
-### 1. Migracion de base de datos
-- Agregar columna `invite_code` (text, unique) a `companies` con valor default aleatorio
-- Generar codigos para empresas existentes
-- Agregar policy INSERT en `companies` para que usuarios autenticados puedan crear empresas (necesario para el trigger)
-- Reemplazar el trigger `handle_new_user` para manejar dos flujos:
-  - Si metadata tiene `company_name`: crear empresa, asignar company_id al perfil, crear rol admin
-  - Si metadata tiene `invite_code`: buscar empresa por codigo, asignar company_id, crear rol agent
-  - Si no hay ninguno: crear perfil sin empresa (fallback actual)
+#### 1. Base de datos
+- **Migración**: Actualizar el trigger `validate_question_status` para aceptar el nuevo estado `'deleted'` además de los existentes.
+- **RLS**: Ya existe policy de DELETE bloqueada en `questions`. Se necesita agregar una policy que permita a admins hacer DELETE permanente:
+  ```sql
+  CREATE POLICY "Admins can delete company questions"
+  ON public.questions FOR DELETE TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()) AND has_role(auth.uid(), 'admin'));
+  ```
 
-### 2. AuthContext (`src/contexts/AuthContext.tsx`)
-- Actualizar firma de `signup` para aceptar `companyName` e `inviteCode` opcionales
-- Pasar esos valores como `user_metadata` en el signup
+#### 2. Inbox (`src/pages/Inbox.tsx`)
+- Sin cambios en los tabs (no se muestra `deleted` en Inbox).
 
-### 3. Login (`src/pages/Login.tsx`)
-- En modo signup, agregar dos sub-modos con tabs: "Crear empresa" y "Unirme a una empresa"
-- Tab "Crear empresa": campo nombre de empresa (requerido)
-- Tab "Unirme": campo codigo de invitacion (requerido)
-- Pasar el campo correspondiente al signup
+#### 3. QuestionDetail (`src/components/QuestionDetail.tsx`)
+- Importar `useAuth` y verificar `userRole === 'admin'`.
+- Agregar botón "Eliminar" (icono Trash2) con confirmación AlertDialog en las acciones de preguntas pendientes y archivadas.
+- Al confirmar, actualizar `status` a `'deleted'` (soft delete) y llamar `onUpdated()`.
 
-### 4. Settings (`src/pages/SettingsPage.tsx`)
-- En `CompanySection`: mostrar el invite_code actual con boton copiar
-- Agregar boton "Regenerar codigo" que actualiza el invite_code en la DB
+#### 4. Settings - Papelera (`src/pages/SettingsPage.tsx`)
+- Nueva sección `TrashSection` (solo admins), con icono Trash2.
+- Consulta preguntas con `status = 'deleted'`, mostrando lista con texto de pregunta, producto y fecha.
+- Dos acciones por ítem:
+  - **Restaurar**: cambia `status` a `'pending'`.
+  - **Eliminar definitivamente**: ejecuta `supabase.from('questions').delete().eq('id', id)` con confirmación AlertDialog.
+- Botón "Vaciar papelera" para eliminar todo de una vez (con confirmación).
+- Se renderiza en la columna derecha del grid de Settings, después de AiConfigSection.
 
-### Detalle tecnico
+#### 5. Tipo Question (`src/types/question.ts`)
+- Agregar `'deleted'` al type `QuestionStatus`.
 
-El trigger `handle_new_user` es SECURITY DEFINER, asi que puede insertar en `companies`, `profiles` y `user_roles` sin necesidad de RLS policies especificas para el trigger. Solo necesitamos asegurarnos de que el trigger tenga los permisos correctos.
+### Flujo del usuario
 
 ```text
-Signup flow:
-  User fills form
-    ├── "Crear empresa" tab → metadata: { company_name, full_name }
-    │     └── Trigger: CREATE company → SET profile.company_id → INSERT admin role
-    └── "Unirme" tab → metadata: { invite_code, full_name }
-          └── Trigger: FIND company by code → SET profile.company_id → INSERT agent role
+Inbox (admin ve botón "Eliminar")
+  → click "Eliminar" → confirmación → status='deleted' → desaparece del Inbox
+  → Settings > Papelera → ve la pregunta eliminada
+    → "Restaurar" → vuelve a Pendientes
+    → "Eliminar definitivamente" → DELETE real de la DB
 ```
 
-Archivos a modificar:
-- `supabase/migrations/` → nueva migracion (invite_code + trigger actualizado)
-- `src/contexts/AuthContext.tsx` → signup con company_name/invite_code
-- `src/pages/Login.tsx` → tabs crear empresa / unirse con codigo
-- `src/pages/SettingsPage.tsx` → mostrar/regenerar invite_code en CompanySection
+### Seguridad
+- Solo admins ven el botón de eliminar en QuestionDetail (check client-side con `userRole`).
+- La policy RLS de DELETE solo permite admins (check server-side).
+- El soft delete (`status = 'deleted'`) usa la policy UPDATE existente que permite a cualquier usuario de la company, pero el botón solo se muestra a admins.
 
