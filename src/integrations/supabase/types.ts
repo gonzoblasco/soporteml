@@ -75,7 +75,7 @@ export type Database = {
           expires_at: string
           id: string
           meli_user_id: string
-          refresh_token: string
+          refresh_token: string | null
           updated_at: string
         }
         Insert: {
@@ -85,7 +85,7 @@ export type Database = {
           expires_at: string
           id?: string
           meli_user_id: string
-          refresh_token: string
+          refresh_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -95,7 +95,7 @@ export type Database = {
           expires_at?: string
           id?: string
           meli_user_id?: string
-          refresh_token?: string
+          refresh_token?: string | null
           updated_at?: string
         }
         Relationships: [

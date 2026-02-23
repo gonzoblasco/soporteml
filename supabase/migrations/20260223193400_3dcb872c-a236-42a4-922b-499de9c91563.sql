@@ -1,0 +1,1 @@
+ALTER TABLE public.meli_tokens ALTER COLUMN refresh_token DROP NOT NULL;
