@@ -7,6 +7,7 @@ export interface QuestionRow {
   product_id: string | null;
   meli_question_id: string;
   buyer_id: string | null;
+  buyer_nickname: string | null;
   question_text: string;
   status: string;
   ai_suggested_answer: string | null;

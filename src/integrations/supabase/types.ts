@@ -197,6 +197,7 @@ export type Database = {
           answered_at: string | null
           answered_by: string | null
           buyer_id: string | null
+          buyer_nickname: string | null
           company_id: string
           created_at: string
           final_answer: string | null
@@ -214,6 +215,7 @@ export type Database = {
           answered_at?: string | null
           answered_by?: string | null
           buyer_id?: string | null
+          buyer_nickname?: string | null
           company_id: string
           created_at?: string
           final_answer?: string | null
@@ -231,6 +233,7 @@ export type Database = {
           answered_at?: string | null
           answered_by?: string | null
           buyer_id?: string | null
+          buyer_nickname?: string | null
           company_id?: string
           created_at?: string
           final_answer?: string | null

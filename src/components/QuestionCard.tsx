@@ -40,7 +40,7 @@ const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props)
         </div>
       )}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{question.buyer_id ?? 'Comprador'}</span>
+        <span>{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
         <span>{elapsed}</span>
       </div>
     </motion.button>
