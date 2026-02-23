@@ -34,6 +34,21 @@
     --sidebar-accent-foreground: 220 20% 10%;
     --sidebar-border: 220 13% 87%;
     --sidebar-ring: 45 93% 47%;
+
+    /* Custom tokens */
+    --glass: 0 0% 100% / 0.6;
+    --glow-primary: 45 93% 47% / 0.1;
+    --surface-hover: 220 14% 93%;
+    --surface-active: 220 14% 90%;
+    --badge-precio: 200 80% 45%;
+    --badge-stock: 150 60% 35%;
+    --badge-tecnico: 280 60% 50%;
+    --badge-envio: 25 85% 45%;
+    --badge-garantia: 340 65% 45%;
+    --success: 150 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 20% 10%;
   }
 
   .dark {
