@@ -4,7 +4,7 @@ import CategoryBadge from './CategoryBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Sparkles, User, Package } from 'lucide-react';
+import { Send, X, Sparkles, User, Package, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -71,6 +71,19 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
     }
   };
 
+  const handleRestore = async () => {
+    const { error } = await supabase
+      .from('questions')
+      .update({ status: 'pending' })
+      .eq('id', question.id);
+    if (error) {
+      toast.error('Error: ' + error.message);
+    } else {
+      toast.success('Pregunta restaurada a pendientes');
+      onUpdated?.();
+    }
+  };
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -117,14 +130,23 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
 
         {/* Actions */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
-          <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
-            <Send className="w-4 h-4" />
-            Publicar Respuesta
-          </Button>
-          <Button variant="outline" onClick={handleDiscard} className="gap-2">
-            <X className="w-4 h-4" />
-            Archivar
-          </Button>
+          {question.status === 'archived' ? (
+            <Button onClick={handleRestore} className="gap-2">
+              <RotateCcw className="w-4 h-4" />
+              Restaurar a Pendientes
+            </Button>
+          ) : (
+            <>
+              <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
+                <Send className="w-4 h-4" />
+                Publicar Respuesta
+              </Button>
+              <Button variant="outline" onClick={handleDiscard} className="gap-2">
+                <X className="w-4 h-4" />
+                Archivar
+              </Button>
+            </>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
