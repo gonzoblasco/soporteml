@@ -1,59 +1,43 @@
 
 
-## Plan: Modo Auto-Respuesta con filtros por categoría de producto MeLi
+## Diagnóstico
 
-### Resumen
-Agregar un modo donde las respuestas de IA se publican automáticamente en MercadoLibre sin intervención humana. El admin puede seleccionar en qué categorías de producto (ej: Accesorios) se auto-responde y cuáles requieren revisión humana (ej: Vehículos).
+El problema es claro: tanto el endpoint autenticado como el público de `/items/MLA1576204659` devuelven **403 (PA_UNAUTHORIZED)**. Esto probablemente ocurre porque el ítem pertenece a un **usuario de prueba** de MeLi, que tiene restricciones de visibilidad. En producción con ítems reales, el endpoint público debería funcionar. Sin embargo, necesitamos una solución robusta que no falle silenciosamente.
 
-### Cambios en Base de Datos
+Actualmente, cuando el fetch del ítem falla, el código simplemente continúa e inserta la pregunta con `product_id: null` y `productTitle = "Producto"`, por eso la UI muestra "Producto".
 
-**Migración 1 - Columnas nuevas:**
+## Plan de corrección
 
-- `company_settings`: agregar `auto_reply_enabled boolean default false` y `auto_reply_categories jsonb default '[]'` (array de category IDs de MeLi habilitadas para auto-respuesta).
-- `products`: agregar `meli_category_id text` y `meli_category_name text` para almacenar la categoría del producto de MeLi.
+### 1. Agregar endpoint multiget como tercer fallback (edge function)
 
-### Cambios en Edge Function `sync-meli-questions`
-
-1. **Guardar categoría del producto**: Al obtener datos del item de MeLi (`/items/{id}`), extraer `category_id` y hacer un fetch a `/categories/{id}` para obtener el nombre legible. Guardar ambos en la tabla `products`.
-
-2. **Lógica de auto-publicación**: Después de insertar la pregunta con la sugerencia de IA:
-   - Leer `auto_reply_enabled` y `auto_reply_categories` de `company_settings`.
-   - Si está habilitado, la respuesta de IA no está vacía, y la categoría del producto está en la lista permitida → llamar directamente a la API de MeLi (`POST /answers`) con la respuesta de IA.
-   - Actualizar la pregunta a `status: 'published'`, `final_answer`, `answered_at`.
-   - Si la categoría no está en la lista o auto-reply está deshabilitado, dejar como `pending` (comportamiento actual).
-
-### Cambios en Settings (`src/pages/SettingsPage.tsx`)
-
-**Nueva sección `AutoReplySection`** (solo admins), ubicada después de `AiConfigSection`:
-
-- **Toggle principal**: "Habilitar auto-respuesta" con Switch.
-- **Lista de categorías**: Consulta `SELECT DISTINCT meli_category_id, meli_category_name FROM products WHERE company_id = X AND meli_category_id IS NOT NULL` para mostrar las categorías disponibles del vendedor.
-- **Checkboxes** por cada categoría (ej: "Accesorios para Vehículos", "Repuestos de Autos") para marcar cuáles se auto-responden.
-- **Botón Guardar** que hace upsert en `company_settings`.
-- **Nota informativa**: texto explicando que solo las categorías seleccionadas se responderán automáticamente, y las demás llegarán al Inbox para revisión humana.
-
-### Flujo del usuario
+En `sync-meli-questions/index.ts`, agregar un tercer intento usando el endpoint multiget de MeLi (`/items?ids=ITEM_ID`) que tiene políticas de acceso diferentes y puede funcionar donde el endpoint individual falla.
 
 ```text
-Settings > Auto-Respuesta
-  → Activar toggle "Habilitar auto-respuesta"
-  → Ver lista de categorías de sus productos (ej: Accesorios, Vehículos, Electrónica)
-  → Tildar "Accesorios" ✓, dejar "Vehículos" sin tildar
-  → Guardar
-
-Llega pregunta sobre un producto de "Accesorios":
-  → IA genera respuesta → se publica automáticamente en MeLi → status = 'published'
-
-Llega pregunta sobre un producto de "Vehículos":
-  → IA genera sugerencia → queda como 'pending' en Inbox → agente revisa y publica manualmente
+Flujo de fallback:
+  1. GET /items/{id} con Authorization header
+  2. Si 403 → GET /items/{id} sin header (público)
+  3. Si 403 → GET /items?ids={id} con Authorization header (multiget)
+  4. Si todo falla → crear producto mínimo con título = item_id
 ```
 
-### Seguridad
-- Las policies RLS existentes en `company_settings` ya cubren que solo admins pueden leer/escribir la configuración.
-- La auto-publicación ocurre en la edge function con service role (server-side), no hay riesgo de abuso client-side.
+### 2. Crear producto mínimo cuando todo falla
+
+Si los 3 endpoints fallan, igualmente crear un registro en `products` con:
+- `title`: el `item_id` (ej: "MLA1576204659") para que al menos se muestre algo identificable
+- `meli_item_id`: el item_id
+- `company_id`: el company_id correspondiente
+
+Así el `product_id` nunca será `null` y la UI mostrará al menos el ID del ítem en lugar de "Producto".
+
+### 3. Parsear respuesta multiget
+
+El multiget devuelve un array con `{code: 200, body: {...}}`. Hay que parsear esta estructura diferente para extraer el título, precio, atributos, etc.
 
 ### Archivos a modificar
-- **Migración SQL**: nuevas columnas en `company_settings` y `products`
-- **`supabase/functions/sync-meli-questions/index.ts`**: guardar categoría, lógica de auto-reply
-- **`src/pages/SettingsPage.tsx`**: nueva sección `AutoReplySection`
+- `supabase/functions/sync-meli-questions/index.ts`: agregar fallback multiget + creación de producto mínimo
+
+### Resultado esperado
+- Preguntas futuras siempre tendrán `product_id` vinculado
+- La UI mostrará el título real del producto (si el fetch funciona) o al menos el item_id de MeLi (si todos los endpoints fallan)
+- Las preguntas existentes con `product_id = null` no se corrigen automáticamente (solo aplica a nuevas)
 
