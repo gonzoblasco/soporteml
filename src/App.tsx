@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
 import Inbox from "@/pages/Inbox";
 import PriorityInbox from "@/pages/PriorityInbox";
 import Analytics from "@/pages/Analytics";
@@ -29,16 +30,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
+};
+
+const SmartHome = () => {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+  if (!user) return <Landing />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
+    <Route path="/" element={<SmartHome />} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-      <Route path="/" element={<Inbox />} />
+      <Route path="/dashboard" element={<Inbox />} />
       <Route path="/priority" element={<PriorityInbox />} />
       <Route path="/analytics" element={<Analytics />} />
       <Route path="/settings" element={<SettingsPage />} />
