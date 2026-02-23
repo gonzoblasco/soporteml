@@ -15,6 +15,8 @@ export interface QuestionRow {
   answered_by: string | null;
   created_at: string;
   answered_at: string | null;
+  requires_human: boolean;
+  requires_human_reason: string | null;
   // joined
   product_title?: string;
   product_meli_id?: string;

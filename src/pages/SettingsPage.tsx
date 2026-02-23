@@ -583,15 +583,7 @@ const AutoReplySection = () => {
   const { companyId } = useAuth();
   const { toast } = useToast();
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const AI_CATEGORIES = [
-    { id: 'Precio', name: 'Precio' },
-    { id: 'Stock', name: 'Stock' },
-    { id: 'Técnico', name: 'Técnico' },
-    { id: 'Envío', name: 'Envío' },
-    { id: 'Garantía', name: 'Garantía' },
-    { id: 'Otro', name: 'Otro' },
-  ];
+  const [exclusionRules, setExclusionRules] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -600,25 +592,17 @@ const AutoReplySection = () => {
     (async () => {
       const { data } = await supabase
         .from('company_settings')
-        .select('auto_reply_enabled, auto_reply_categories')
+        .select('auto_reply_enabled, auto_reply_exclusion_rules')
         .eq('company_id', companyId)
         .maybeSingle();
 
       if (data) {
         setAutoReplyEnabled(data.auto_reply_enabled ?? false);
-        setSelectedCategories((data.auto_reply_categories as string[]) ?? []);
+        setExclusionRules((data as any).auto_reply_exclusion_rules ?? '');
       }
       setLoading(false);
     })();
   }, [companyId]);
-
-  const handleToggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(c => c !== categoryId)
-        : [...prev, categoryId]
-    );
-  };
 
   const handleSave = async () => {
     if (!companyId) return;
@@ -629,8 +613,8 @@ const AutoReplySection = () => {
       .upsert({
         company_id: companyId,
         auto_reply_enabled: autoReplyEnabled,
-        auto_reply_categories: selectedCategories,
-      }, { onConflict: 'company_id' });
+        auto_reply_exclusion_rules: exclusionRules || null,
+      } as any, { onConflict: 'company_id' });
 
     toast(error
       ? { title: 'Error', description: error.message, variant: 'destructive' }
@@ -666,31 +650,23 @@ const AutoReplySection = () => {
           <>
             <Separator />
             <div className="space-y-3">
-              <Label className="text-sm">Categorías habilitadas</Label>
+              <Label className="text-sm">Reglas de exclusión</Label>
               <p className="text-xs text-muted-foreground">
-                Seleccioná en qué categorías de pregunta las respuestas de IA se publicarán automáticamente. Las demás llegarán al Inbox para revisión humana.
+                Describí en texto libre qué tipo de consultas NO deben responderse automáticamente. La IA evaluará cada pregunta y derivará las que coincidan al Priority Inbox para revisión humana.
               </p>
-              <div className="space-y-2">
-                {AI_CATEGORIES.map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-3 py-1">
-                    <Checkbox
-                      id={`cat-${cat.id}`}
-                      checked={selectedCategories.includes(cat.id)}
-                      onCheckedChange={() => handleToggleCategory(cat.id)}
-                    />
-                    <Label htmlFor={`cat-${cat.id}`} className="text-sm font-normal cursor-pointer">
-                      {cat.name}
-                    </Label>
-                  </div>
-                ))
-              }
-              </div>
+              <Textarea
+                value={exclusionRules}
+                onChange={(e) => setExclusionRules(e.target.value)}
+                placeholder="Ej: Toda consulta sobre compra, venta, negociación o trueque de vehículos y motos debe ser revisada por un humano. También excluir regateos de precio y solicitudes de financiamiento."
+                rows={4}
+                className="text-sm"
+              />
             </div>
 
             <div className="rounded-lg bg-muted/50 border border-border p-3 flex gap-2">
               <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                Solo las categorías seleccionadas se responderán automáticamente. Las preguntas de otras categorías llegarán al Inbox para revisión humana.
+                La IA analizará cada pregunta y decidirá si requiere intervención humana. Las que coincidan con estas reglas aparecerán en el <strong>Priority Inbox</strong> para que un agente las revise.
               </p>
             </div>
           </>

@@ -58,11 +58,12 @@ async function generateAiAnswer(
   questionText: string,
   productContext: string,
   aiTone: string = "profesional",
-  aiCustomInstructions: string | null = null
-): Promise<{ answer: string; category: string }> {
+  aiCustomInstructions: string | null = null,
+  exclusionRules: string | null = null
+): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
-    return { answer: "", category: "Otro" };
+    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "" };
   }
 
   const toneMap: Record<string, string> = {
@@ -82,7 +83,20 @@ REGLAS IMPORTANTES:
 - No uses más de 350 caracteres en la respuesta (límite de MeLi).
 
 Clasificá cada pregunta en UNA de estas categorías: Precio, Stock, Técnico, Envío, Garantía, Otro.
-Respondé en JSON con este formato: {"answer": "tu respuesta", "category": "categoría"}`;
+
+EVALUACIÓN DE INTERVENCIÓN HUMANA:
+Determiná si esta pregunta requiere intervención humana. Marcá requires_human = true cuando:
+- Sea una negociación de precio, oferta o contraoferta
+- Involucre compra/venta/trueque de vehículos, motos, o bienes de alto valor
+- El comprador pida contacto directo, teléfono o comunicación fuera de MeLi
+- Sea una queja seria o conflicto que necesite atención personal
+- Involucre temas legales, financiamiento, o condiciones especiales de pago`;
+
+  if (exclusionRules) {
+    systemPrompt += `\n\nREGLAS ADICIONALES DE EXCLUSIÓN (marcá requires_human = true si aplican):\n${exclusionRules}`;
+  }
+
+  systemPrompt += `\n\nRespondé en JSON con este formato: {"answer": "tu respuesta", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica"}`;
 
   if (aiCustomInstructions) {
     systemPrompt += `\n\nInstrucciones adicionales del vendedor:\n${aiCustomInstructions}`;
@@ -110,7 +124,7 @@ Respondé en JSON con este formato: {"answer": "tu respuesta", "category": "cate
 
     if (!res.ok) {
       console.error("AI gateway error:", await res.text());
-      return { answer: "", category: "Otro" };
+      return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "" };
     }
 
     const data = await res.json();
@@ -122,12 +136,14 @@ Respondé en JSON con este formato: {"answer": "tu respuesta", "category": "cate
       return {
         answer: parsed.answer || "",
         category: parsed.category || "Otro",
+        requires_human: parsed.requires_human ?? false,
+        requires_human_reason: parsed.requires_human_reason || "",
       };
     }
-    return { answer: content.slice(0, 350), category: "Otro" };
+    return { answer: content.slice(0, 350), category: "Otro", requires_human: false, requires_human_reason: "" };
   } catch (e) {
     console.error("AI generation error:", e);
-    return { answer: "", category: "Otro" };
+    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "" };
   }
 }
 
@@ -214,14 +230,14 @@ Deno.serve(async (req) => {
         // Fetch AI + auto-reply settings for this company
         const { data: settings } = await supabase
           .from("company_settings")
-          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_categories")
+          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_exclusion_rules")
           .eq("company_id", tokenRow.company_id)
           .maybeSingle();
 
         const aiTone = settings?.ai_tone || "profesional";
         const aiCustomInstructions = settings?.ai_custom_instructions || null;
         const autoReplyEnabled = settings?.auto_reply_enabled ?? false;
-        const autoReplyCategories: string[] = (settings?.auto_reply_categories as string[]) ?? [];
+        const exclusionRules = settings?.auto_reply_exclusion_rules || null;
 
         if (body.resource) {
           const qRes = await fetch(`https://api.mercadolibre.com${body.resource}`, {
@@ -230,7 +246,7 @@ Deno.serve(async (req) => {
 
           if (qRes.ok) {
             const q = await qRes.json();
-            await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, autoReplyCategories);
+            await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
             totalSynced++;
           }
           continue;
@@ -250,7 +266,7 @@ Deno.serve(async (req) => {
         const questions = questionsData.questions || [];
 
         for (const q of questions) {
-          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, autoReplyCategories);
+          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
           if (synced) totalSynced++;
         }
       } catch (companyErr) {
@@ -279,7 +295,7 @@ async function processQuestion(
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null,
   autoReplyEnabled: boolean = false,
-  autoReplyCategories: string[] = []
+  exclusionRules: string | null = null
 ): Promise<boolean> {
   const meliQuestionId = String(q.id);
 
@@ -388,13 +404,10 @@ async function processQuestion(
   }
 
   // Generate AI answer
-  const { answer, category } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions);
+  const { answer, category, requires_human, requires_human_reason } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules);
 
-  // Determine if auto-reply should fire (based on AI question category)
-  const shouldAutoReply = autoReplyEnabled
-    && answer
-    && category
-    && autoReplyCategories.includes(category);
+  // Determine if auto-reply should fire
+  const shouldAutoReply = autoReplyEnabled && answer && !requires_human;
 
   if (shouldAutoReply) {
     const published = await autoPublishAnswer(accessToken, meliQuestionId, answer);
@@ -410,6 +423,8 @@ async function processQuestion(
       ai_category: category || null,
       final_answer: published ? answer : null,
       answered_at: published ? new Date().toISOString() : null,
+      requires_human: false,
+      requires_human_reason: null,
       created_at: q.date_created || new Date().toISOString(),
     });
 
@@ -430,6 +445,8 @@ async function processQuestion(
     status: "pending",
     ai_suggested_answer: answer || null,
     ai_category: category || null,
+    requires_human,
+    requires_human_reason: requires_human_reason || null,
     created_at: q.date_created || new Date().toISOString(),
   });
 
