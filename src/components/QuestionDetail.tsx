@@ -115,17 +115,25 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
           <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
         </div>
 
-        {/* AI Answer */}
+        {/* Answer */}
         <div className="flex-1 flex flex-col">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Respuesta Sugerida por IA</span>
+            <span className="text-sm font-medium text-foreground">
+              {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
+            </span>
           </div>
-          <Textarea
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            className="flex-1 min-h-[140px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
-          />
+          {question.status === 'published' ? (
+            <div className="flex-1 min-h-[140px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
+              {question.final_answer ?? answer}
+            </div>
+          ) : (
+            <Textarea
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              className="flex-1 min-h-[140px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
+            />
+          )}
         </div>
 
         {/* Actions */}
@@ -135,7 +143,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
               <RotateCcw className="w-4 h-4" />
               Restaurar a Pendientes
             </Button>
-          ) : (
+          ) : question.status === 'published' ? null : (
             <>
               <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
                 <Send className="w-4 h-4" />
