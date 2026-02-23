@@ -1,4 +1,5 @@
-import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle } from 'lucide-react';
+import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ const navItems = [
 
 const AppSidebar = () => {
   const { logout, user, profileName } = useAuth();
+  const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [priorityCount, setPriorityCount] = useState(0);
@@ -84,12 +86,22 @@ const AppSidebar = () => {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2 px-3 py-1 mb-2">
+      <div className="p-3 border-t border-sidebar-border space-y-1">
+        <div className="flex items-center gap-2 px-3 py-1">
           <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">
             {(profileName ?? user?.email ?? '?').charAt(0).toUpperCase()}
           </div>
-          <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+          <span className="text-xs text-muted-foreground truncate flex-1">{user?.email}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="h-7 w-7 rounded-full shrink-0"
+          >
+            <Sun className="w-3.5 h-3.5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute w-3.5 h-3.5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Cambiar tema</span>
+          </Button>
         </div>
         <Button
           variant="ghost"
