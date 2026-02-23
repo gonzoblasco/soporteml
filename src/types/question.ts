@@ -1,5 +1,5 @@
 export type QuestionCategory = 'Precio' | 'Stock' | 'Técnico' | 'Envío' | 'Garantía';
-export type QuestionStatus = 'pending' | 'published' | 'archived' | 'error';
+export type QuestionStatus = 'pending' | 'published' | 'archived' | 'error' | 'deleted';
 
 export interface QuestionRow {
   id: string;
