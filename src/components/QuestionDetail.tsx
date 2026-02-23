@@ -36,7 +36,8 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
     );
   }
 
-  const elapsed = formatDistanceToNow(new Date(question.created_at), { addSuffix: true, locale: es });
+  const date = new Date(question.created_at);
+  const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
 
   const handlePublish = async () => {
     setPublishing(true);
