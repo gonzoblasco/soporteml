@@ -6,18 +6,27 @@ import QuestionDetail from '@/components/QuestionDetail';
 import { Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+type StatusFilter = 'pending' | 'published' | 'archived';
+
+const TABS: { label: string; value: StatusFilter }[] = [
+  { label: 'Pendientes', value: 'pending' },
+  { label: 'Publicadas', value: 'published' },
+  { label: 'Archivadas', value: 'archived' },
+];
+
 const Inbox = () => {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('questions')
       .select('*, products(title, meli_item_id)')
-      .eq('status', 'pending')
+      .eq('status', statusFilter)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -29,9 +38,10 @@ const Inbox = () => {
       setQuestions(mapped);
     }
     setLoading(false);
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
+    setSelectedId(null);
     fetchQuestions();
   }, [fetchQuestions]);
 
@@ -52,9 +62,27 @@ const Inbox = () => {
         <div className="h-14 flex items-center px-4 border-b border-border/50">
           <h1 className="text-sm font-semibold text-foreground mr-3">Inbox</h1>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-            {filtered.length} pendientes
+            {filtered.length}
           </span>
         </div>
+
+        {/* Status Tabs */}
+        <div className="flex border-b border-border/50">
+          {TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`flex-1 py-2 text-xs font-medium transition-colors border-b-2 ${
+                statusFilter === tab.value
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div className="p-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -72,7 +100,9 @@ const Inbox = () => {
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">No hay preguntas pendientes</p>
+            <p className="text-sm text-muted-foreground text-center py-12">
+              No hay preguntas {statusFilter === 'pending' ? 'pendientes' : statusFilter === 'published' ? 'publicadas' : 'archivadas'}
+            </p>
           ) : (
             filtered.map((q) => (
               <QuestionCard
