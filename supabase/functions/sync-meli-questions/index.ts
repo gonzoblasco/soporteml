@@ -246,8 +246,8 @@ Deno.serve(async (req) => {
 
           if (qRes.ok) {
             const q = await qRes.json();
-            await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
-            totalSynced++;
+            const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
+            if (synced) totalSynced++;
           }
           continue;
         }
@@ -287,6 +287,104 @@ Deno.serve(async (req) => {
   }
 });
 
+async function fetchItemFromMeli(itemId: string, accessToken: string): Promise<any | null> {
+  try {
+    console.log(`Fetching item from MeLi: /items/${itemId}`);
+
+    // Fallback 1: Authenticated endpoint
+    let itemRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (itemRes.ok) return await itemRes.json();
+    console.log(`Auth item fetch returned ${itemRes.status}, trying public endpoint...`);
+
+    // Fallback 2: Public endpoint (no auth)
+    itemRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
+    if (itemRes.ok) return await itemRes.json();
+    console.log(`Public item fetch returned ${itemRes.status}, trying multiget endpoint...`);
+
+    // Fallback 3: Multiget endpoint
+    itemRes = await fetch(`https://api.mercadolibre.com/items?ids=${itemId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (itemRes.ok) {
+      const multigetData = await itemRes.json();
+      if (Array.isArray(multigetData) && multigetData.length > 0 && multigetData[0].code === 200) {
+        console.log(`Multiget succeeded for ${itemId}`);
+        return multigetData[0].body;
+      }
+      console.error(`Multiget returned code ${multigetData?.[0]?.code} for ${itemId}`);
+    } else {
+      console.error(`Multiget HTTP ${itemRes.status} for ${itemId}`);
+    }
+
+    console.error(`All item fetch methods failed for ${itemId}`);
+    return null;
+  } catch (e) {
+    console.error("Error fetching product:", e);
+    return null;
+  }
+}
+
+async function fetchAndStoreProduct(
+  supabase: any,
+  itemId: string,
+  companyId: string,
+  accessToken: string,
+): Promise<string | null> {
+  // Check if product already exists in DB
+  const { data: existingProduct } = await supabase
+    .from("products")
+    .select("id")
+    .eq("meli_item_id", itemId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (existingProduct) return existingProduct.id;
+
+  const item = await fetchItemFromMeli(itemId, accessToken);
+
+  if (item) {
+    const itemCategoryId = item.category_id || null;
+    let itemCategoryName: string | null = null;
+    if (itemCategoryId) {
+      itemCategoryName = await fetchMeliCategoryName(itemCategoryId);
+    }
+
+    const { data: newProduct } = await supabase
+      .from("products")
+      .insert({
+        company_id: companyId,
+        meli_item_id: itemId,
+        title: item.title,
+        price: item.price,
+        permalink: item.permalink,
+        meli_category_id: itemCategoryId,
+        meli_category_name: itemCategoryName,
+      })
+      .select("id")
+      .single();
+
+    return newProduct?.id || null;
+  }
+
+  // Minimal fallback product
+  console.log(`Creating minimal product for item_id: ${itemId}`);
+  const { data: minProduct } = await supabase
+    .from("products")
+    .insert({
+      company_id: companyId,
+      meli_item_id: itemId,
+      title: itemId,
+    })
+    .select("id")
+    .single();
+
+  return minProduct?.id || null;
+}
+
 async function processQuestion(
   supabase: any,
   q: any,
@@ -301,11 +399,31 @@ async function processQuestion(
 
   const { data: existing } = await supabase
     .from("questions")
-    .select("id")
+    .select("id, product_id")
     .eq("meli_question_id", meliQuestionId)
     .maybeSingle();
 
-  if (existing) return false;
+  if (existing) {
+    // If question exists WITH product_id, nothing to do
+    if (existing.product_id) return false;
+
+    // If no item_id to look up, nothing we can do
+    if (!q.item_id) return false;
+
+    // Repair: question exists but product_id is null — re-fetch item data
+    console.log(`Repairing question ${meliQuestionId}: product_id is null, re-fetching item ${q.item_id}`);
+    const repairedProductId = await fetchAndStoreProduct(supabase, q.item_id, companyId, accessToken);
+
+    if (repairedProductId) {
+      await supabase
+        .from("questions")
+        .update({ product_id: repairedProductId })
+        .eq("id", existing.id);
+      console.log(`Repaired question ${meliQuestionId} with product_id ${repairedProductId}`);
+      return true;
+    }
+    return false;
+  }
 
   let productTitle = "Producto";
   let productId: string | null = null;
@@ -327,50 +445,8 @@ async function processQuestion(
       productCategoryId = product.meli_category_id;
     }
 
-    // Try to fetch item data with triple fallback
-    let item: any = null;
-    try {
-      console.log(`Fetching item from MeLi: /items/${q.item_id}`);
-      
-      // Fallback 1: Authenticated endpoint
-      let itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      
-      if (itemRes.ok) {
-        item = await itemRes.json();
-      } else {
-        console.log(`Auth item fetch returned ${itemRes.status}, trying public endpoint...`);
-        
-        // Fallback 2: Public endpoint (no auth)
-        itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`);
-        
-        if (itemRes.ok) {
-          item = await itemRes.json();
-        } else {
-          console.log(`Public item fetch returned ${itemRes.status}, trying multiget endpoint...`);
-          
-          // Fallback 3: Multiget endpoint
-          itemRes = await fetch(`https://api.mercadolibre.com/items?ids=${q.item_id}`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          
-          if (itemRes.ok) {
-            const multigetData = await itemRes.json();
-            if (Array.isArray(multigetData) && multigetData.length > 0 && multigetData[0].code === 200) {
-              item = multigetData[0].body;
-              console.log(`Multiget succeeded for ${q.item_id}`);
-            } else {
-              console.error(`Multiget returned no valid data for ${q.item_id}:`, JSON.stringify(multigetData?.[0]?.code));
-            }
-          } else {
-            console.error(`All item fetch methods failed for ${q.item_id}`);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error fetching product:", e);
-    }
+    // Fetch item data using shared helper
+    const item = await fetchItemFromMeli(q.item_id, accessToken);
 
     // Process item data if we got it
     if (item) {
