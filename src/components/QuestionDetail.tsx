@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Question } from '@/data/mockData';
+import type { QuestionRow } from '@/types/question';
 import CategoryBadge from './CategoryBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,19 +8,21 @@ import { Send, X, Sparkles, User, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
-  question: Question | null;
+  question: QuestionRow | null;
+  onUpdated?: () => void;
 }
 
-const QuestionDetail = ({ question }: Props) => {
+const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [answer, setAnswer] = useState('');
   const [key, setKey] = useState('');
+  const [publishing, setPublishing] = useState(false);
 
-  // Reset answer when question changes
   if (question && question.id !== key) {
     setKey(question.id);
-    setAnswer(question.suggestedAnswer);
+    setAnswer(question.ai_suggested_answer ?? '');
   }
 
   if (!question) {
@@ -34,7 +36,39 @@ const QuestionDetail = ({ question }: Props) => {
     );
   }
 
-  const elapsed = formatDistanceToNow(question.createdAt, { addSuffix: true, locale: es });
+  const elapsed = formatDistanceToNow(new Date(question.created_at), { addSuffix: true, locale: es });
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    const { error } = await supabase
+      .from('questions')
+      .update({
+        final_answer: answer,
+        status: 'published',
+        answered_at: new Date().toISOString(),
+      })
+      .eq('id', question.id);
+    setPublishing(false);
+    if (error) {
+      toast.error('Error al publicar: ' + error.message);
+    } else {
+      toast.success('Respuesta publicada correctamente');
+      onUpdated?.();
+    }
+  };
+
+  const handleDiscard = async () => {
+    const { error } = await supabase
+      .from('questions')
+      .update({ status: 'archived' })
+      .eq('id', question.id);
+    if (error) {
+      toast.error('Error: ' + error.message);
+    } else {
+      toast.info('Pregunta archivada');
+      onUpdated?.();
+    }
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -49,21 +83,22 @@ const QuestionDetail = ({ question }: Props) => {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-2">
-            <CategoryBadge category={question.category} />
+            <CategoryBadge category={question.ai_category} />
             <span className="text-xs text-muted-foreground">{elapsed}</span>
           </div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">{question.productName}</h2>
-          <p className="text-xs text-muted-foreground font-mono">{question.productId}</p>
+          <h2 className="text-lg font-semibold text-foreground mb-1">
+            {question.product_title ?? 'Producto'}
+          </h2>
+          <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
         </div>
 
         {/* Question */}
         <div className="glass-panel rounded-lg p-4 mb-6">
           <div className="flex items-center gap-2 mb-2">
             <User className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">{question.buyerName}</span>
-            <span className="text-xs text-muted-foreground">({question.buyerId})</span>
+            <span className="text-sm font-medium text-foreground">{question.buyer_id ?? 'Comprador'}</span>
           </div>
-          <p className="text-sm text-foreground leading-relaxed">{question.questionText}</p>
+          <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
         </div>
 
         {/* AI Answer */}
@@ -81,20 +116,13 @@ const QuestionDetail = ({ question }: Props) => {
 
         {/* Actions */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
-          <Button
-            onClick={() => toast.success('Respuesta publicada correctamente')}
-            className="gap-2"
-          >
+          <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
             <Send className="w-4 h-4" />
             Publicar Respuesta
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => toast.info('Pregunta descartada')}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={handleDiscard} className="gap-2">
             <X className="w-4 h-4" />
-            Descartar
+            Archivar
           </Button>
         </div>
       </motion.div>
