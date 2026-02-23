@@ -1,57 +1,59 @@
 
 
-## Plan: Borrado de consultas (solo Admins) + Papelera en Settings
+## Plan: Modo Auto-Respuesta con filtros por categoría de producto MeLi
 
-### Contexto
-Actualmente las preguntas pueden archivarse (`status = 'archived'`) pero nunca eliminarse. Se necesita un flujo de "soft delete" → "hard delete" exclusivo para administradores.
+### Resumen
+Agregar un modo donde las respuestas de IA se publican automáticamente en MercadoLibre sin intervención humana. El admin puede seleccionar en qué categorías de producto (ej: Accesorios) se auto-responde y cuáles requieren revisión humana (ej: Vehículos).
 
-### Diseño
+### Cambios en Base de Datos
 
-**Nuevo estado `deleted`**: Las preguntas borradas desde el Inbox pasan a `status = 'deleted'` (soft delete). Desde una nueva sección "Papelera" en Settings, el admin puede restaurarlas o eliminarlas permanentemente.
+**Migración 1 - Columnas nuevas:**
 
-### Cambios
+- `company_settings`: agregar `auto_reply_enabled boolean default false` y `auto_reply_categories jsonb default '[]'` (array de category IDs de MeLi habilitadas para auto-respuesta).
+- `products`: agregar `meli_category_id text` y `meli_category_name text` para almacenar la categoría del producto de MeLi.
 
-#### 1. Base de datos
-- **Migración**: Actualizar el trigger `validate_question_status` para aceptar el nuevo estado `'deleted'` además de los existentes.
-- **RLS**: Ya existe policy de DELETE bloqueada en `questions`. Se necesita agregar una policy que permita a admins hacer DELETE permanente:
-  ```sql
-  CREATE POLICY "Admins can delete company questions"
-  ON public.questions FOR DELETE TO authenticated
-  USING (company_id = get_user_company_id(auth.uid()) AND has_role(auth.uid(), 'admin'));
-  ```
+### Cambios en Edge Function `sync-meli-questions`
 
-#### 2. Inbox (`src/pages/Inbox.tsx`)
-- Sin cambios en los tabs (no se muestra `deleted` en Inbox).
+1. **Guardar categoría del producto**: Al obtener datos del item de MeLi (`/items/{id}`), extraer `category_id` y hacer un fetch a `/categories/{id}` para obtener el nombre legible. Guardar ambos en la tabla `products`.
 
-#### 3. QuestionDetail (`src/components/QuestionDetail.tsx`)
-- Importar `useAuth` y verificar `userRole === 'admin'`.
-- Agregar botón "Eliminar" (icono Trash2) con confirmación AlertDialog en las acciones de preguntas pendientes y archivadas.
-- Al confirmar, actualizar `status` a `'deleted'` (soft delete) y llamar `onUpdated()`.
+2. **Lógica de auto-publicación**: Después de insertar la pregunta con la sugerencia de IA:
+   - Leer `auto_reply_enabled` y `auto_reply_categories` de `company_settings`.
+   - Si está habilitado, la respuesta de IA no está vacía, y la categoría del producto está en la lista permitida → llamar directamente a la API de MeLi (`POST /answers`) con la respuesta de IA.
+   - Actualizar la pregunta a `status: 'published'`, `final_answer`, `answered_at`.
+   - Si la categoría no está en la lista o auto-reply está deshabilitado, dejar como `pending` (comportamiento actual).
 
-#### 4. Settings - Papelera (`src/pages/SettingsPage.tsx`)
-- Nueva sección `TrashSection` (solo admins), con icono Trash2.
-- Consulta preguntas con `status = 'deleted'`, mostrando lista con texto de pregunta, producto y fecha.
-- Dos acciones por ítem:
-  - **Restaurar**: cambia `status` a `'pending'`.
-  - **Eliminar definitivamente**: ejecuta `supabase.from('questions').delete().eq('id', id)` con confirmación AlertDialog.
-- Botón "Vaciar papelera" para eliminar todo de una vez (con confirmación).
-- Se renderiza en la columna derecha del grid de Settings, después de AiConfigSection.
+### Cambios en Settings (`src/pages/SettingsPage.tsx`)
 
-#### 5. Tipo Question (`src/types/question.ts`)
-- Agregar `'deleted'` al type `QuestionStatus`.
+**Nueva sección `AutoReplySection`** (solo admins), ubicada después de `AiConfigSection`:
+
+- **Toggle principal**: "Habilitar auto-respuesta" con Switch.
+- **Lista de categorías**: Consulta `SELECT DISTINCT meli_category_id, meli_category_name FROM products WHERE company_id = X AND meli_category_id IS NOT NULL` para mostrar las categorías disponibles del vendedor.
+- **Checkboxes** por cada categoría (ej: "Accesorios para Vehículos", "Repuestos de Autos") para marcar cuáles se auto-responden.
+- **Botón Guardar** que hace upsert en `company_settings`.
+- **Nota informativa**: texto explicando que solo las categorías seleccionadas se responderán automáticamente, y las demás llegarán al Inbox para revisión humana.
 
 ### Flujo del usuario
 
 ```text
-Inbox (admin ve botón "Eliminar")
-  → click "Eliminar" → confirmación → status='deleted' → desaparece del Inbox
-  → Settings > Papelera → ve la pregunta eliminada
-    → "Restaurar" → vuelve a Pendientes
-    → "Eliminar definitivamente" → DELETE real de la DB
+Settings > Auto-Respuesta
+  → Activar toggle "Habilitar auto-respuesta"
+  → Ver lista de categorías de sus productos (ej: Accesorios, Vehículos, Electrónica)
+  → Tildar "Accesorios" ✓, dejar "Vehículos" sin tildar
+  → Guardar
+
+Llega pregunta sobre un producto de "Accesorios":
+  → IA genera respuesta → se publica automáticamente en MeLi → status = 'published'
+
+Llega pregunta sobre un producto de "Vehículos":
+  → IA genera sugerencia → queda como 'pending' en Inbox → agente revisa y publica manualmente
 ```
 
 ### Seguridad
-- Solo admins ven el botón de eliminar en QuestionDetail (check client-side con `userRole`).
-- La policy RLS de DELETE solo permite admins (check server-side).
-- El soft delete (`status = 'deleted'`) usa la policy UPDATE existente que permite a cualquier usuario de la company, pero el botón solo se muestra a admins.
+- Las policies RLS existentes en `company_settings` ya cubren que solo admins pueden leer/escribir la configuración.
+- La auto-publicación ocurre en la edge function con service role (server-side), no hay riesgo de abuso client-side.
+
+### Archivos a modificar
+- **Migración SQL**: nuevas columnas en `company_settings` y `products`
+- **`supabase/functions/sync-meli-questions/index.ts`**: guardar categoría, lógica de auto-reply
+- **`src/pages/SettingsPage.tsx`**: nueva sección `AutoReplySection`
 
