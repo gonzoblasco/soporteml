@@ -32,6 +32,38 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          ai_custom_instructions: string | null
+          ai_tone: string
+          company_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          ai_custom_instructions?: string | null
+          ai_tone?: string
+          company_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_custom_instructions?: string | null
+          ai_tone?: string
+          company_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meli_tokens: {
         Row: {
           access_token: string

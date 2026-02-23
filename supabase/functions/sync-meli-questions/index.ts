@@ -56,10 +56,31 @@ async function refreshTokenIfNeeded(
   return data.access_token;
 }
 
-async function generateAiAnswer(questionText: string, productTitle: string): Promise<{ answer: string; category: string }> {
+async function generateAiAnswer(
+  questionText: string,
+  productTitle: string,
+  aiTone: string = "profesional",
+  aiCustomInstructions: string | null = null
+): Promise<{ answer: string; category: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     return { answer: "", category: "Otro" };
+  }
+
+  const toneMap: Record<string, string> = {
+    profesional: "de forma profesional y cordial",
+    casual: "de forma casual, cercana y amigable",
+    tecnico: "de forma técnica y precisa",
+  };
+  const toneInstruction = toneMap[aiTone] || toneMap["profesional"];
+
+  let systemPrompt = `Sos un asistente de ventas en MercadoLibre. Respondé preguntas de compradores ${toneInstruction}.
+Clasificá cada pregunta en UNA de estas categorías: Precio, Stock, Técnico, Envío, Garantía, Otro.
+Respondé en JSON con este formato: {\"answer\": \"tu respuesta\", \"category\": \"categoría\"}
+No uses más de 350 caracteres en la respuesta (límite de MeLi).`;
+
+  if (aiCustomInstructions) {
+    systemPrompt += `\n\nInstrucciones adicionales del vendedor:\n${aiCustomInstructions}`;
   }
 
   try {
@@ -72,13 +93,7 @@ async function generateAiAnswer(questionText: string, productTitle: string): Pro
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          {
-            role: "system",
-            content: `Sos un asistente de ventas en MercadoLibre. Respondé preguntas de compradores de forma concisa, amigable y profesional.
-Clasificá cada pregunta en UNA de estas categorías: Precio, Stock, Técnico, Envío, Garantía, Otro.
-Respondé en JSON con este formato: {\"answer\": \"tu respuesta\", \"category\": \"categoría\"}
-No uses más de 350 caracteres en la respuesta (límite de MeLi).`,
-          },
+          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: `Producto: "${productTitle}"\nPregunta del comprador: "${questionText}"`,
@@ -150,6 +165,16 @@ Deno.serve(async (req) => {
           supabase, tokenRow, MELI_APP_ID, MELI_SECRET_KEY, SUPABASE_URL
         );
 
+        // Fetch AI settings for this company
+        const { data: settings } = await supabase
+          .from("company_settings")
+          .select("ai_tone, ai_custom_instructions")
+          .eq("company_id", tokenRow.company_id)
+          .maybeSingle();
+
+        const aiTone = settings?.ai_tone || "profesional";
+        const aiCustomInstructions = settings?.ai_custom_instructions || null;
+
         // If a specific resource was provided (from webhook), fetch that question directly
         if (body.resource) {
           const qRes = await fetch(`https://api.mercadolibre.com${body.resource}`, {
@@ -158,7 +183,7 @@ Deno.serve(async (req) => {
 
           if (qRes.ok) {
             const q = await qRes.json();
-            await processQuestion(supabase, q, tokenRow.company_id, accessToken);
+            await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions);
             totalSynced++;
           }
           continue;
@@ -179,7 +204,7 @@ Deno.serve(async (req) => {
         const questions = questionsData.questions || [];
 
         for (const q of questions) {
-          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken);
+          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions);
           if (synced) totalSynced++;
         }
       } catch (companyErr) {
@@ -204,7 +229,9 @@ async function processQuestion(
   supabase: any,
   q: any,
   companyId: string,
-  accessToken: string
+  accessToken: string,
+  aiTone: string = "profesional",
+  aiCustomInstructions: string | null = null
 ): Promise<boolean> {
   const meliQuestionId = String(q.id);
 
@@ -264,7 +291,7 @@ async function processQuestion(
   }
 
   // Generate AI answer
-  const { answer, category } = await generateAiAnswer(q.text, productTitle);
+  const { answer, category } = await generateAiAnswer(q.text, productTitle, aiTone, aiCustomInstructions);
 
   // Insert question
   const { error: insertErr } = await supabase.from("questions").insert({
