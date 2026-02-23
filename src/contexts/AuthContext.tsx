@@ -2,11 +2,15 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
+type AppRole = 'admin' | 'agent' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   profileName: string | null;
+  userRole: AppRole;
+  companyId: string | null;
   login: (email: string, password: string) => Promise<string | null>;
   signup: (email: string, password: string, fullName: string) => Promise<string | null>;
   logout: () => Promise<void>;
@@ -25,30 +29,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<AppRole>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Listen first
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
 
       if (session?.user) {
-        // Fetch profile name deferred
         setTimeout(async () => {
-          const { data } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name')
+            .select('full_name, company_id')
             .eq('id', session.user.id)
             .single();
-          setProfileName(data?.full_name ?? null);
+          setProfileName(profile?.full_name ?? null);
+          setCompanyId(profile?.company_id ?? null);
+
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+          setUserRole((roleData?.role as AppRole) ?? null);
         }, 0);
       } else {
         setProfileName(null);
+        setUserRole(null);
+        setCompanyId(null);
       }
     });
 
-    // Then get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -80,7 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, profileName, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, session, isLoading, profileName, userRole, companyId, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

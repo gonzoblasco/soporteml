@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.sync-meli-questions]
 verify_jwt = false
+
+[functions.disconnect-meli]
+verify_jwt = false
