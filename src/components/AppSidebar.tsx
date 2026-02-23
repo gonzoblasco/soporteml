@@ -42,7 +42,7 @@ const AppSidebar = () => {
       <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-2 px-3 py-1 mb-2">
           <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">
-            {user?.email?.charAt(0).toUpperCase()}
+            {user?.name?.charAt(0).toUpperCase()}
           </div>
           <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
         </div>

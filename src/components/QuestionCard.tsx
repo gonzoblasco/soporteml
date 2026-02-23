@@ -1,17 +1,17 @@
-import type { QuestionWithProduct } from '@/pages/Inbox';
+import type { Question } from '@/data/mockData';
 import CategoryBadge from './CategoryBadge';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 
 interface Props {
-  question: QuestionWithProduct;
+  question: Question;
   isSelected: boolean;
   onClick: () => void;
 }
 
 const QuestionCard = ({ question, isSelected, onClick }: Props) => {
-  const elapsed = formatDistanceToNow(new Date(question.created_at), { addSuffix: true, locale: es });
+  const elapsed = formatDistanceToNow(question.createdAt, { addSuffix: true, locale: es });
 
   return (
     <motion.button
@@ -24,12 +24,12 @@ const QuestionCard = ({ question, isSelected, onClick }: Props) => {
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h4 className="text-sm font-medium text-foreground line-clamp-1">{question.products.name}</h4>
+        <h4 className="text-sm font-medium text-foreground line-clamp-1">{question.productName}</h4>
         <CategoryBadge category={question.category} />
       </div>
-      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{question.question_text}</p>
+      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{question.questionText}</p>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{question.buyer_name}</span>
+        <span>{question.buyerName}</span>
         <span>{elapsed}</span>
       </div>
     </motion.button>
