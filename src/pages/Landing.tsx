@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, AlertTriangle, BarChart3, Link2, Inbox, Bot, ArrowRight, MessageSquare } from 'lucide-react';
+import { Sparkles, AlertTriangle, BarChart3, Link2, Inbox, Bot, ArrowRight, MessageSquare, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTheme } from 'next-themes';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
@@ -37,6 +38,8 @@ const steps = [
 ];
 
 const Landing = () => {
+  const { theme, setTheme } = useTheme();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navbar */}
@@ -49,6 +52,16 @@ const Landing = () => {
             <span>SoporteML</span>
           </Link>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="rounded-full"
+            >
+              <Sun className="w-4 h-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute w-4 h-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Cambiar tema</span>
+            </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/login">Iniciar Sesión</Link>
             </Button>
