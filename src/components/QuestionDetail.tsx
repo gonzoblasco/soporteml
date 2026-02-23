@@ -3,12 +3,14 @@ import type { QuestionRow } from '@/types/question';
 import CategoryBadge from './CategoryBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Sparkles, User, Package, RotateCcw } from 'lucide-react';
+import { Send, X, Sparkles, User, Package, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
   question: QuestionRow | null;
@@ -19,6 +21,8 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [answer, setAnswer] = useState('');
   const [key, setKey] = useState('');
   const [publishing, setPublishing] = useState(false);
+  const { userRole } = useAuth();
+  const isAdmin = userRole === 'admin';
 
   if (question && question.id !== key) {
     setKey(question.id);
@@ -81,6 +85,19 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
     }
   };
 
+  const handleSoftDelete = async () => {
+    const { error } = await supabase
+      .from('questions')
+      .update({ status: 'deleted' })
+      .eq('id', question.id);
+    if (error) {
+      toast.error('Error: ' + error.message);
+    } else {
+      toast.success('Pregunta movida a la papelera');
+      onUpdated?.();
+    }
+  };
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -136,10 +153,36 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         {/* Actions */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
           {question.status === 'archived' ? (
-            <Button onClick={handleRestore} className="gap-2">
-              <RotateCcw className="w-4 h-4" />
-              Restaurar a Pendientes
-            </Button>
+            <>
+              <Button onClick={handleRestore} className="gap-2">
+                <RotateCcw className="w-4 h-4" />
+                Restaurar a Pendientes
+              </Button>
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Sí, eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </>
           ) : question.status === 'published' ? null : (
             <>
               <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
@@ -150,6 +193,30 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                 <X className="w-4 h-4" />
                 Archivar
               </Button>
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Sí, eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </>
           )}
         </div>
