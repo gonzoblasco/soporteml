@@ -329,9 +329,14 @@ async function processQuestion(
 
     try {
       console.log(`Fetching item from MeLi: /items/${q.item_id}`);
-      const itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}?include_attributes=all`, {
+      // First try with auth (owner items), fallback to public endpoint
+      let itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      if (!itemRes.ok) {
+        console.log(`Auth item fetch returned ${itemRes.status}, trying public endpoint...`);
+        itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`);
+      }
       if (!itemRes.ok) {
         console.error(`Item fetch failed for ${q.item_id}: ${itemRes.status} - ${await itemRes.text()}`);
       } else {
