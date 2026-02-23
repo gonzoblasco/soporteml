@@ -21,4 +21,5 @@ export interface QuestionRow {
   // joined
   product_title?: string;
   product_meli_id?: string;
+  product_permalink?: string;
 }
