@@ -312,6 +312,7 @@ async function processQuestion(
   let productContext = `Título: ${productTitle}`;
   let productCategoryId: string | null = null;
 
+  console.log(`Question ${meliQuestionId} has item_id: ${q.item_id}, from: ${JSON.stringify(q.from)}`);
   if (q.item_id) {
     const { data: product } = await supabase
       .from("products")
@@ -327,10 +328,13 @@ async function processQuestion(
     }
 
     try {
+      console.log(`Fetching item from MeLi: /items/${q.item_id}`);
       const itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}?include_attributes=all`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (itemRes.ok) {
+      if (!itemRes.ok) {
+        console.error(`Item fetch failed for ${q.item_id}: ${itemRes.status} - ${await itemRes.text()}`);
+      } else {
         const item = await itemRes.json();
         productTitle = item.title;
 
