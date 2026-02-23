@@ -327,88 +327,135 @@ async function processQuestion(
       productCategoryId = product.meli_category_id;
     }
 
+    // Try to fetch item data with triple fallback
+    let item: any = null;
     try {
       console.log(`Fetching item from MeLi: /items/${q.item_id}`);
-      // First try with auth (owner items), fallback to public endpoint
+      
+      // Fallback 1: Authenticated endpoint
       let itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!itemRes.ok) {
-        console.log(`Auth item fetch returned ${itemRes.status}, trying public endpoint...`);
-        itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`);
-      }
-      if (!itemRes.ok) {
-        console.error(`Item fetch failed for ${q.item_id}: ${itemRes.status} - ${await itemRes.text()}`);
+      
+      if (itemRes.ok) {
+        item = await itemRes.json();
       } else {
-        const item = await itemRes.json();
-        productTitle = item.title;
-
-        // Extract and save category
-        const itemCategoryId = item.category_id || null;
-        let itemCategoryName: string | null = null;
-        if (itemCategoryId) {
-          itemCategoryName = await fetchMeliCategoryName(itemCategoryId);
-          productCategoryId = itemCategoryId;
-        }
-
-        const contextParts: string[] = [`Título: ${item.title}`];
-        if (item.price) contextParts.push(`Precio: $${item.price}`);
-        if (item.currency_id) contextParts.push(`Moneda: ${item.currency_id}`);
-        if (item.available_quantity != null) contextParts.push(`Stock disponible: ${item.available_quantity}`);
-        if (item.condition) contextParts.push(`Condición: ${item.condition === 'new' ? 'Nuevo' : 'Usado'}`);
-        if (item.warranty) contextParts.push(`Garantía: ${item.warranty}`);
-        if (item.shipping?.free_shipping) contextParts.push(`Envío gratis: Sí`);
-
-        if (item.attributes?.length) {
-          const relevantAttrs = item.attributes
-            .filter((a: any) => a.value_name && !['ITEM_CONDITION', 'GTIN'].includes(a.id))
-            .slice(0, 15)
-            .map((a: any) => `${a.name}: ${a.value_name}`);
-          if (relevantAttrs.length) contextParts.push(`Atributos:\n${relevantAttrs.join('\n')}`);
-        }
-
-        if (item.variations?.length) {
-          const varDescriptions = item.variations.map((v: any) => {
-            const combos = v.attribute_combinations?.map((a: any) => `${a.name}: ${a.value_name}`).join(', ') || '';
-            const stock = v.available_quantity != null ? ` (stock: ${v.available_quantity})` : '';
-            return `- ${combos}${stock}`;
+        console.log(`Auth item fetch returned ${itemRes.status}, trying public endpoint...`);
+        
+        // Fallback 2: Public endpoint (no auth)
+        itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`);
+        
+        if (itemRes.ok) {
+          item = await itemRes.json();
+        } else {
+          console.log(`Public item fetch returned ${itemRes.status}, trying multiget endpoint...`);
+          
+          // Fallback 3: Multiget endpoint
+          itemRes = await fetch(`https://api.mercadolibre.com/items?ids=${q.item_id}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
           });
-          contextParts.push(`Variantes disponibles:\n${varDescriptions.join('\n')}`);
-        }
-
-        productContext = contextParts.join('\n');
-
-        // Store product if not already in DB (with category)
-        if (!productId) {
-          const { data: newProduct } = await supabase
-            .from("products")
-            .insert({
-              company_id: companyId,
-              meli_item_id: q.item_id,
-              title: item.title,
-              price: item.price,
-              permalink: item.permalink,
-              meli_category_id: itemCategoryId,
-              meli_category_name: itemCategoryName,
-            })
-            .select("id")
-            .single();
-
-          if (newProduct) productId = newProduct.id;
-        } else if (itemCategoryId) {
-          // Update existing product with category if missing
-          await supabase
-            .from("products")
-            .update({
-              meli_category_id: itemCategoryId,
-              meli_category_name: itemCategoryName,
-            })
-            .eq("id", productId)
-            .is("meli_category_id", null);
+          
+          if (itemRes.ok) {
+            const multigetData = await itemRes.json();
+            if (Array.isArray(multigetData) && multigetData.length > 0 && multigetData[0].code === 200) {
+              item = multigetData[0].body;
+              console.log(`Multiget succeeded for ${q.item_id}`);
+            } else {
+              console.error(`Multiget returned no valid data for ${q.item_id}:`, JSON.stringify(multigetData?.[0]?.code));
+            }
+          } else {
+            console.error(`All item fetch methods failed for ${q.item_id}`);
+          }
         }
       }
     } catch (e) {
       console.error("Error fetching product:", e);
+    }
+
+    // Process item data if we got it
+    if (item) {
+      productTitle = item.title;
+
+      const itemCategoryId = item.category_id || null;
+      let itemCategoryName: string | null = null;
+      if (itemCategoryId) {
+        itemCategoryName = await fetchMeliCategoryName(itemCategoryId);
+        productCategoryId = itemCategoryId;
+      }
+
+      const contextParts: string[] = [`Título: ${item.title}`];
+      if (item.price) contextParts.push(`Precio: $${item.price}`);
+      if (item.currency_id) contextParts.push(`Moneda: ${item.currency_id}`);
+      if (item.available_quantity != null) contextParts.push(`Stock disponible: ${item.available_quantity}`);
+      if (item.condition) contextParts.push(`Condición: ${item.condition === 'new' ? 'Nuevo' : 'Usado'}`);
+      if (item.warranty) contextParts.push(`Garantía: ${item.warranty}`);
+      if (item.shipping?.free_shipping) contextParts.push(`Envío gratis: Sí`);
+
+      if (item.attributes?.length) {
+        const relevantAttrs = item.attributes
+          .filter((a: any) => a.value_name && !['ITEM_CONDITION', 'GTIN'].includes(a.id))
+          .slice(0, 15)
+          .map((a: any) => `${a.name}: ${a.value_name}`);
+        if (relevantAttrs.length) contextParts.push(`Atributos:\n${relevantAttrs.join('\n')}`);
+      }
+
+      if (item.variations?.length) {
+        const varDescriptions = item.variations.map((v: any) => {
+          const combos = v.attribute_combinations?.map((a: any) => `${a.name}: ${a.value_name}`).join(', ') || '';
+          const stock = v.available_quantity != null ? ` (stock: ${v.available_quantity})` : '';
+          return `- ${combos}${stock}`;
+        });
+        contextParts.push(`Variantes disponibles:\n${varDescriptions.join('\n')}`);
+      }
+
+      productContext = contextParts.join('\n');
+
+      // Store product if not already in DB
+      if (!productId) {
+        const { data: newProduct } = await supabase
+          .from("products")
+          .insert({
+            company_id: companyId,
+            meli_item_id: q.item_id,
+            title: item.title,
+            price: item.price,
+            permalink: item.permalink,
+            meli_category_id: itemCategoryId,
+            meli_category_name: itemCategoryName,
+          })
+          .select("id")
+          .single();
+
+        if (newProduct) productId = newProduct.id;
+      } else if (itemCategoryId) {
+        await supabase
+          .from("products")
+          .update({
+            meli_category_id: itemCategoryId,
+            meli_category_name: itemCategoryName,
+          })
+          .eq("id", productId)
+          .is("meli_category_id", null);
+      }
+    }
+
+    // Fallback: create minimal product so product_id is never null
+    if (!productId && q.item_id) {
+      console.log(`Creating minimal product for item_id: ${q.item_id}`);
+      const { data: minProduct } = await supabase
+        .from("products")
+        .insert({
+          company_id: companyId,
+          meli_item_id: q.item_id,
+          title: productTitle !== "Producto" ? productTitle : q.item_id,
+        })
+        .select("id")
+        .single();
+
+      if (minProduct) {
+        productId = minProduct.id;
+        if (productTitle === "Producto") productTitle = q.item_id;
+      }
     }
   }
 
