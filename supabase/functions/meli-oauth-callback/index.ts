@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     }
 
     const tokenData = await tokenRes.json();
-    const { access_token, refresh_token, expires_in, user_id: meli_user_id } = tokenData;
+    const { access_token, refresh_token = null, expires_in, user_id: meli_user_id } = tokenData;
 
     const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
 
