@@ -39,6 +39,8 @@ export type Database = {
         Row: {
           ai_custom_instructions: string | null
           ai_tone: string
+          auto_reply_categories: Json
+          auto_reply_enabled: boolean
           company_id: string
           created_at: string
           updated_at: string
@@ -46,6 +48,8 @@ export type Database = {
         Insert: {
           ai_custom_instructions?: string | null
           ai_tone?: string
+          auto_reply_categories?: Json
+          auto_reply_enabled?: boolean
           company_id: string
           created_at?: string
           updated_at?: string
@@ -53,6 +57,8 @@ export type Database = {
         Update: {
           ai_custom_instructions?: string | null
           ai_tone?: string
+          auto_reply_categories?: Json
+          auto_reply_enabled?: boolean
           company_id?: string
           created_at?: string
           updated_at?: string
@@ -113,6 +119,8 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          meli_category_id: string | null
+          meli_category_name: string | null
           meli_item_id: string
           permalink: string | null
           price: number | null
@@ -122,6 +130,8 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          meli_category_id?: string | null
+          meli_category_name?: string | null
           meli_item_id: string
           permalink?: string | null
           price?: number | null
@@ -131,6 +141,8 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          meli_category_id?: string | null
+          meli_category_name?: string | null
           meli_item_id?: string
           permalink?: string | null
           price?: number | null

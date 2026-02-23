@@ -10,7 +10,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -576,6 +578,147 @@ const AiConfigSection = () => {
   );
 };
 
+// ─── Auto Reply Section (Admins only) ───
+const AutoReplySection = () => {
+  const { companyId } = useAuth();
+  const { toast } = useToast();
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) { setLoading(false); return; }
+    (async () => {
+      // Fetch settings and available categories in parallel
+      const [settingsRes, categoriesRes] = await Promise.all([
+        supabase
+          .from('company_settings')
+          .select('auto_reply_enabled, auto_reply_categories')
+          .eq('company_id', companyId)
+          .maybeSingle(),
+        supabase
+          .from('products')
+          .select('meli_category_id, meli_category_name')
+          .eq('company_id', companyId)
+          .not('meli_category_id', 'is', null),
+      ]);
+
+      if (settingsRes.data) {
+        setAutoReplyEnabled(settingsRes.data.auto_reply_enabled ?? false);
+        setSelectedCategories((settingsRes.data.auto_reply_categories as string[]) ?? []);
+      }
+
+      // Deduplicate categories
+      const catMap = new Map<string, string>();
+      (categoriesRes.data ?? []).forEach((p: any) => {
+        if (p.meli_category_id && !catMap.has(p.meli_category_id)) {
+          catMap.set(p.meli_category_id, p.meli_category_name || p.meli_category_id);
+        }
+      });
+      setAvailableCategories(Array.from(catMap.entries()).map(([id, name]) => ({ id, name })));
+      setLoading(false);
+    })();
+  }, [companyId]);
+
+  const handleToggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(c => c !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  const handleSave = async () => {
+    if (!companyId) return;
+    setSaving(true);
+
+    const { error } = await supabase
+      .from('company_settings')
+      .upsert({
+        company_id: companyId,
+        auto_reply_enabled: autoReplyEnabled,
+        auto_reply_categories: selectedCategories,
+      }, { onConflict: 'company_id' });
+
+    toast(error
+      ? { title: 'Error', description: error.message, variant: 'destructive' }
+      : { title: 'Guardado', description: 'Configuración de auto-respuesta actualizada.' }
+    );
+    setSaving(false);
+  };
+
+  if (loading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-muted-foreground" />
+          <div>
+            <CardTitle className="text-sm">Auto-Respuesta</CardTitle>
+            <CardDescription>Publicá respuestas de IA automáticamente en MercadoLibre</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="auto-reply-toggle" className="text-sm">Habilitar auto-respuesta</Label>
+          <Switch
+            id="auto-reply-toggle"
+            checked={autoReplyEnabled}
+            onCheckedChange={setAutoReplyEnabled}
+          />
+        </div>
+
+        {autoReplyEnabled && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <Label className="text-sm">Categorías habilitadas</Label>
+              <p className="text-xs text-muted-foreground">
+                Seleccioná en qué categorías de producto las respuestas de IA se publicarán automáticamente.
+              </p>
+              {availableCategories.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                  No se encontraron categorías. Las categorías se cargan automáticamente al sincronizar preguntas de MercadoLibre.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {availableCategories.map((cat) => (
+                    <div key={cat.id} className="flex items-center gap-3 py-1">
+                      <Checkbox
+                        id={`cat-${cat.id}`}
+                        checked={selectedCategories.includes(cat.id)}
+                        onCheckedChange={() => handleToggleCategory(cat.id)}
+                      />
+                      <Label htmlFor={`cat-${cat.id}`} className="text-sm font-normal cursor-pointer">
+                        {cat.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg bg-muted/50 border border-border p-3 flex gap-2">
+              <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Solo las categorías seleccionadas se responderán automáticamente. Las preguntas de otras categorías llegarán al Inbox para revisión humana.
+              </p>
+            </div>
+          </>
+        )}
+
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Save className="w-4 h-4 mr-1" />{saving ? 'Guardando...' : 'Guardar configuración'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Trash Section (Admins only) ───
 const TrashSection = () => {
   const { companyId } = useAuth();
@@ -743,6 +886,7 @@ const SettingsPage = () => {
             <div className="space-y-4">
               <TeamSection />
               <AiConfigSection />
+              <AutoReplySection />
               <TrashSection />
             </div>
           )}
