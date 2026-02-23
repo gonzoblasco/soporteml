@@ -189,6 +189,29 @@ const CompanySection = () => {
   );
 };
 
+// ─── Sync Button ───
+const SyncButton = () => {
+  const { toast } = useToast();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    const { error } = await supabase.functions.invoke('sync-meli-questions');
+    toast(error
+      ? { title: 'Error', description: 'No se pudo sincronizar. Intentá de nuevo.', variant: 'destructive' }
+      : { title: 'Sincronización completada', description: 'Las preguntas fueron actualizadas.' }
+    );
+    setSyncing(false);
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+      <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+      {syncing ? 'Sincronizando...' : 'Forzar sincronización'}
+    </Button>
+  );
+};
+
 // ─── MeLi Connection Section ───
 const MeliConnectionSection = () => {
   const { companyId } = useAuth();
@@ -267,27 +290,30 @@ const MeliConnectionSection = () => {
               <p>Seller ID: <span className="font-mono text-foreground">{tokenInfo.meli_user_id}</span></p>
               <p>Última actualización: {formatDistanceToNow(new Date(tokenInfo.updated_at), { addSuffix: true, locale: es })}</p>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={disconnecting}>
-                  <Unplug className="w-4 h-4 mr-2" />{disconnecting ? 'Desconectando...' : 'Desconectar'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Desconectar MercadoLibre?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esto eliminará la conexión con tu cuenta de MercadoLibre. Las preguntas ya importadas se mantendrán, pero dejará de sincronizar nuevas.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Sí, desconectar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <div className="flex gap-2">
+              <SyncButton />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={disconnecting}>
+                    <Unplug className="w-4 h-4 mr-2" />{disconnecting ? 'Desconectando...' : 'Desconectar'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Desconectar MercadoLibre?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esto eliminará la conexión con tu cuenta de MercadoLibre. Las preguntas ya importadas se mantendrán, pero dejará de sincronizar nuevas.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDisconnect} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Sí, desconectar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
