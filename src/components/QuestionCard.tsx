@@ -3,14 +3,16 @@ import CategoryBadge from './CategoryBadge';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import { AlertTriangle } from 'lucide-react';
 
 interface Props {
   question: QuestionRow;
   isSelected: boolean;
   onClick: () => void;
+  showHumanReason?: boolean;
 }
 
-const QuestionCard = ({ question, isSelected, onClick }: Props) => {
+const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props) => {
   const date = new Date(question.created_at);
   const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
 
@@ -31,6 +33,12 @@ const QuestionCard = ({ question, isSelected, onClick }: Props) => {
         <CategoryBadge category={question.ai_category} />
       </div>
       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{question.question_text}</p>
+      {showHumanReason && question.requires_human_reason && (
+        <div className="flex items-start gap-1.5 mb-2 text-xs text-amber-600 dark:text-amber-400">
+          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+          <span className="line-clamp-1">{question.requires_human_reason}</span>
+        </div>
+      )}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{question.buyer_id ?? 'Comprador'}</span>
         <span>{elapsed}</span>

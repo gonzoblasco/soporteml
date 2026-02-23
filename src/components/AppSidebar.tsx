@@ -1,4 +1,4 @@
-import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X } from 'lucide-react';
+import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 const navItems = [
   { title: 'Inbox', url: '/', icon: Inbox },
+  { title: 'Priority', url: '/priority', icon: AlertTriangle },
   { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];

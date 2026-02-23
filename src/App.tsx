@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import Login from "@/pages/Login";
 import Inbox from "@/pages/Inbox";
+import PriorityInbox from "@/pages/PriorityInbox";
 import Analytics from "@/pages/Analytics";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -38,6 +39,7 @@ const AppRoutes = () => (
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
       <Route path="/" element={<Inbox />} />
+      <Route path="/priority" element={<PriorityInbox />} />
       <Route path="/analytics" element={<Analytics />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Route>

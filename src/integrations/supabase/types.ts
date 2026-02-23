@@ -41,6 +41,7 @@ export type Database = {
           ai_tone: string
           auto_reply_categories: Json
           auto_reply_enabled: boolean
+          auto_reply_exclusion_rules: string | null
           company_id: string
           created_at: string
           updated_at: string
@@ -50,6 +51,7 @@ export type Database = {
           ai_tone?: string
           auto_reply_categories?: Json
           auto_reply_enabled?: boolean
+          auto_reply_exclusion_rules?: string | null
           company_id: string
           created_at?: string
           updated_at?: string
@@ -59,6 +61,7 @@ export type Database = {
           ai_tone?: string
           auto_reply_categories?: Json
           auto_reply_enabled?: boolean
+          auto_reply_exclusion_rules?: string | null
           company_id?: string
           created_at?: string
           updated_at?: string
@@ -201,6 +204,8 @@ export type Database = {
           meli_question_id: string
           product_id: string | null
           question_text: string
+          requires_human: boolean
+          requires_human_reason: string | null
           status: string
         }
         Insert: {
@@ -216,6 +221,8 @@ export type Database = {
           meli_question_id: string
           product_id?: string | null
           question_text: string
+          requires_human?: boolean
+          requires_human_reason?: string | null
           status?: string
         }
         Update: {
@@ -231,6 +238,8 @@ export type Database = {
           meli_question_id?: string
           product_id?: string | null
           question_text?: string
+          requires_human?: boolean
+          requires_human_reason?: string | null
           status?: string
         }
         Relationships: [
