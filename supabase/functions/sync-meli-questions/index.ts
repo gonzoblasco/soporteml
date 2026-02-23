@@ -58,7 +58,7 @@ async function refreshTokenIfNeeded(
 
 async function generateAiAnswer(
   questionText: string,
-  productTitle: string,
+  productContext: string,
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null
 ): Promise<{ answer: string; category: string }> {
@@ -75,9 +75,16 @@ async function generateAiAnswer(
   const toneInstruction = toneMap[aiTone] || toneMap["profesional"];
 
   let systemPrompt = `Sos un asistente de ventas en MercadoLibre. Respondé preguntas de compradores ${toneInstruction}.
+
+REGLAS IMPORTANTES:
+- NUNCA le digas al comprador que consulte la publicación, que mire la página, o que revise los detalles del producto. Vos tenés toda la información disponible y debés responder directamente.
+- Si la información solicitada está en los datos del producto que te doy, respondé con esa información concreta.
+- Si la información NO está disponible en los datos del producto, decí honestamente que no tenés esa información y ofrecé ayuda alternativa.
+- Respondé de forma directa y útil, con datos concretos (colores, medidas, precios, etc.).
+- No uses más de 350 caracteres en la respuesta (límite de MeLi).
+
 Clasificá cada pregunta en UNA de estas categorías: Precio, Stock, Técnico, Envío, Garantía, Otro.
-Respondé en JSON con este formato: {\"answer\": \"tu respuesta\", \"category\": \"categoría\"}
-No uses más de 350 caracteres en la respuesta (límite de MeLi).`;
+Respondé en JSON con este formato: {"answer": "tu respuesta", "category": "categoría"}`;
 
   if (aiCustomInstructions) {
     systemPrompt += `\n\nInstrucciones adicionales del vendedor:\n${aiCustomInstructions}`;
@@ -96,7 +103,7 @@ No uses más de 350 caracteres en la respuesta (límite de MeLi).`;
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Producto: "${productTitle}"\nPregunta del comprador: "${questionText}"`,
+            content: `Datos del producto:\n${productContext}\n\nPregunta del comprador: "${questionText}"`,
           },
         ],
         temperature: 0.7,
@@ -111,7 +118,6 @@ No uses más de 350 caracteres en la respuesta (límite de MeLi).`;
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content ?? "";
 
-    // Extract JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -244,15 +250,16 @@ async function processQuestion(
 
   if (existing) return false;
 
-  // Get product info
+  // Get product info with full details from MeLi
   let productTitle = "Producto";
   let productId: string | null = null;
+  let productContext = `Título: ${productTitle}`;
 
   if (q.item_id) {
     // Check if product exists in our DB
     const { data: product } = await supabase
       .from("products")
-      .select("id, title")
+      .select("id, title, price")
       .eq("meli_item_id", q.item_id)
       .eq("company_id", companyId)
       .maybeSingle();
@@ -260,16 +267,49 @@ async function processQuestion(
     if (product) {
       productId = product.id;
       productTitle = product.title;
-    } else {
-      // Fetch product from MeLi and store it
-      try {
-        const itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (itemRes.ok) {
-          const item = await itemRes.json();
-          productTitle = item.title;
+    }
 
+    // Always fetch full details from MeLi for AI context
+    try {
+      const itemRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}?include_attributes=all`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (itemRes.ok) {
+        const item = await itemRes.json();
+        productTitle = item.title;
+
+        // Build rich product context for AI
+        const contextParts: string[] = [`Título: ${item.title}`];
+        if (item.price) contextParts.push(`Precio: $${item.price}`);
+        if (item.currency_id) contextParts.push(`Moneda: ${item.currency_id}`);
+        if (item.available_quantity != null) contextParts.push(`Stock disponible: ${item.available_quantity}`);
+        if (item.condition) contextParts.push(`Condición: ${item.condition === 'new' ? 'Nuevo' : 'Usado'}`);
+        if (item.warranty) contextParts.push(`Garantía: ${item.warranty}`);
+        if (item.shipping?.free_shipping) contextParts.push(`Envío gratis: Sí`);
+
+        // Attributes (color, size, material, etc.)
+        if (item.attributes?.length) {
+          const relevantAttrs = item.attributes
+            .filter((a: any) => a.value_name && !['ITEM_CONDITION', 'GTIN'].includes(a.id))
+            .slice(0, 15)
+            .map((a: any) => `${a.name}: ${a.value_name}`);
+          if (relevantAttrs.length) contextParts.push(`Atributos:\n${relevantAttrs.join('\n')}`);
+        }
+
+        // Variations (colors, sizes)
+        if (item.variations?.length) {
+          const varDescriptions = item.variations.map((v: any) => {
+            const combos = v.attribute_combinations?.map((a: any) => `${a.name}: ${a.value_name}`).join(', ') || '';
+            const stock = v.available_quantity != null ? ` (stock: ${v.available_quantity})` : '';
+            return `- ${combos}${stock}`;
+          });
+          contextParts.push(`Variantes disponibles:\n${varDescriptions.join('\n')}`);
+        }
+
+        productContext = contextParts.join('\n');
+
+        // Store product if not already in DB
+        if (!productId) {
           const { data: newProduct } = await supabase
             .from("products")
             .insert({
@@ -284,14 +324,14 @@ async function processQuestion(
 
           if (newProduct) productId = newProduct.id;
         }
-      } catch (e) {
-        console.error("Error fetching product:", e);
       }
+    } catch (e) {
+      console.error("Error fetching product:", e);
     }
   }
 
-  // Generate AI answer
-  const { answer, category } = await generateAiAnswer(q.text, productTitle, aiTone, aiCustomInstructions);
+  // Generate AI answer with full product context
+  const { answer, category } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions);
 
   // Insert question
   const { error: insertErr } = await supabase.from("questions").insert({
