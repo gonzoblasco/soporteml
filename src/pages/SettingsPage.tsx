@@ -72,9 +72,9 @@ const ProfileSection = () => {
         </div>
         <div className="space-y-2">
           <Label htmlFor="fullName">Nombre completo</Label>
-          <div className="flex gap-2">
-            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Tu nombre" />
-            <Button size="sm" onClick={handleSaveName} disabled={saving}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Tu nombre" className="flex-1" />
+            <Button size="sm" onClick={handleSaveName} disabled={saving} className="w-full sm:w-auto">
               <Save className="w-4 h-4 mr-1" />{saving ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
@@ -82,9 +82,9 @@ const ProfileSection = () => {
         <Separator />
         <div className="space-y-2">
           <Label htmlFor="newPassword">Cambiar contraseña</Label>
-          <div className="flex gap-2">
-            <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nueva contraseña" />
-            <Button size="sm" variant="outline" onClick={handleChangePassword} disabled={changingPw || !newPassword}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nueva contraseña" className="flex-1" />
+            <Button size="sm" variant="outline" onClick={handleChangePassword} disabled={changingPw || !newPassword} className="w-full sm:w-auto">
               {changingPw ? 'Cambiando...' : 'Cambiar'}
             </Button>
           </div>
@@ -135,9 +135,9 @@ const CompanySection = () => {
       <CardContent>
         <div className="space-y-2">
           <Label htmlFor="companyName">Nombre de la empresa</Label>
-          <div className="flex gap-2">
-            <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-            <Button size="sm" onClick={handleSave} disabled={saving}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="flex-1" />
+            <Button size="sm" onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
               <Save className="w-4 h-4 mr-1" />{saving ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
@@ -460,11 +460,11 @@ const SettingsPage = () => {
   const isAdmin = userRole === 'admin';
 
   return (
-    <div className="p-6 h-screen overflow-y-auto">
+    <div className="p-4 sm:p-6 h-full overflow-y-auto">
       <h1 className="text-xl font-semibold text-foreground mb-2">Settings</h1>
       <p className="text-sm text-muted-foreground mb-6">Configuración de la cuenta y preferencias</p>
 
-      <div className="space-y-4 max-w-2xl">
+      <div className="space-y-4 max-w-2xl w-full">
         <ProfileSection />
         {isAdmin && <CompanySection />}
         {isAdmin && <MeliConnectionSection />}
