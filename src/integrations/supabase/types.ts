@@ -14,89 +14,152 @@ export type Database = {
   }
   public: {
     Tables: {
-      products: {
+      companies: {
         Row: {
           created_at: string
           id: string
-          ml_product_id: string
           name: string
         }
         Insert: {
           created_at?: string
           id?: string
-          ml_product_id: string
           name: string
         }
         Update: {
           created_at?: string
           id?: string
-          ml_product_id?: string
           name?: string
         }
         Relationships: []
       }
-      profiles: {
+      products: {
         Row: {
+          company_id: string
           created_at: string
-          display_name: string | null
           id: string
-          user_id: string
+          meli_item_id: string
+          permalink: string | null
+          price: number | null
+          title: string
         }
         Insert: {
+          company_id: string
           created_at?: string
-          display_name?: string | null
           id?: string
-          user_id: string
+          meli_item_id: string
+          permalink?: string | null
+          price?: number | null
+          title: string
         }
         Update: {
+          company_id?: string
           created_at?: string
-          display_name?: string | null
           id?: string
-          user_id?: string
+          meli_item_id?: string
+          permalink?: string | null
+          price?: number | null
+          title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       questions: {
         Row: {
+          ai_category: string | null
+          ai_suggested_answer: string | null
           answered_at: string | null
-          assigned_agent_id: string | null
-          buyer_id: string
-          buyer_name: string
-          category: Database["public"]["Enums"]["question_category"]
+          answered_by: string | null
+          buyer_id: string | null
+          company_id: string
           created_at: string
+          final_answer: string | null
           id: string
-          product_id: string
+          meli_question_id: string
+          product_id: string | null
           question_text: string
-          status: Database["public"]["Enums"]["question_status"]
-          suggested_answer: string | null
+          status: string
         }
         Insert: {
+          ai_category?: string | null
+          ai_suggested_answer?: string | null
           answered_at?: string | null
-          assigned_agent_id?: string | null
-          buyer_id: string
-          buyer_name: string
-          category: Database["public"]["Enums"]["question_category"]
+          answered_by?: string | null
+          buyer_id?: string | null
+          company_id: string
           created_at?: string
+          final_answer?: string | null
           id?: string
-          product_id: string
+          meli_question_id: string
+          product_id?: string | null
           question_text: string
-          status?: Database["public"]["Enums"]["question_status"]
-          suggested_answer?: string | null
+          status?: string
         }
         Update: {
+          ai_category?: string | null
+          ai_suggested_answer?: string | null
           answered_at?: string | null
-          assigned_agent_id?: string | null
-          buyer_id?: string
-          buyer_name?: string
-          category?: Database["public"]["Enums"]["question_category"]
+          answered_by?: string | null
+          buyer_id?: string | null
+          company_id?: string
           created_at?: string
+          final_answer?: string | null
           id?: string
-          product_id?: string
+          meli_question_id?: string
+          product_id?: string | null
           question_text?: string
-          status?: Database["public"]["Enums"]["question_status"]
-          suggested_answer?: string | null
+          status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "questions_answered_by_fkey"
+            columns: ["answered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "questions_product_id_fkey"
             columns: ["product_id"]
@@ -106,14 +169,40 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "agent"
       question_category: "Precio" | "Stock" | "Técnico" | "Envío" | "Garantía"
       question_status: "pending" | "answered" | "discarded"
     }
@@ -243,6 +332,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "agent"],
       question_category: ["Precio", "Stock", "Técnico", "Envío", "Garantía"],
       question_status: ["pending", "answered", "discarded"],
     },
