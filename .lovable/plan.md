@@ -1,60 +1,46 @@
 
 
-## Diagnóstico del problema real
+## Plan: Landing Page pública para SoporteML
 
-El bug NO es solo el 403 de sandbox. Hay un problema de lógica en `processQuestion`:
+### Resumen
 
-```text
-if (existing) return false;   ← AQUÍ ESTÁ EL BUG
-```
+Crear una nueva página `Landing.tsx` en `/landing` que promocione la aplicación. La ruta `/` para usuarios no logueados mostrará esta landing en vez de redirigir a `/login`. Los usuarios logueados seguirán viendo el dashboard (Inbox) en `/`.
 
-Cuando una pregunta ya existe en la DB **pero tiene `product_id = null`** (porque falló el fetch del ítem), la función simplemente la ignora. Re-ejecutar el sync nunca arregla las preguntas rotas.
+### Cambios en el routing (`src/App.tsx`)
 
-**Evidencia:** 9+ preguntas con `product_id = null` que nunca se van a arreglar aunque el endpoint `/items/{id}` funcione perfectamente.
+- Crear un nuevo componente `SmartHome` que muestre la Landing si el usuario no está logueado, o el dashboard si lo está.
+- La ruta `/` usará este componente en lugar del `ProtectedRoute` actual.
+- Las demás rutas protegidas (`/priority`, `/analytics`, `/settings`) siguen igual.
 
-Además, el contador `totalSynced++` está mal ubicado en el path del webhook: siempre incrementa aunque `processQuestion` retorne `false`.
+### Nueva página `src/pages/Landing.tsx`
 
----
+Página de marketing con las siguientes secciones, usando framer-motion para animaciones y los design tokens existentes (primary amarillo, glass-panel, text-gradient):
 
-## Plan de corrección
+**1. Navbar fija** -- Logo + nombre "SoporteML", botones "Iniciar Sesión" y "Registrarse" (links a `/login`).
 
-### Cambio en `supabase/functions/sync-meli-questions/index.ts`
+**2. Hero** -- Titular grande: "Gestiona las preguntas de Mercado Libre con IA". Subtítulo explicando el valor. CTA principal "Empezar gratis" y CTA secundario "Ver demo". Mockup visual del dashboard (ilustración CSS/gradientes, no imagen externa).
 
-**1. Cuando la pregunta ya existe pero tiene `product_id = null`, re-intentar obtener los datos del producto**
+**3. Features (3 columnas)** -- Iconos de lucide-react:
+- Respuestas con IA (Sparkles)
+- Bandeja prioritaria (AlertTriangle)  
+- Analítica en tiempo real (BarChart3)
 
-En lugar de simplemente `return false`, si `existing` tiene `product_id = null` y la pregunta de MeLi tiene `item_id`, ejecutar la lógica de fetch del ítem y actualizar el registro existente con el `product_id` correcto.
+**4. Cómo funciona (3 pasos)** -- Conectar MeLi, Recibir preguntas, Responder con IA.
 
-```text
-Flujo actual:
-  existing? → return false (siempre)
+**5. CTA final** -- Frase de cierre + botón "Comenzar ahora".
 
-Flujo corregido:
-  existing? → ¿tiene product_id? → sí → return false
-                                  → no → ¿tiene item_id? → sí → fetch ítem → update question
-                                                           → no → return false
-```
+**6. Footer** -- Copyright, links mínimos.
 
-**2. Corregir el contador en el path del webhook**
+### Estilo
 
-Mover `totalSynced++` para que solo incremente cuando `processQuestion` retorna `true`.
+- Reutiliza los tokens CSS existentes: `--primary`, `glass-panel`, `text-gradient`, `glow-primary`.
+- Responsive: mobile-first con grid que pasa de 1 a 3 columnas.
+- Animaciones con framer-motion (fade-in on scroll via `whileInView`).
 
-**3. Mejorar la consulta del existing para traer `product_id`**
+### Archivos
 
-Cambiar `select("id")` a `select("id, product_id")` para poder evaluar si necesita re-procesamiento.
-
-### Detalle técnico
-
-Cuando se detecta una pregunta existente sin `product_id`:
-- Se ejecuta solo la parte de fetch del ítem (no se re-genera la respuesta AI)
-- Se crea el producto en la tabla `products` si no existe
-- Se hace `UPDATE` en la pregunta con el nuevo `product_id`
-- Retorna `true` para contabilizar como sincronizada
-
-### Archivo a modificar
-- `supabase/functions/sync-meli-questions/index.ts`
-
-### Resultado esperado
-- Las preguntas existentes con `product_id = null` se arreglarán automáticamente en el próximo sync
-- Nuevas preguntas seguirán funcionando igual
-- El título del producto se mostrará correctamente en la UI
+| Archivo | Acción |
+|---|---|
+| `src/pages/Landing.tsx` | Crear |
+| `src/App.tsx` | Modificar routing para `/` |
 
