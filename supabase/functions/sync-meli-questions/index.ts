@@ -387,19 +387,8 @@ async function fetchAndStoreProduct(
     return newProduct?.id || null;
   }
 
-  // Minimal fallback product
-  console.log(`Creating minimal product for item_id: ${itemId}`);
-  const { data: minProduct } = await supabase
-    .from("products")
-    .insert({
-      company_id: companyId,
-      meli_item_id: itemId,
-      title: itemId,
-    })
-    .select("id")
-    .single();
-
-  return minProduct?.id || null;
+  console.error(`Could not fetch real product data for item_id: ${itemId}. Skipping product insert to avoid placeholder title.`);
+  return null;
 }
 
 async function processQuestion(
@@ -451,7 +440,7 @@ async function processQuestion(
   if (q.item_id) {
     const { data: product } = await supabase
       .from("products")
-      .select("id, title, price, meli_category_id")
+      .select("id, title, price, permalink, meli_category_id")
       .eq("meli_item_id", q.item_id)
       .eq("company_id", companyId)
       .maybeSingle();
@@ -520,35 +509,39 @@ async function processQuestion(
           .single();
 
         if (newProduct) productId = newProduct.id;
-      } else if (itemCategoryId) {
-        await supabase
-          .from("products")
-          .update({
-            meli_category_id: itemCategoryId,
-            meli_category_name: itemCategoryName,
-          })
-          .eq("id", productId)
-          .is("meli_category_id", null);
+      } else {
+        const updates: Record<string, unknown> = {};
+
+        if (product.title !== item.title) {
+          updates.title = item.title;
+        }
+        if (item.price != null && product.price !== item.price) {
+          updates.price = item.price;
+        }
+        if (item.permalink && product.permalink !== item.permalink) {
+          updates.permalink = item.permalink;
+        }
+        if (itemCategoryId && product.meli_category_id !== itemCategoryId) {
+          updates.meli_category_id = itemCategoryId;
+          updates.meli_category_name = itemCategoryName;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from("products")
+            .update(updates)
+            .eq("id", productId);
+
+          if (typeof updates.title === "string") {
+            productTitle = updates.title;
+          }
+        }
       }
     }
 
-    // Fallback: create minimal product so product_id is never null
+    // If item lookup failed, keep question without product_id instead of storing placeholder titles
     if (!productId && q.item_id) {
-      console.log(`Creating minimal product for item_id: ${q.item_id}`);
-      const { data: minProduct } = await supabase
-        .from("products")
-        .insert({
-          company_id: companyId,
-          meli_item_id: q.item_id,
-          title: productTitle !== "Producto" ? productTitle : q.item_id,
-        })
-        .select("id")
-        .single();
-
-      if (minProduct) {
-        productId = minProduct.id;
-        if (productTitle === "Producto") productTitle = q.item_id;
-      }
+      console.error(`Could not resolve real title for item ${q.item_id} while processing question ${meliQuestionId}.`);
     }
   }
 
