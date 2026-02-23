@@ -12,7 +12,7 @@ interface AuthContextType {
   userRole: AppRole;
   companyId: string | null;
   login: (email: string, password: string) => Promise<string | null>;
-  signup: (email: string, password: string, fullName: string) => Promise<string | null>;
+  signup: (email: string, password: string, fullName: string, opts?: { companyName?: string; inviteCode?: string }) => Promise<string | null>;
   logout: () => Promise<void>;
 }
 
@@ -76,12 +76,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return error ? error.message : null;
   }, []);
 
-  const signup = useCallback(async (email: string, password: string, fullName: string): Promise<string | null> => {
+  const signup = useCallback(async (email: string, password: string, fullName: string, opts?: { companyName?: string; inviteCode?: string }): Promise<string | null> => {
+    const metadata: Record<string, string> = { full_name: fullName };
+    if (opts?.companyName) metadata.company_name = opts.companyName;
+    if (opts?.inviteCode) metadata.invite_code = opts.inviteCode;
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: metadata,
         emailRedirectTo: window.location.origin,
       },
     });
