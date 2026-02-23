@@ -5,6 +5,7 @@ import QuestionCard from '@/components/QuestionCard';
 import QuestionDetail from '@/components/QuestionDetail';
 import { Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import MeliConnectionStatus from '@/components/MeliConnectionStatus';
 
 type StatusFilter = 'pending' | 'published' | 'archived';
 
@@ -59,11 +60,14 @@ const Inbox = () => {
     <div className="flex h-screen">
       {/* Left Column */}
       <div className="w-96 border-r border-border/50 flex flex-col shrink-0">
-        <div className="h-14 flex items-center px-4 border-b border-border/50">
-          <h1 className="text-sm font-semibold text-foreground mr-3">Inbox</h1>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-            {filtered.length}
-          </span>
+        <div className="h-14 flex items-center justify-between px-4 border-b border-border/50">
+          <div className="flex items-center">
+            <h1 className="text-sm font-semibold text-foreground mr-3">Inbox</h1>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+              {filtered.length}
+            </span>
+          </div>
+          <MeliConnectionStatus />
         </div>
 
         {/* Status Tabs */}
