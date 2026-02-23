@@ -29,7 +29,7 @@ const Inbox = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('questions')
-      .select('*, products(title, meli_item_id)')
+      .select('*, products(title, meli_item_id, permalink)')
       .eq('status', statusFilter)
       .order('created_at', { ascending: false });
 
@@ -38,6 +38,7 @@ const Inbox = () => {
         ...q,
         product_title: q.products?.title ?? null,
         product_meli_id: q.products?.meli_item_id ?? null,
+        product_permalink: q.products?.permalink ?? null,
         buyer_nickname: q.buyer_nickname ?? null,
       }));
       setQuestions(mapped);

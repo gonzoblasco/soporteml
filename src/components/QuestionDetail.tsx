@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Sparkles, User, Package, RotateCcw, Trash2 } from 'lucide-react';
+import { Send, X, Sparkles, User, Package, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -115,7 +115,19 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
             <span className="text-xs text-muted-foreground">{elapsed}</span>
           </div>
           <h2 className="text-lg font-semibold text-foreground mb-1">
-            {question.product_title ?? 'Producto'}
+            {question.product_permalink ? (
+              <a
+                href={question.product_permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
+              >
+                {question.product_title ?? 'Producto'}
+                <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
+              </a>
+            ) : (
+              question.product_title ?? 'Producto'
+            )}
           </h2>
           <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
         </div>
