@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot } from 'lucide-react';
+import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -314,23 +314,22 @@ const TeamSection = () => {
   const { toast } = useToast();
   const [members, setMembers] = useState<Array<{ id: string; full_name: string | null; role: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('company_id', companyId);
+      const [{ data: profiles }, { data: roles }, { data: company }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').eq('company_id', companyId),
+        supabase.from('user_roles').select('user_id, role'),
+        supabase.from('companies').select('invite_code').eq('id', companyId).single(),
+      ]);
 
-      if (!profiles) { setLoading(false); return; }
-
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
+      if (company) setInviteCode((company as any).invite_code ?? '');
 
       const roleMap = new Map((roles ?? []).map(r => [r.user_id, r.role]));
-      setMembers(profiles.map(p => ({
+      setMembers((profiles ?? []).map(p => ({
         id: p.id,
         full_name: p.full_name,
         role: roleMap.get(p.id) ?? 'agent',
@@ -346,7 +345,6 @@ const TeamSection = () => {
       .eq('user_id', userId);
 
     if (error) {
-      // Maybe no row exists, try upsert
       const { error: upsertErr } = await supabase
         .from('user_roles')
         .upsert({ user_id: userId, role: newRole as 'admin' | 'agent' }, { onConflict: 'user_id' });
@@ -361,6 +359,24 @@ const TeamSection = () => {
     toast({ title: 'Rol actualizado' });
   };
 
+  const inviteLink = inviteCode ? `${window.location.origin}/signup?code=${inviteCode}` : '';
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast({ title: 'Link copiado', description: 'Compartilo con la persona que querés invitar.' });
+  };
+
+  const handleSendEmail = () => {
+    if (!inviteEmail.trim()) return;
+    const subject = encodeURIComponent('Te invitaron a SoporteML');
+    const body = encodeURIComponent(
+      `¡Hola!\n\nFuiste invitado/a a unirte a nuestra empresa en SoporteML.\n\nHacé click en el siguiente link para crear tu cuenta:\n${inviteLink}\n\n¡Te esperamos!`
+    );
+    window.open(`mailto:${inviteEmail.trim()}?subject=${subject}&body=${body}`, '_blank');
+    setInviteEmail('');
+    toast({ title: 'Email preparado', description: 'Se abrió tu cliente de correo con la invitación.' });
+  };
+
   if (loading) return null;
 
   return (
@@ -372,7 +388,45 @@ const TeamSection = () => {
         </div>
         <CardDescription>Miembros de tu empresa y sus roles</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Invite section */}
+        {inviteCode && (
+          <>
+            <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <UserPlus className="w-4 h-4" />
+                Invitar personas
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Link de invitación</Label>
+                <div className="flex gap-2">
+                  <Input value={inviteLink} readOnly className="flex-1 font-mono text-xs bg-muted" />
+                  <Button size="sm" variant="outline" onClick={handleCopyLink}>
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Enviar por email</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="email@ejemplo.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button size="sm" variant="outline" onClick={handleSendEmail} disabled={!inviteEmail.trim()}>
+                    <Mail className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* Members list */}
         {members.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay miembros en esta empresa.</p>
         ) : (
