@@ -1,26 +1,27 @@
 import { useState } from 'react';
-import type { Question } from '@/data/mockData';
+import type { QuestionWithProduct } from '@/pages/Inbox';
 import CategoryBadge from './CategoryBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Sparkles, User, Package } from 'lucide-react';
-import { toast } from 'sonner';
+import { Send, X, Sparkles, User, Package, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface Props {
-  question: Question | null;
+  question: QuestionWithProduct | null;
+  onPublish: (id: string) => void;
+  onDiscard: (id: string) => void;
+  isUpdating: boolean;
 }
 
-const QuestionDetail = ({ question }: Props) => {
+const QuestionDetail = ({ question, onPublish, onDiscard, isUpdating }: Props) => {
   const [answer, setAnswer] = useState('');
   const [key, setKey] = useState('');
 
-  // Reset answer when question changes
   if (question && question.id !== key) {
     setKey(question.id);
-    setAnswer(question.suggestedAnswer);
+    setAnswer(question.suggested_answer || '');
   }
 
   if (!question) {
@@ -34,7 +35,7 @@ const QuestionDetail = ({ question }: Props) => {
     );
   }
 
-  const elapsed = formatDistanceToNow(question.createdAt, { addSuffix: true, locale: es });
+  const elapsed = formatDistanceToNow(new Date(question.created_at), { addSuffix: true, locale: es });
 
   return (
     <AnimatePresence mode="wait">
@@ -46,27 +47,24 @@ const QuestionDetail = ({ question }: Props) => {
         transition={{ duration: 0.2 }}
         className="flex-1 flex flex-col p-6 overflow-y-auto"
       >
-        {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-2">
             <CategoryBadge category={question.category} />
             <span className="text-xs text-muted-foreground">{elapsed}</span>
           </div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">{question.productName}</h2>
-          <p className="text-xs text-muted-foreground font-mono">{question.productId}</p>
+          <h2 className="text-lg font-semibold text-foreground mb-1">{question.products.name}</h2>
+          <p className="text-xs text-muted-foreground font-mono">{question.products.ml_product_id}</p>
         </div>
 
-        {/* Question */}
         <div className="glass-panel rounded-lg p-4 mb-6">
           <div className="flex items-center gap-2 mb-2">
             <User className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">{question.buyerName}</span>
-            <span className="text-xs text-muted-foreground">({question.buyerId})</span>
+            <span className="text-sm font-medium text-foreground">{question.buyer_name}</span>
+            <span className="text-xs text-muted-foreground">({question.buyer_id})</span>
           </div>
-          <p className="text-sm text-foreground leading-relaxed">{question.questionText}</p>
+          <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
         </div>
 
-        {/* AI Answer */}
         <div className="flex-1 flex flex-col">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-primary" />
@@ -79,20 +77,12 @@ const QuestionDetail = ({ question }: Props) => {
           />
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
-          <Button
-            onClick={() => toast.success('Respuesta publicada correctamente')}
-            className="gap-2"
-          >
-            <Send className="w-4 h-4" />
+          <Button onClick={() => onPublish(question.id)} disabled={isUpdating} className="gap-2">
+            {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Publicar Respuesta
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => toast.info('Pregunta descartada')}
-            className="gap-2"
-          >
+          <Button variant="outline" onClick={() => onDiscard(question.id)} disabled={isUpdating} className="gap-2">
             <X className="w-4 h-4" />
             Descartar
           </Button>
