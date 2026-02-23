@@ -1,1 +1,10 @@
 project_id = "ropbkdqhqdeiwrenrmjt"
+
+[functions.meli-oauth-callback]
+verify_jwt = false
+
+[functions.meli-webhook]
+verify_jwt = false
+
+[functions.sync-meli-questions]
+verify_jwt = false
