@@ -2,12 +2,13 @@ import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriang
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
   { title: 'Inbox', url: '/', icon: Inbox },
-  { title: 'Priority', url: '/priority', icon: AlertTriangle },
+  { title: 'Priority', url: '/priority', icon: AlertTriangle, badge: true },
   { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
@@ -16,6 +17,28 @@ const AppSidebar = () => {
   const { logout, user, profileName } = useAuth();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [priorityCount, setPriorityCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('requires_human', true)
+        .eq('status', 'pending');
+      setPriorityCount(count ?? 0);
+    };
+    fetchCount();
+
+    const channel = supabase
+      .channel('priority-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => {
+        fetchCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const sidebarContent = (
     <>
@@ -46,7 +69,12 @@ const AppSidebar = () => {
             onClick={() => isMobile && setOpen(false)}
           >
             <item.icon className="w-4 h-4" />
-            <span>{item.title}</span>
+            <span className="flex-1">{item.title}</span>
+            {item.badge && priorityCount > 0 && (
+              <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold px-1.5">
+                {priorityCount > 99 ? '99+' : priorityCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
