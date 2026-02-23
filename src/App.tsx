@@ -35,6 +35,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+    <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
       <Route path="/" element={<Inbox />} />
       <Route path="/analytics" element={<Analytics />} />

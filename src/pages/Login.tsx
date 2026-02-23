@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,13 +11,16 @@ import { toast } from 'sonner';
 
 const Login = () => {
   const { login, signup, isLoading } = useAuth();
-  const [isSignup, setIsSignup] = useState(false);
+  const [searchParams] = useSearchParams();
+  const codeFromUrl = searchParams.get('code');
+
+  const [isSignup, setIsSignup] = useState(!!codeFromUrl);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [signupTab, setSignupTab] = useState<string>('create');
+  const [inviteCode, setInviteCode] = useState(codeFromUrl ?? '');
+  const [signupTab, setSignupTab] = useState<string>(codeFromUrl ? 'join' : 'create');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
