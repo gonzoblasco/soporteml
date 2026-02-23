@@ -403,29 +403,52 @@ async function processQuestion(
     }
   }
 
+  // Fetch buyer nickname
+  let buyerNickname: string | null = null;
+  if (q.from?.id) {
+    try {
+      const userRes = await fetch(`https://api.mercadolibre.com/users/${q.from.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        buyerNickname = userData.nickname || null;
+      }
+    } catch (e) {
+      console.error("Error fetching buyer info:", e);
+    }
+  }
+
+  console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`);
+
   // Generate AI answer
   const { answer, category, requires_human, requires_human_reason } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules);
 
   // Determine if auto-reply should fire
   const shouldAutoReply = autoReplyEnabled && answer && !requires_human;
 
+  const baseInsert = {
+    meli_question_id: meliQuestionId,
+    company_id: companyId,
+    product_id: productId,
+    question_text: q.text,
+    buyer_id: q.from ? String(q.from.id) : null,
+    buyer_nickname: buyerNickname,
+    ai_suggested_answer: answer || null,
+    ai_category: category || null,
+    created_at: q.date_created || new Date().toISOString(),
+  };
+
   if (shouldAutoReply) {
     const published = await autoPublishAnswer(accessToken, meliQuestionId, answer);
 
     const { error: insertErr } = await supabase.from("questions").insert({
-      meli_question_id: meliQuestionId,
-      company_id: companyId,
-      product_id: productId,
-      question_text: q.text,
-      buyer_id: q.from ? String(q.from.id) : null,
+      ...baseInsert,
       status: published ? "published" : "pending",
-      ai_suggested_answer: answer,
-      ai_category: category || null,
       final_answer: published ? answer : null,
       answered_at: published ? new Date().toISOString() : null,
       requires_human: false,
       requires_human_reason: null,
-      created_at: q.date_created || new Date().toISOString(),
     });
 
     if (insertErr) {
@@ -437,17 +460,10 @@ async function processQuestion(
 
   // Default: insert as pending
   const { error: insertErr } = await supabase.from("questions").insert({
-    meli_question_id: meliQuestionId,
-    company_id: companyId,
-    product_id: productId,
-    question_text: q.text,
-    buyer_id: q.from ? String(q.from.id) : null,
+    ...baseInsert,
     status: "pending",
-    ai_suggested_answer: answer || null,
-    ai_category: category || null,
     requires_human,
     requires_human_reason: requires_human_reason || null,
-    created_at: q.date_created || new Date().toISOString(),
   });
 
   if (insertErr) {
