@@ -19,6 +19,11 @@ async function refreshTokenIfNeeded(
     return tokenRow.access_token;
   }
 
+  if (!tokenRow.refresh_token) {
+    console.error("Token expired and no refresh_token available for company:", tokenRow.company_id);
+    throw new Error("Token expired and no refresh_token. Please reconnect MercadoLibre.");
+  }
+
   console.log("Refreshing MeLi token for company:", tokenRow.company_id);
 
   const res = await fetch("https://api.mercadolibre.com/oauth/token", {
