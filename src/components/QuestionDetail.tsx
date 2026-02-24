@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { QuestionRow } from '@/types/question';
 import CategoryBadge from './CategoryBadge';
 import { Button } from '@/components/ui/button';
@@ -24,10 +24,12 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
 
-  if (question && question.id !== key) {
-    setKey(question.id);
-    setAnswer(question.ai_suggested_answer ?? '');
-  }
+  useEffect(() => {
+    if (question) {
+      setKey(question.id);
+      setAnswer(question.ai_suggested_answer ?? '');
+    }
+  }, [question?.id]);
 
   if (!question) {
     return (
