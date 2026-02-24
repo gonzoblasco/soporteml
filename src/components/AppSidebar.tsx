@@ -1,4 +1,4 @@
-import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon } from 'lucide-react';
+import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ const navItems = [
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
+const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
 const AppSidebar = () => {
   const { logout, user, profileName } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -83,6 +84,17 @@ const AppSidebar = () => {
             })()}
           </NavLink>
         ))}
+        {user?.email === SUPER_ADMIN_EMAIL && (
+          <NavLink
+            to="/admin"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            activeClassName="bg-sidebar-accent text-foreground font-medium"
+            onClick={() => isMobile && setOpen(false)}
+          >
+            <Shield className="w-4 h-4" />
+            <span>Admin</span>
+          </NavLink>
+        )}
       </nav>
 
       {/* Footer */}

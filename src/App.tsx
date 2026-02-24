@@ -14,6 +14,7 @@ import Analytics from "@/pages/Analytics";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
+import AdminPanel from "./pages/AdminPanel";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const AppRoutes = () => (
       <Route path="/priority" element={<PriorityInbox />} />
       <Route path="/analytics" element={<Analytics />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/admin" element={<AdminPanel />} />
     </Route>
     <Route path="/design-test" element={<DesignTest />} />
     <Route path="*" element={<NotFound />} />
