@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
         // Fetch AI + auto-reply settings for this company
         const { data: settings } = await supabase
           .from("company_settings")
-          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_exclusion_rules")
+          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_exclusion_rules, sync_interval_minutes, last_synced_at")
           .eq("company_id", tokenRow.company_id)
           .maybeSingle();
 
@@ -243,6 +243,17 @@ Deno.serve(async (req) => {
         const aiCustomInstructions = settings?.ai_custom_instructions || null;
         const autoReplyEnabled = settings?.auto_reply_enabled ?? false;
         const exclusionRules = settings?.auto_reply_exclusion_rules || null;
+
+        // For cron-triggered calls, respect per-company sync interval
+        const isCron = body.source === "cron";
+        if (isCron && settings?.last_synced_at) {
+          const intervalMs = (settings.sync_interval_minutes ?? 15) * 60 * 1000;
+          const elapsed = Date.now() - new Date(settings.last_synced_at).getTime();
+          if (elapsed < intervalMs) {
+            console.log(`Skipping company ${tokenRow.company_id}: last synced ${Math.round(elapsed / 1000)}s ago, interval is ${settings.sync_interval_minutes}min`);
+            continue;
+          }
+        }
 
         if (body.resource) {
           const qRes = await fetch(`https://api.mercadolibre.com${body.resource}`, {
@@ -274,6 +285,14 @@ Deno.serve(async (req) => {
           const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
           if (synced) totalSynced++;
         }
+
+        // Update last_synced_at for this company
+        await supabase
+          .from("company_settings")
+          .upsert(
+            { company_id: tokenRow.company_id, last_synced_at: new Date().toISOString() },
+            { onConflict: "company_id" }
+          );
       } catch (companyErr) {
         console.error(`Error syncing for company ${tokenRow.company_id}:`, companyErr);
       }
