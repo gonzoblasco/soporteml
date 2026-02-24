@@ -1,9 +1,9 @@
-import type { QuestionRow } from '@/types/question';
-import CategoryBadge from './CategoryBadge';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { motion } from 'framer-motion';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import type { QuestionRow } from "@/types/question";
+import CategoryBadge from "./CategoryBadge";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { motion } from "framer-motion";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 
 interface Props {
   question: QuestionRow;
@@ -14,33 +14,36 @@ interface Props {
 
 const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props) => {
   const date = new Date(question.created_at);
-  const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
+  const elapsed = isNaN(date.getTime()) ? "" : formatDistanceToNow(date, { addSuffix: true, locale: es });
+  const fallbackUrl = question.product_meli_id
+    ? `https://listado.mercadolibre.com.ar/${question.product_meli_id}`
+    : null;
+  const href = question.product_permalink ?? fallbackUrl;
 
   return (
     <motion.button
       layout
       onClick={onClick}
       className={`w-full text-left p-4 rounded-lg border transition-colors ${
-        isSelected
-          ? 'bg-accent border-primary/30 shadow-sm'
-          : 'bg-card/40 border-border/50 hover:bg-accent/50'
+        isSelected ? "bg-accent border-primary/30 shadow-sm" : "bg-card/40 border-border/50 hover:bg-accent/50"
       }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <h4 className="text-sm font-medium text-foreground line-clamp-1">
-          {question.product_permalink ? (
+          {href ? (
             <a
-              href={question.product_permalink}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="hover:text-primary hover:underline inline-flex items-center gap-1"
+              title={question.product_permalink ? "Abrir publicación" : "Buscar por ID (fallback)"}
             >
-              {question.product_title ?? 'Producto'}
+              {question.product_title ?? question.product_meli_id ?? "Producto"}
               <ExternalLink className="w-3 h-3 shrink-0 opacity-50" />
             </a>
           ) : (
-            question.product_title ?? 'Producto'
+            (question.product_title ?? "Producto")
           )}
         </h4>
         <CategoryBadge category={question.ai_category} />
@@ -53,7 +56,7 @@ const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props)
         </div>
       )}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
+        <span>{question.buyer_nickname ?? question.buyer_id ?? "Comprador"}</span>
         <span>{elapsed}</span>
       </div>
     </motion.button>
