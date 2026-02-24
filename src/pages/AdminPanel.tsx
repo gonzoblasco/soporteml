@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield } from 'lucide-react';
+import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
 
@@ -48,10 +49,12 @@ const AdminPanel = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="inquiries" className="gap-2"><Mail className="w-4 h-4" />Consultas</TabsTrigger>
           <TabsTrigger value="companies" className="gap-2"><Building2 className="w-4 h-4" />Companies</TabsTrigger>
+          <TabsTrigger value="users" className="gap-2"><UserCircle className="w-4 h-4" />Usuarios</TabsTrigger>
         </TabsList>
 
         <TabsContent value="inquiries"><InquiriesTab /></TabsContent>
         <TabsContent value="companies"><CompaniesTab /></TabsContent>
+        <TabsContent value="users"><UsersTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -275,6 +278,80 @@ const CompaniesTab = () => {
         </CardContent>
       </Card>
     </div>
+  );
+};
+
+/* ─── Users Tab ─── */
+interface AdminUser {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  company_id: string | null;
+  company_name: string | null;
+  role: string | null;
+  created_at: string;
+}
+
+const UsersTab = () => {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase.rpc('get_admin_users');
+      if (error) {
+        console.error('Error fetching users:', error);
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+      setUsers((data as AdminUser[]) ?? []);
+      setLoading(false);
+    };
+    fetchUsers();
+  }, []);
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Usuarios registrados</CardTitle>
+        <CardDescription>{users.length} usuario{users.length !== 1 ? 's' : ''}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {users.length === 0 ? (
+          <p className="text-muted-foreground text-sm text-center py-4">No hay usuarios registrados aún.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead className="hidden md:table-cell">Company</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Registro</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map(u => (
+                <TableRow key={u.user_id}>
+                  <TableCell className="font-medium">{u.full_name ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">{u.company_name ?? '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant={u.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                      {u.role ?? 'sin rol'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                    {new Date(u.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
