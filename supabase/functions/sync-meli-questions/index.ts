@@ -2,10 +2,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-async function refreshTokenIfNeeded(supabase: any, tokenRow: any, appId: string, secretKey: string): Promise<string> {
+async function refreshTokenIfNeeded(
+  supabase: any,
+  tokenRow: any,
+  appId: string,
+  secretKey: string,
+): Promise<string> {
   const now = new Date();
   const expiresAt = new Date(tokenRow.expires_at);
 
@@ -53,7 +59,7 @@ async function generateAiAnswer(
   productContext: string,
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null,
-  exclusionRules: string | null = null,
+  exclusionRules: string | null = null
 ): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -154,7 +160,11 @@ async function fetchMeliCategoryName(categoryId: string): Promise<string> {
   return categoryId;
 }
 
-async function autoPublishAnswer(accessToken: string, meliQuestionId: string, answerText: string): Promise<boolean> {
+async function autoPublishAnswer(
+  accessToken: string,
+  meliQuestionId: string,
+  answerText: string
+): Promise<boolean> {
   try {
     const res = await fetch("https://api.mercadolibre.com/answers", {
       method: "POST",
@@ -194,11 +204,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     let body: any = {};
-    try {
-      body = await req.json();
-    } catch {
-      /* cron calls with empty body */
-    }
+    try { body = await req.json(); } catch { /* cron calls with empty body */ }
 
     let query = supabase.from("meli_tokens").select("*");
     if (body.meli_user_id) {
@@ -217,7 +223,9 @@ Deno.serve(async (req) => {
 
     for (const tokenRow of tokenRows) {
       try {
-        const accessToken = await refreshTokenIfNeeded(supabase, tokenRow, MELI_APP_ID, MELI_SECRET_KEY);
+        const accessToken = await refreshTokenIfNeeded(
+          supabase, tokenRow, MELI_APP_ID, MELI_SECRET_KEY
+        );
 
         // Fetch AI + auto-reply settings for this company
         const { data: settings } = await supabase
@@ -238,16 +246,7 @@ Deno.serve(async (req) => {
 
           if (qRes.ok) {
             const q = await qRes.json();
-            const synced = await processQuestion(
-              supabase,
-              q,
-              tokenRow.company_id,
-              accessToken,
-              aiTone,
-              aiCustomInstructions,
-              autoReplyEnabled,
-              exclusionRules,
-            );
+            const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
             if (synced) totalSynced++;
           }
           continue;
@@ -255,7 +254,7 @@ Deno.serve(async (req) => {
 
         const questionsRes = await fetch(
           `https://api.mercadolibre.com/my/received_questions/search?status=UNANSWERED&seller_id=${tokenRow.meli_user_id}&sort_fields=date_created&sort_types=DESC&limit=50`,
-          { headers: { Authorization: `Bearer ${accessToken}` } },
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
 
         if (!questionsRes.ok) {
@@ -267,16 +266,7 @@ Deno.serve(async (req) => {
         const questions = questionsData.questions || [];
 
         for (const q of questions) {
-          const synced = await processQuestion(
-            supabase,
-            q,
-            tokenRow.company_id,
-            accessToken,
-            aiTone,
-            aiCustomInstructions,
-            autoReplyEnabled,
-            exclusionRules,
-          );
+          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
           if (synced) totalSynced++;
         }
       } catch (companyErr) {
@@ -284,9 +274,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ synced: totalSynced, message: `Synced ${totalSynced} questions` }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ synced: totalSynced, message: `Synced ${totalSynced} questions` }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Sync error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
@@ -396,9 +387,7 @@ async function fetchAndStoreProduct(
     return newProduct?.id || null;
   }
 
-  console.error(
-    `Could not fetch real product data for item_id: ${itemId}. Skipping product insert to avoid placeholder title.`,
-  );
+  console.error(`Could not fetch real product data for item_id: ${itemId}. Skipping product insert to avoid placeholder title.`);
   return null;
 }
 
@@ -410,7 +399,7 @@ async function processQuestion(
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null,
   autoReplyEnabled: boolean = false,
-  exclusionRules: string | null = null,
+  exclusionRules: string | null = null
 ): Promise<boolean> {
   const meliQuestionId = String(q.id);
 
@@ -434,10 +423,7 @@ async function processQuestion(
     if (repairedProductId) {
       await supabase
         .from("questions")
-        .update({
-          product_id: repairedProductId,
-          product_meli_id: q.item_id ?? null, // ✅ NUEVO
-        })
+        .update({ product_id: repairedProductId })
         .eq("id", existing.id);
       console.log(`Repaired question ${meliQuestionId} with product_id ${repairedProductId}`);
       return true;
@@ -483,28 +469,28 @@ async function processQuestion(
       if (item.price) contextParts.push(`Precio: $${item.price}`);
       if (item.currency_id) contextParts.push(`Moneda: ${item.currency_id}`);
       if (item.available_quantity != null) contextParts.push(`Stock disponible: ${item.available_quantity}`);
-      if (item.condition) contextParts.push(`Condición: ${item.condition === "new" ? "Nuevo" : "Usado"}`);
+      if (item.condition) contextParts.push(`Condición: ${item.condition === 'new' ? 'Nuevo' : 'Usado'}`);
       if (item.warranty) contextParts.push(`Garantía: ${item.warranty}`);
       if (item.shipping?.free_shipping) contextParts.push(`Envío gratis: Sí`);
 
       if (item.attributes?.length) {
         const relevantAttrs = item.attributes
-          .filter((a: any) => a.value_name && !["ITEM_CONDITION", "GTIN"].includes(a.id))
+          .filter((a: any) => a.value_name && !['ITEM_CONDITION', 'GTIN'].includes(a.id))
           .slice(0, 15)
           .map((a: any) => `${a.name}: ${a.value_name}`);
-        if (relevantAttrs.length) contextParts.push(`Atributos:\n${relevantAttrs.join("\n")}`);
+        if (relevantAttrs.length) contextParts.push(`Atributos:\n${relevantAttrs.join('\n')}`);
       }
 
       if (item.variations?.length) {
         const varDescriptions = item.variations.map((v: any) => {
-          const combos = v.attribute_combinations?.map((a: any) => `${a.name}: ${a.value_name}`).join(", ") || "";
-          const stock = v.available_quantity != null ? ` (stock: ${v.available_quantity})` : "";
+          const combos = v.attribute_combinations?.map((a: any) => `${a.name}: ${a.value_name}`).join(', ') || '';
+          const stock = v.available_quantity != null ? ` (stock: ${v.available_quantity})` : '';
           return `- ${combos}${stock}`;
         });
-        contextParts.push(`Variantes disponibles:\n${varDescriptions.join("\n")}`);
+        contextParts.push(`Variantes disponibles:\n${varDescriptions.join('\n')}`);
       }
 
-      productContext = contextParts.join("\n");
+      productContext = contextParts.join('\n');
 
       // Store product if not already in DB
       if (!productId) {
@@ -541,7 +527,10 @@ async function processQuestion(
         }
 
         if (Object.keys(updates).length > 0) {
-          await supabase.from("products").update(updates).eq("id", productId);
+          await supabase
+            .from("products")
+            .update(updates)
+            .eq("id", productId);
 
           if (typeof updates.title === "string") {
             productTitle = updates.title;
@@ -555,14 +544,6 @@ async function processQuestion(
       console.error(`Could not resolve real title for item ${q.item_id} while processing question ${meliQuestionId}.`);
     }
   }
-
-  await supabase
-    .from("questions")
-    .update({
-      product_id: productId, // puede ser null
-      product_meli_id: q.item_id ?? null, // ✅ SIEMPRE
-    })
-    .eq("id", existing.id);
 
   // Fetch buyer nickname
   let buyerNickname: string | null = null;
@@ -580,18 +561,10 @@ async function processQuestion(
     }
   }
 
-  console.log(
-    `Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`,
-  );
+  console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`);
 
   // Generate AI answer
-  const { answer, category, requires_human, requires_human_reason } = await generateAiAnswer(
-    q.text,
-    productContext,
-    aiTone,
-    aiCustomInstructions,
-    exclusionRules,
-  );
+  const { answer, category, requires_human, requires_human_reason } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules);
 
   // Determine if auto-reply should fire
   const shouldAutoReply = autoReplyEnabled && answer && !requires_human;
