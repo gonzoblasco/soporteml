@@ -105,7 +105,7 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
   };
 
   return (
-    <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
+    <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20 h-full overflow-hidden">
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4">
           {/* Product Image */}
