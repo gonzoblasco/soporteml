@@ -109,7 +109,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -10 }}
         transition={{ duration: 0.2 }}
-        className="flex-1 flex overflow-hidden"
+        className="flex-1 flex overflow-hidden h-full min-h-0"
       >
         {/* Main content */}
         <div className="flex-1 flex flex-col p-6 overflow-y-auto">
