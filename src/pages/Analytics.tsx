@@ -97,14 +97,14 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-full">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="p-6 overflow-y-auto h-screen">
+    <div className="p-6 overflow-y-auto h-full">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-foreground">Analytics</h1>
         <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
