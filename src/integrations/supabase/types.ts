@@ -42,6 +42,8 @@ export type Database = {
           auto_reply_categories: Json
           auto_reply_enabled: boolean
           auto_reply_exclusion_rules: string | null
+          auto_reply_mode: string
+          business_hours: Json
           company_id: string
           created_at: string
           updated_at: string
@@ -52,6 +54,8 @@ export type Database = {
           auto_reply_categories?: Json
           auto_reply_enabled?: boolean
           auto_reply_exclusion_rules?: string | null
+          auto_reply_mode?: string
+          business_hours?: Json
           company_id: string
           created_at?: string
           updated_at?: string
@@ -62,6 +66,8 @@ export type Database = {
           auto_reply_categories?: Json
           auto_reply_enabled?: boolean
           auto_reply_exclusion_rules?: string | null
+          auto_reply_mode?: string
+          business_hours?: Json
           company_id?: string
           created_at?: string
           updated_at?: string
