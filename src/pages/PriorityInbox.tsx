@@ -19,7 +19,7 @@ const PriorityInbox = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('questions')
-      .select('*, products(title, meli_item_id, permalink)')
+      .select('*, products(title, meli_item_id, permalink, price)')
       .eq('requires_human', true)
       .in('status', ['pending'])
       .order('created_at', { ascending: false });
@@ -30,6 +30,7 @@ const PriorityInbox = () => {
         product_title: q.products?.title ?? null,
         product_meli_id: q.products?.meli_item_id ?? null,
         product_permalink: q.products?.permalink ?? null,
+        product_price: q.products?.price ?? null,
       }));
       setQuestions(mapped);
     }

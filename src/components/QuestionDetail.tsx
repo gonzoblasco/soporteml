@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, X, Sparkles, User, Package, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
+import ProductSideCard from './ProductSideCard';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -108,132 +109,143 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -10 }}
         transition={{ duration: 0.2 }}
-        className="flex-1 flex flex-col p-6 overflow-y-auto"
+        className="flex-1 flex overflow-hidden"
       >
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <CategoryBadge category={question.ai_category} />
-            <span className="text-xs text-muted-foreground">{elapsed}</span>
-          </div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">
-            {question.product_permalink ? (
-              <a
-                href={question.product_permalink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
-              >
-                {question.product_title ?? 'Producto'}
-                <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
-              </a>
-            ) : (
-              question.product_title ?? 'Producto'
-            )}
-          </h2>
-          <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
-        </div>
-
-        {/* Question */}
-        <div className="glass-panel rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">{question.buyer_id ?? 'Comprador'}</span>
-          </div>
-          <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
-        </div>
-
-        {/* Answer */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">
-              {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
-            </span>
-          </div>
-          {question.status === 'published' ? (
-            <div className="flex-1 min-h-[140px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
-              {question.final_answer ?? answer}
+        {/* Main content */}
+        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <CategoryBadge category={question.ai_category} />
+              <span className="text-xs text-muted-foreground">{elapsed}</span>
             </div>
-          ) : (
-            <Textarea
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              className="flex-1 min-h-[140px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
-            />
-          )}
+            <h2 className="text-lg font-semibold text-foreground mb-1">
+              {question.product_permalink ? (
+                <a
+                  href={question.product_permalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
+                >
+                  {question.product_title ?? 'Producto'}
+                  <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
+                </a>
+              ) : (
+                question.product_title ?? 'Producto'
+              )}
+            </h2>
+            <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
+          </div>
+
+          {/* Question */}
+          <div className="glass-panel rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
+            </div>
+            <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
+          </div>
+
+          {/* Answer */}
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">
+                {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
+              </span>
+            </div>
+            {question.status === 'published' ? (
+              <div className="flex-1 min-h-[140px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
+                {question.final_answer ?? answer}
+              </div>
+            ) : (
+              <Textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                className="flex-1 min-h-[140px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
+              />
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
+            {question.status === 'archived' ? (
+              <>
+                <Button onClick={handleRestore} className="gap-2">
+                  <RotateCcw className="w-4 h-4" />
+                  Restaurar a Pendientes
+                </Button>
+                {isAdmin && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Sí, eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
+            ) : question.status === 'published' ? null : (
+              <>
+                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
+                  <Send className="w-4 h-4" />
+                  Publicar Respuesta
+                </Button>
+                <Button variant="outline" onClick={handleDiscard} className="gap-2">
+                  <X className="w-4 h-4" />
+                  Archivar
+                </Button>
+                {isAdmin && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Sí, eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
-          {question.status === 'archived' ? (
-            <>
-              <Button onClick={handleRestore} className="gap-2">
-                <RotateCcw className="w-4 h-4" />
-                Restaurar a Pendientes
-              </Button>
-              {isAdmin && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
-                      <Trash2 className="w-4 h-4" />
-                      Eliminar
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Sí, eliminar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </>
-          ) : question.status === 'published' ? null : (
-            <>
-              <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
-                <Send className="w-4 h-4" />
-                Publicar Respuesta
-              </Button>
-              <Button variant="outline" onClick={handleDiscard} className="gap-2">
-                <X className="w-4 h-4" />
-                Archivar
-              </Button>
-              {isAdmin && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
-                      <Trash2 className="w-4 h-4" />
-                      Eliminar
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Sí, eliminar
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </>
-          )}
-        </div>
+        {/* Product Side Card */}
+        <ProductSideCard
+          meliItemId={question.product_meli_id}
+          fallbackTitle={question.product_title}
+          fallbackPrice={question.product_price}
+          fallbackPermalink={question.product_permalink}
+        />
       </motion.div>
     </AnimatePresence>
   );
