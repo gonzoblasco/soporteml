@@ -42,9 +42,9 @@ const MeliConnectionStatus = () => {
         <>
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
           <span className="text-muted-foreground">
-            MercadoLibre conectado
+            ML conectado
             {lastSync && (
-              <> · última sync {formatDistanceToNow(new Date(lastSync), { addSuffix: true, locale: es })}</>
+              <> – sync {formatDistanceToNow(new Date(lastSync), { locale: es })}</>
             )}
           </span>
         </>
