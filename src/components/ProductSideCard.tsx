@@ -3,6 +3,8 @@ import { ExternalLink, Package, Tag, Truck, Shield, Layers, DollarSign, Loader2 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MeliItem {
   title: string;
@@ -22,10 +24,6 @@ interface MeliItem {
   }>;
 }
 
-interface MeliDescription {
-  plain_text: string;
-}
-
 interface Props {
   meliItemId: string | undefined | null;
   fallbackTitle?: string | null;
@@ -37,6 +35,7 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
   const [item, setItem] = useState<MeliItem | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!meliItemId) return;
@@ -44,16 +43,19 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
     setItem(null);
     setDescription(null);
 
-    Promise.all([
-      fetch(`https://api.mercadolibre.com/items/${meliItemId}`).then(r => r.ok ? r.json() : null),
-      fetch(`https://api.mercadolibre.com/items/${meliItemId}/description`).then(r => r.ok ? r.json() : null),
-    ]).then(([itemData, descData]: [MeliItem | null, MeliDescription | null]) => {
-      setItem(itemData);
-      setDescription(descData?.plain_text ?? null);
+    supabase.functions.invoke('meli-item-proxy', {
+      body: { item_id: meliItemId },
+    }).then(({ data, error }) => {
+      if (!error && data?.item) {
+        setItem(data.item);
+        setDescription(data.description ?? null);
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [meliItemId]);
 
+  // Hide on mobile
+  if (isMobile) return null;
   if (!meliItemId) return null;
 
   if (loading) {
@@ -64,7 +66,7 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
     );
   }
 
-  // If MeLi API failed, show fallback from DB data
+  // Fallback from DB when API fails
   if (!item) {
     if (!fallbackTitle) return null;
     return (
