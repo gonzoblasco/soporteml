@@ -46,6 +46,8 @@ export type Database = {
           business_hours: Json
           company_id: string
           created_at: string
+          last_synced_at: string | null
+          sync_interval_minutes: number
           updated_at: string
         }
         Insert: {
@@ -58,6 +60,8 @@ export type Database = {
           business_hours?: Json
           company_id: string
           created_at?: string
+          last_synced_at?: string | null
+          sync_interval_minutes?: number
           updated_at?: string
         }
         Update: {
@@ -70,6 +74,8 @@ export type Database = {
           business_hours?: Json
           company_id?: string
           created_at?: string
+          last_synced_at?: string | null
+          sync_interval_minutes?: number
           updated_at?: string
         }
         Relationships: [
