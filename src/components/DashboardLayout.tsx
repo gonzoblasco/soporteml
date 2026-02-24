@@ -99,9 +99,9 @@ const DashboardLayout = () => {
   }, [navigate]);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
       <AppSidebar />
-      <main className={`flex-1 overflow-hidden ${isMobile ? 'pt-14' : ''}`}>
+      <main className={`flex-1 overflow-hidden h-full ${isMobile ? 'pt-14' : ''}`}>
         <Outlet />
       </main>
     </div>
