@@ -408,6 +408,19 @@ async function processQuestion(
 ): Promise<boolean> {
   const meliQuestionId = String(q.id);
 
+  // Check if this question was permanently dismissed (blacklisted)
+  const { data: dismissed } = await supabase
+    .from("dismissed_meli_questions")
+    .select("id")
+    .eq("meli_question_id", meliQuestionId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (dismissed) {
+    console.log(`Skipping dismissed question ${meliQuestionId}`);
+    return false;
+  }
+
   const { data: existing } = await supabase
     .from("questions")
     .select("id, product_id")
