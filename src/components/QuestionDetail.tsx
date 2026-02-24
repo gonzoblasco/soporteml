@@ -1,16 +1,26 @@
-import { useState } from 'react';
-import type { QuestionRow } from '@/types/question';
-import CategoryBadge from './CategoryBadge';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Sparkles, User, Package, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from "react";
+import type { QuestionRow } from "@/types/question";
+import CategoryBadge from "./CategoryBadge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, X, Sparkles, User, Package, RotateCcw, Trash2, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   question: QuestionRow | null;
@@ -18,15 +28,15 @@ interface Props {
 }
 
 const QuestionDetail = ({ question, onUpdated }: Props) => {
-  const [answer, setAnswer] = useState('');
-  const [key, setKey] = useState('');
+  const [answer, setAnswer] = useState("");
+  const [key, setKey] = useState("");
   const [publishing, setPublishing] = useState(false);
   const { userRole } = useAuth();
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === "admin";
 
   if (question && question.id !== key) {
     setKey(question.id);
-    setAnswer(question.ai_suggested_answer ?? '');
+    setAnswer(question.ai_suggested_answer ?? "");
   }
 
   if (!question) {
@@ -41,62 +51,59 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   }
 
   const date = new Date(question.created_at);
-  const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
+  const elapsed = isNaN(date.getTime()) ? "" : formatDistanceToNow(date, { addSuffix: true, locale: es });
 
   const handlePublish = async () => {
     setPublishing(true);
-    const { data, error } = await supabase.functions.invoke('publish-meli-answer', {
+    const { data, error } = await supabase.functions.invoke("publish-meli-answer", {
       body: { question_id: question.id, answer: answer.trim() },
     });
     setPublishing(false);
     if (error) {
-      toast.error('Error al publicar en MercadoLibre: ' + (error.message || 'Error desconocido'));
+      toast.error("Error al publicar en MercadoLibre: " + (error.message || "Error desconocido"));
     } else if (data?.error) {
-      toast.error('Error de MeLi: ' + (data.details || data.error));
+      toast.error("Error de MeLi: " + (data.details || data.error));
     } else {
-      toast.success('Respuesta publicada en MercadoLibre');
+      toast.success("Respuesta publicada en MercadoLibre");
       onUpdated?.();
     }
   };
 
   const handleDiscard = async () => {
-    const { error } = await supabase
-      .from('questions')
-      .update({ status: 'archived' })
-      .eq('id', question.id);
+    const { error } = await supabase.from("questions").update({ status: "archived" }).eq("id", question.id);
     if (error) {
-      toast.error('Error: ' + error.message);
+      toast.error("Error: " + error.message);
     } else {
-      toast.info('Pregunta archivada');
+      toast.info("Pregunta archivada");
       onUpdated?.();
     }
   };
 
   const handleRestore = async () => {
-    const { error } = await supabase
-      .from('questions')
-      .update({ status: 'pending' })
-      .eq('id', question.id);
+    const { error } = await supabase.from("questions").update({ status: "pending" }).eq("id", question.id);
     if (error) {
-      toast.error('Error: ' + error.message);
+      toast.error("Error: " + error.message);
     } else {
-      toast.success('Pregunta restaurada a pendientes');
+      toast.success("Pregunta restaurada a pendientes");
       onUpdated?.();
     }
   };
 
   const handleSoftDelete = async () => {
-    const { error } = await supabase
-      .from('questions')
-      .update({ status: 'deleted' })
-      .eq('id', question.id);
+    const { error } = await supabase.from("questions").update({ status: "deleted" }).eq("id", question.id);
     if (error) {
-      toast.error('Error: ' + error.message);
+      toast.error("Error: " + error.message);
     } else {
-      toast.success('Pregunta movida a la papelera');
+      toast.success("Pregunta movida a la papelera");
       onUpdated?.();
     }
   };
+
+  const fallbackUrl = question.product_meli_id
+    ? `https://listado.mercadolibre.com.ar/${question.product_meli_id}`
+    : null;
+
+  const href = question.product_permalink ?? fallbackUrl;
 
   return (
     <AnimatePresence mode="wait">
@@ -115,18 +122,19 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
             <span className="text-xs text-muted-foreground">{elapsed}</span>
           </div>
           <h2 className="text-lg font-semibold text-foreground mb-1">
-            {question.product_permalink ? (
+            {href ? (
               <a
-                href={question.product_permalink}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
+                title={question.product_permalink ? "Abrir publicación" : "Buscar por ID (fallback)"}
               >
-                {question.product_title ?? 'Producto'}
+                {question.product_title ?? question.product_meli_id ?? "Producto"}
                 <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
               </a>
             ) : (
-              question.product_title ?? 'Producto'
+              (question.product_title ?? "Producto")
             )}
           </h2>
           <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
@@ -136,7 +144,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         <div className="glass-panel rounded-lg p-4 mb-6">
           <div className="flex items-center gap-2 mb-2">
             <User className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">{question.buyer_id ?? 'Comprador'}</span>
+            <span className="text-sm font-medium text-foreground">{question.buyer_id ?? "Comprador"}</span>
           </div>
           <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
         </div>
@@ -146,10 +154,10 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-foreground">
-              {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
+              {question.status === "published" ? "Respuesta Publicada" : "Respuesta Sugerida por IA"}
             </span>
           </div>
-          {question.status === 'published' ? (
+          {question.status === "published" ? (
             <div className="flex-1 min-h-[140px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
               {question.final_answer ?? answer}
             </div>
@@ -164,7 +172,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
 
         {/* Actions */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
-          {question.status === 'archived' ? (
+          {question.status === "archived" ? (
             <>
               <Button onClick={handleRestore} className="gap-2">
                 <RotateCcw className="w-4 h-4" />
@@ -182,12 +190,16 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                     <AlertDialogHeader>
                       <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde
+                        Settings.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      <AlertDialogAction
+                        onClick={handleSoftDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
                         Sí, eliminar
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -195,7 +207,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                 </AlertDialog>
               )}
             </>
-          ) : question.status === 'published' ? null : (
+          ) : question.status === "published" ? null : (
             <>
               <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
                 <Send className="w-4 h-4" />
@@ -217,12 +229,16 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                     <AlertDialogHeader>
                       <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                        La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde
+                        Settings.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      <AlertDialogAction
+                        onClick={handleSoftDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
                         Sí, eliminar
                       </AlertDialogAction>
                     </AlertDialogFooter>
