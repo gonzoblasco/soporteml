@@ -17,7 +17,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 
-const MELI_APP_ID = '8921097700859218';
+const MELI_APP_ID = import.meta.env.VITE_MELI_APP_ID || '8921097700859218';
 
 // ─── Profile Section ───
 const ProfileSection = () => {

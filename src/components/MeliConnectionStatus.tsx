@@ -9,7 +9,7 @@ const MeliConnectionStatus = () => {
   const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetch = async () => {
+    const loadStatus = async () => {
       // Check if meli_tokens exist for the user's company
       const { data: tokens } = await supabase
         .from('meli_tokens')
@@ -31,7 +31,7 @@ const MeliConnectionStatus = () => {
         setLastSync(latest?.created_at ?? tokens.updated_at);
       }
     };
-    fetch();
+    loadStatus();
   }, []);
 
   if (connected === null) return null;

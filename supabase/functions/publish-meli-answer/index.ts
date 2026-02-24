@@ -67,6 +67,24 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Extract user ID from auth header if present
+    let callerUserId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const token = authHeader.replace("Bearer ", "");
+        const { data: claimsData } = await anonClient.auth.getClaims(token);
+        if (claimsData?.claims?.sub) {
+          callerUserId = claimsData.claims.sub;
+        }
+      } catch (e) {
+        console.warn("Could not extract user from auth header:", e);
+      }
+    }
+
     const { question_id, answer } = await req.json();
 
     if (!question_id || !answer) {
@@ -139,13 +157,17 @@ Deno.serve(async (req) => {
     }
 
     // Update question in DB
+    const updatePayload: Record<string, unknown> = {
+      final_answer: answer,
+      status: "published",
+      answered_at: new Date().toISOString(),
+    };
+    if (callerUserId) {
+      updatePayload.answered_by = callerUserId;
+    }
     await supabase
       .from("questions")
-      .update({
-        final_answer: answer,
-        status: "published",
-        answered_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", question_id);
 
     return new Response(
