@@ -16,7 +16,6 @@ const playSound = (type: 'priority' | 'normal') => {
     gain.connect(ctx.destination);
 
     if (type === 'priority') {
-      // Urgent: two quick high-pitched beeps
       osc.frequency.value = 880;
       gain.gain.value = 0.15;
       osc.start();
@@ -26,7 +25,6 @@ const playSound = (type: 'priority' | 'normal') => {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
       osc.stop(ctx.currentTime + 0.4);
     } else {
-      // Gentle: single soft chime
       osc.frequency.value = 523;
       gain.gain.value = 0.08;
       osc.start();
@@ -34,12 +32,50 @@ const playSound = (type: 'priority' | 'normal') => {
       osc.stop(ctx.currentTime + 0.35);
     }
 
-    // Try vibration for priority on mobile
     if (type === 'priority' && navigator.vibrate) {
       navigator.vibrate([100, 50, 100]);
     }
   } catch {
     // Audio not supported
+  }
+};
+
+// Browser push notification using Notification API
+const sendBrowserNotification = (title: string, body: string, tag: string, onClick?: () => void) => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  // Only show browser notification when tab is not focused
+  if (document.hasFocus()) return;
+
+  try {
+    const notification = new Notification(title, {
+      body,
+      tag, // Prevents duplicate notifications
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      requireInteraction: false,
+    });
+
+    if (onClick) {
+      notification.onclick = () => {
+        window.focus();
+        onClick();
+        notification.close();
+      };
+    }
+
+    // Auto-close after 8 seconds
+    setTimeout(() => notification.close(), 8000);
+  } catch {
+    // Notification not supported in this context
+  }
+};
+
+// Request notification permission (non-blocking)
+const requestNotificationPermission = async () => {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
   }
 };
 
@@ -49,7 +85,9 @@ const DashboardLayout = () => {
   const initialLoad = useRef(true);
 
   useEffect(() => {
-    // Skip notifications during initial subscription setup
+    // Request push notification permission on mount
+    requestNotificationPermission();
+
     const timer = setTimeout(() => { initialLoad.current = false; }, 2000);
 
     const channel = supabase
@@ -60,9 +98,13 @@ const DashboardLayout = () => {
         (payload) => {
           if (initialLoad.current) return;
           const q = payload.new as any;
+          const text = q.question_text?.slice(0, 120) || 'Nueva consulta';
+
           playSound('priority');
+
+          // In-app toast
           toast('🚨 Consulta prioritaria', {
-            description: q.question_text?.slice(0, 80) + (q.question_text?.length > 80 ? '...' : ''),
+            description: text.slice(0, 80) + (text.length > 80 ? '...' : ''),
             icon: <AlertTriangle className="w-4 h-4 text-amber-500" />,
             action: {
               label: 'Ver',
@@ -70,6 +112,14 @@ const DashboardLayout = () => {
             },
             duration: 8000,
           });
+
+          // Browser push notification (shows when tab is not focused)
+          sendBrowserNotification(
+            '🚨 Consulta prioritaria',
+            text,
+            `priority-${q.meli_question_id}`,
+            () => navigate('/priority')
+          );
         }
       )
       .on(
@@ -78,9 +128,13 @@ const DashboardLayout = () => {
         (payload) => {
           if (initialLoad.current) return;
           const q = payload.new as any;
+          const text = q.question_text?.slice(0, 120) || 'Nueva consulta';
+
           playSound('normal');
+
+          // In-app toast
           toast('Nueva pregunta en Inbox', {
-            description: q.question_text?.slice(0, 80) + (q.question_text?.length > 80 ? '...' : ''),
+            description: text.slice(0, 80) + (text.length > 80 ? '...' : ''),
             icon: <Inbox className="w-4 h-4 text-primary" />,
             action: {
               label: 'Ver',
@@ -88,6 +142,14 @@ const DashboardLayout = () => {
             },
             duration: 5000,
           });
+
+          // Browser push notification (shows when tab is not focused)
+          sendBrowserNotification(
+            'Nueva pregunta en Inbox',
+            text,
+            `question-${q.meli_question_id}`,
+            () => navigate('/')
+          );
         }
       )
       .subscribe();
