@@ -60,7 +60,7 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
 
   if (loading) {
     return (
-      <div className="w-72 shrink-0 border-l border-border/50 flex items-center justify-center h-full">
+      <div className="w-72 shrink-0 border-l border-border/50 flex items-center justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );
@@ -70,7 +70,7 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
   if (!item) {
     if (!fallbackTitle) return null;
     return (
-      <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20 h-full overflow-auto">
+      <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
         <div className="p-4 space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">{fallbackTitle}</h3>
@@ -105,7 +105,7 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
   };
 
   return (
-    <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20 h-full overflow-hidden">
+    <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4">
           {/* Product Image */}
