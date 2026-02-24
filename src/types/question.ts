@@ -22,4 +22,5 @@ export interface QuestionRow {
   product_title?: string;
   product_meli_id?: string;
   product_permalink?: string;
+  product_price?: number | null;
 }
