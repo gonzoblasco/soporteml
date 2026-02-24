@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { QuestionRow } from '@/types/question';
-import QuestionCard from '@/components/QuestionCard';
 import QuestionDetail from '@/components/QuestionDetail';
+import GroupedQuestionCard from '@/components/GroupedQuestionCard';
 import { Search, Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { groupQuestions } from '@/lib/groupQuestions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -49,6 +50,8 @@ const PriorityInbox = () => {
       (q.ai_category ?? '').toLowerCase().includes(search.toLowerCase()) ||
       q.question_text.toLowerCase().includes(search.toLowerCase())
   );
+
+  const groups = useMemo(() => groupQuestions(filtered), [filtered]);
 
   const selected = questions.find((q) => q.id === selectedId) ?? null;
 
@@ -97,12 +100,12 @@ const PriorityInbox = () => {
                 <p className="text-sm text-muted-foreground">No hay consultas prioritarias pendientes</p>
               </div>
             ) : (
-              filtered.map((q) => (
-                <QuestionCard
-                  key={q.id}
-                  question={q}
-                  isSelected={selectedId === q.id}
-                  onClick={() => setSelectedId(q.id)}
+              groups.map((g) => (
+                <GroupedQuestionCard
+                  key={g.key}
+                  group={g}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
                   showHumanReason
                 />
               ))

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { QuestionRow } from '@/types/question';
-import QuestionCard from '@/components/QuestionCard';
 import QuestionDetail from '@/components/QuestionDetail';
+import GroupedQuestionCard from '@/components/GroupedQuestionCard';
+import { groupQuestions } from '@/lib/groupQuestions';
 import { Search, Loader2, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,8 @@ const Inbox = () => {
       q.question_text.toLowerCase().includes(search.toLowerCase())
   );
 
+  const groups = useMemo(() => groupQuestions(filtered), [filtered]);
+
   const selected = questions.find((q) => q.id === selectedId) ?? null;
 
   // Mobile: show detail view or list view
@@ -126,12 +129,12 @@ const Inbox = () => {
                 No hay preguntas {statusFilter === 'pending' ? 'pendientes' : statusFilter === 'published' ? 'publicadas' : 'archivadas'}
               </p>
             ) : (
-              filtered.map((q) => (
-                <QuestionCard
-                  key={q.id}
-                  question={q}
-                  isSelected={selectedId === q.id}
-                  onClick={() => setSelectedId(q.id)}
+              groups.map((g) => (
+                <GroupedQuestionCard
+                  key={g.key}
+                  group={g}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
                 />
               ))
             )}
