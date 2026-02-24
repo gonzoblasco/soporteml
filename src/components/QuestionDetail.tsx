@@ -112,73 +112,76 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         className="flex-1 flex overflow-hidden h-full min-h-0"
       >
         {/* Main content */}
-        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <CategoryBadge category={question.ai_category} />
-              <span className="text-xs text-muted-foreground">{elapsed}</span>
-            </div>
-            <h2 className="text-lg font-semibold text-foreground mb-1">
-              {question.product_permalink ? (
-                <a
-                  href={question.product_permalink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
-                >
-                  {question.product_title ?? 'Producto'}
-                  <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
-                </a>
-              ) : (
-                question.product_title ?? 'Producto'
-              )}
-            </h2>
-            <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
-          </div>
-
-          {/* Question */}
-          <div className="glass-panel rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
-            </div>
-            <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
-          </div>
-
-          {/* Answer */}
-          <div className="flex-1 flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">
-                {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
-              </span>
-            </div>
-            {question.status === 'published' ? (
-              <div className="flex-1 min-h-[140px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
-                {question.final_answer ?? answer}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <CategoryBadge category={question.ai_category} />
+                <span className="text-xs text-muted-foreground">{elapsed}</span>
               </div>
-            ) : (
-              <Textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                className="flex-1 min-h-[140px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
-              />
-            )}
+              <h2 className="text-lg font-semibold text-foreground mb-1">
+                {question.product_permalink ? (
+                  <a
+                    href={question.product_permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
+                  >
+                    {question.product_title ?? 'Producto'}
+                    <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
+                  </a>
+                ) : (
+                  question.product_title ?? 'Producto'
+                )}
+              </h2>
+              <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
+            </div>
+
+            {/* Question */}
+            <div className="glass-panel rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
+            </div>
+
+            {/* Answer */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">
+                  {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
+                </span>
+              </div>
+              {question.status === 'published' ? (
+                <div className="min-h-[100px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
+                  {question.final_answer ?? answer}
+                </div>
+              ) : (
+                <Textarea
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  className="min-h-[100px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
+                />
+              )}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50">
+          {/* Fixed actions bar */}
+          <div className="shrink-0 flex items-center gap-3 px-6 py-3 border-t border-border/50 bg-background">
             {question.status === 'archived' ? (
               <>
-                <Button onClick={handleRestore} className="gap-2">
+                <Button onClick={handleRestore} className="gap-2" size="sm">
                   <RotateCcw className="w-4 h-4" />
-                  Restaurar a Pendientes
+                  Restaurar
                 </Button>
                 {isAdmin && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                      <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
                         <Trash2 className="w-4 h-4" />
                         Eliminar
                       </Button>
@@ -187,7 +190,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                          La pregunta será movida a la papelera.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -202,18 +205,18 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
               </>
             ) : question.status === 'published' ? null : (
               <>
-                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
+                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2" size="sm">
                   <Send className="w-4 h-4" />
-                  Publicar Respuesta
+                  Publicar
                 </Button>
-                <Button variant="outline" onClick={handleDiscard} className="gap-2">
+                <Button variant="outline" onClick={handleDiscard} className="gap-2" size="sm">
                   <X className="w-4 h-4" />
                   Archivar
                 </Button>
                 {isAdmin && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                      <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
                         <Trash2 className="w-4 h-4" />
                         Eliminar
                       </Button>
@@ -222,7 +225,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                          La pregunta será movida a la papelera.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
