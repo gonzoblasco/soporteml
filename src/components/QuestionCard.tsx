@@ -3,7 +3,7 @@ import CategoryBadge from './CategoryBadge';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface Props {
   question: QuestionRow;
@@ -28,20 +28,7 @@ const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props)
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <h4 className="text-sm font-medium text-foreground line-clamp-1">
-          {question.product_permalink ? (
-            <a
-              href={question.product_permalink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="hover:text-primary hover:underline inline-flex items-center gap-1"
-            >
-              {question.product_title ?? 'Producto'}
-              <ExternalLink className="w-3 h-3 shrink-0 opacity-50" />
-            </a>
-          ) : (
-            question.product_title ?? 'Producto'
-          )}
+          {question.product_title ?? 'Producto'}
         </h4>
         <CategoryBadge category={question.ai_category} />
       </div>
