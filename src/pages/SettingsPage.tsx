@@ -221,16 +221,20 @@ const MeliConnectionSection = () => {
   const [loading, setLoading] = useState(true);
   const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string } | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [syncInterval, setSyncInterval] = useState<number>(15);
+  const [savingInterval, setSavingInterval] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
-    const { data: token } = await supabase
-      .from('meli_tokens')
-      .select('meli_user_id, updated_at')
-      .eq('company_id', companyId)
-      .maybeSingle();
-    setTokenInfo(token ?? null);
+    const [tokenRes, settingsRes] = await Promise.all([
+      supabase.from('meli_tokens').select('meli_user_id, updated_at').eq('company_id', companyId).maybeSingle(),
+      supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', companyId).maybeSingle(),
+    ]);
+    setTokenInfo(tokenRes.data ?? null);
+    if (settingsRes.data?.sync_interval_minutes) {
+      setSyncInterval(settingsRes.data.sync_interval_minutes);
+    }
     setLoading(false);
   }, [companyId]);
 
@@ -259,6 +263,20 @@ const MeliConnectionSection = () => {
       setTokenInfo(null);
     }
     setDisconnecting(false);
+  };
+
+  const handleIntervalChange = async (value: string) => {
+    const minutes = parseInt(value, 10);
+    setSyncInterval(minutes);
+    setSavingInterval(true);
+    const { error } = await supabase
+      .from('company_settings')
+      .upsert({ company_id: companyId!, sync_interval_minutes: minutes }, { onConflict: 'company_id' });
+    toast(error
+      ? { title: 'Error', description: error.message, variant: 'destructive' }
+      : { title: 'Frecuencia actualizada', description: `La sincronización se ejecutará cada ${minutes} minutos.` }
+    );
+    setSavingInterval(false);
   };
 
   const isConnected = !!tokenInfo;
@@ -292,6 +310,22 @@ const MeliConnectionSection = () => {
               <p>Seller ID: <span className="font-mono text-foreground">{tokenInfo.meli_user_id}</span></p>
               <p>Última actualización: {formatDistanceToNow(new Date(tokenInfo.updated_at), { addSuffix: true, locale: es })}</p>
             </div>
+            <Separator />
+            <div className="space-y-1.5">
+              <Label className="text-sm">Frecuencia de sincronización</Label>
+              <p className="text-xs text-muted-foreground">Cada cuántos minutos se buscan preguntas nuevas automáticamente.</p>
+              <Select value={String(syncInterval)} onValueChange={handleIntervalChange} disabled={savingInterval}>
+                <SelectTrigger className="w-48 h-8 text-sm">
+                  {savingInterval ? <Loader2 className="w-3 h-3 animate-spin" /> : <SelectValue />}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">Cada 5 minutos</SelectItem>
+                  <SelectItem value="15">Cada 15 minutos</SelectItem>
+                  <SelectItem value="30">Cada 30 minutos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Separator />
             <div className="flex gap-2">
               <SyncButton />
               <AlertDialog>
@@ -320,7 +354,7 @@ const MeliConnectionSection = () => {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Al conectar tu cuenta, las preguntas de tus publicaciones se importarán automáticamente cada 5 minutos con respuestas sugeridas por IA.
+              Al conectar tu cuenta, las preguntas de tus publicaciones se importarán automáticamente con respuestas sugeridas por IA.
             </p>
             {!companyId ? (
               <p className="text-sm text-destructive">Tu cuenta no tiene una empresa asociada. Contactá al administrador.</p>
