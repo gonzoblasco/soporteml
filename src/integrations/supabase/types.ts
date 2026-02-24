@@ -76,6 +76,27 @@ export type Database = {
           },
         ]
       }
+      dismissed_meli_questions: {
+        Row: {
+          company_id: string
+          dismissed_at: string
+          id: string
+          meli_question_id: string
+        }
+        Insert: {
+          company_id: string
+          dismissed_at?: string
+          id?: string
+          meli_question_id: string
+        }
+        Update: {
+          company_id?: string
+          dismissed_at?: string
+          id?: string
+          meli_question_id?: string
+        }
+        Relationships: []
+      }
       meli_tokens: {
         Row: {
           access_token: string

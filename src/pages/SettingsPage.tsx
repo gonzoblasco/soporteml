@@ -684,7 +684,7 @@ const AutoReplySection = () => {
 const TrashSection = () => {
   const { companyId } = useAuth();
   const { toast } = useToast();
-  const [items, setItems] = useState<Array<{ id: string; question_text: string; created_at: string; product_title?: string }>>([]);
+  const [items, setItems] = useState<Array<{ id: string; meli_question_id: string; question_text: string; created_at: string; product_title?: string }>>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDeleted = useCallback(async () => {
@@ -692,13 +692,14 @@ const TrashSection = () => {
     setLoading(true);
     const { data } = await supabase
       .from('questions')
-      .select('id, question_text, created_at, product_id, products(title)')
+      .select('id, meli_question_id, question_text, created_at, product_id, products(title)')
       .eq('company_id', companyId)
       .eq('status', 'deleted')
       .order('created_at', { ascending: false });
 
     setItems((data ?? []).map((q: any) => ({
       id: q.id,
+      meli_question_id: q.meli_question_id,
       question_text: q.question_text,
       created_at: q.created_at,
       product_title: q.products?.title,
@@ -719,6 +720,13 @@ const TrashSection = () => {
   };
 
   const handlePermanentDelete = async (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (item && companyId) {
+      await supabase.from('dismissed_meli_questions' as any).insert({
+        meli_question_id: item.meli_question_id,
+        company_id: companyId,
+      });
+    }
     const { error } = await supabase.from('questions').delete().eq('id', id);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -730,6 +738,13 @@ const TrashSection = () => {
 
   const handleEmptyTrash = async () => {
     if (!companyId) return;
+    // Register all meli_question_ids in blacklist before deleting
+    const dismissedRows = items.map(i => ({
+      meli_question_id: i.meli_question_id,
+      company_id: companyId,
+    }));
+    await supabase.from('dismissed_meli_questions' as any).upsert(dismissedRows, { onConflict: 'meli_question_id,company_id' });
+
     const ids = items.map(i => i.id);
     const { error } = await supabase.from('questions').delete().in('id', ids);
     if (error) {
