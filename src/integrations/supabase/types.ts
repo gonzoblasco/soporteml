@@ -204,6 +204,7 @@ export type Database = {
           id: string
           meli_question_id: string
           product_id: string | null
+          product_meli_id: string | null
           question_text: string
           requires_human: boolean
           requires_human_reason: string | null
@@ -222,6 +223,7 @@ export type Database = {
           id?: string
           meli_question_id: string
           product_id?: string | null
+          product_meli_id?: string | null
           question_text: string
           requires_human?: boolean
           requires_human_reason?: string | null
@@ -240,6 +242,7 @@ export type Database = {
           id?: string
           meli_question_id?: string
           product_id?: string | null
+          product_meli_id?: string | null
           question_text?: string
           requires_human?: boolean
           requires_human_reason?: string | null
