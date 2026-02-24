@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -357,19 +358,56 @@ interface AdminUser {
 const UsersTab = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const { data, error } = await supabase.rpc('get_admin_users');
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.rpc('get_admin_users');
+    if (error) {
+      console.error('Error fetching users:', error);
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+    setUsers((data as AdminUser[]) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setUpdatingRole(userId);
+    if (newRole === 'none') {
+      // Remove role
+      const { error } = await supabase.from('user_roles').delete().eq('user_id', userId);
       if (error) {
-        console.error('Error fetching users:', error);
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: null } : u));
+        toast({ title: 'Rol removido' });
       }
-      setUsers((data as AdminUser[]) ?? []);
-      setLoading(false);
-    };
-    fetchUsers();
-  }, []);
+    } else {
+      // Upsert role
+      const currentUser = users.find(u => u.user_id === userId);
+      if (currentUser?.role) {
+        // Update existing
+        const { error } = await supabase.from('user_roles').update({ role: newRole as 'admin' | 'agent' }).eq('user_id', userId);
+        if (error) {
+          toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } else {
+          setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: newRole } : u));
+          toast({ title: 'Rol actualizado' });
+        }
+      } else {
+        // Insert new
+        const { error } = await supabase.from('user_roles').insert({ user_id: userId, role: newRole as 'admin' | 'agent' });
+        if (error) {
+          toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } else {
+          setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: newRole } : u));
+          toast({ title: 'Rol asignado' });
+        }
+      }
+    }
+    setUpdatingRole(null);
+  };
 
   const { query: userQuery, setQuery: setUserQuery, filtered: filteredUsers } = useSearch(users, ['email', 'full_name', 'company_name', 'role'] as (keyof AdminUser)[]);
 
@@ -407,9 +445,24 @@ const UsersTab = () => {
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{u.company_name ?? '—'}</TableCell>
                   <TableCell>
-                    <Badge variant={u.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                      {u.role ?? 'sin rol'}
-                    </Badge>
+                    <Select
+                      value={u.role ?? 'none'}
+                      onValueChange={val => handleRoleChange(u.user_id, val)}
+                      disabled={updatingRole === u.user_id}
+                    >
+                      <SelectTrigger className="w-28 h-8 text-xs">
+                        {updatingRole === u.user_id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <SelectValue />
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="none">Sin rol</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                     {new Date(u.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
