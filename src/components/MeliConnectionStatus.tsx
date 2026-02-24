@@ -1,35 +1,20 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 const MeliConnectionStatus = () => {
   const [connected, setConnected] = useState<boolean | null>(null);
-  const [lastSync, setLastSync] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadStatus = async () => {
-      // Check if meli_tokens exist for the user's company
       const { data: tokens } = await supabase
         .from('meli_tokens')
-        .select('updated_at')
+        .select('id')
         .limit(1)
         .maybeSingle();
-
       setConnected(!!tokens);
-
-      // Get latest question as proxy for last sync
-      if (tokens) {
-        const { data: latest } = await supabase
-          .from('questions')
-          .select('created_at')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        setLastSync(latest?.created_at ?? tokens.updated_at);
-      }
     };
     loadStatus();
   }, []);
@@ -37,16 +22,14 @@ const MeliConnectionStatus = () => {
   if (connected === null) return null;
 
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <button
+      onClick={() => navigate('/settings')}
+      className="flex items-center gap-2 text-xs hover:opacity-80 transition-opacity"
+    >
       {connected ? (
         <>
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="text-muted-foreground">
-            ML conectado
-            {lastSync && (
-              <> – sync {formatDistanceToNow(new Date(lastSync), { locale: es })}</>
-            )}
-          </span>
+          <span className="text-muted-foreground">Mercado Libre conectado</span>
         </>
       ) : (
         <>
@@ -54,7 +37,7 @@ const MeliConnectionStatus = () => {
           <span className="text-muted-foreground">MercadoLibre no conectado</span>
         </>
       )}
-    </div>
+    </button>
   );
 };
 
