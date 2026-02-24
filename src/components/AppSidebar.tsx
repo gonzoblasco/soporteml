@@ -26,7 +26,7 @@ const AppSidebar = () => {
     const fetchCounts = async () => {
       const [priorityRes, inboxRes] = await Promise.all([
         supabase.from('questions').select('*', { count: 'exact', head: true }).eq('requires_human', true).eq('status', 'pending'),
-        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('requires_human', false),
       ]);
       setPriorityCount(priorityRes.count ?? 0);
       setInboxCount(inboxRes.count ?? 0);
