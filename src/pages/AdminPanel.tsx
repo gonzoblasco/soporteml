@@ -191,6 +191,17 @@ const CompaniesTab = () => {
     setCreating(false);
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`¿Eliminar la company "${name}"? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from('companies').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setCompanies(prev => prev.filter(c => c.id !== id));
+      toast({ title: 'Company eliminada' });
+    }
+  };
+
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast({ title: 'Código copiado' });
@@ -244,6 +255,7 @@ const CompaniesTab = () => {
                   <TableHead className="hidden md:table-cell">Miembros</TableHead>
                   <TableHead className="hidden md:table-cell">MeLi</TableHead>
                   <TableHead>Creada</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -269,6 +281,11 @@ const CompaniesTab = () => {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                       {new Date(c.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id, c.name)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
