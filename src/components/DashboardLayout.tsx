@@ -42,6 +42,8 @@ const playSound = (type: 'priority' | 'normal') => {
 
 // Browser push notification using Notification API
 const sendBrowserNotification = (title: string, body: string, tag: string, onClick?: () => void) => {
+  // Check user preference from localStorage
+  if (localStorage.getItem('soporteml_push_enabled') === 'false') return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
   // Only show browser notification when tab is not focused
