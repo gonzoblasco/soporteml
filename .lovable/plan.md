@@ -1,78 +1,86 @@
 
 
-## Diagnóstico
+## Plan: Rediseño del Landing (corregido)
 
-El bug es claro: cuando se vacían las preguntas de la papelera (hard delete), el próximo sync con MercadoLibre las vuelve a descargar porque ya no existen en la tabla `questions`, y el chequeo de duplicados falla.
+### Corrección importante
+Elimino la feature "Multi-cuenta" del landing. Cada company = una cuenta de MeLi. Multi-company por usuario queda para v2.
 
-En `sync-meli-questions`, la lógica es:
-```
-SELECT id FROM questions WHERE meli_question_id = X
--> si no existe, la inserta como nueva
-```
+### Cambios en `src/pages/Landing.tsx`
 
-Una vez borradas de la DB, el sync las trata como preguntas nuevas.
+**1. Navbar**
+- Quitar botón "Registrarse"
+- Dejar "Iniciar Sesión" + toggle tema
+- Agregar links ancla: "Funciones", "Cómo funciona", "Contacto"
 
-## Solución propuesta
+**2. Hero**
+- CTA: "Empezar gratis" → "Acceder al panel" (`/login`)
+- Subtítulo: "Solución exclusiva para vendedores profesionales de Mercado Libre"
+- Mockup dashboard: agregar barra de stats animada encima ("147 preguntas hoy", "92% respondidas", "< 3 min promedio")
 
-Crear una tabla `dismissed_meli_questions` que registre los `meli_question_id` que fueron eliminados permanentemente. El flujo sería:
+**3. Sección stats animada (NUEVA)**
+- Counters con framer-motion: "+10.000 preguntas gestionadas", "< 2 min respuesta promedio", "95% precisión IA", "+50 vendedores"
 
-1. **Nueva tabla `dismissed_meli_questions`** con columnas `meli_question_id` (text), `company_id` (uuid), y `dismissed_at` (timestamp). RLS para admins de la company.
+**4. Features -- grilla de 6 (expandida)**
+Las 3 actuales + 3 nuevas:
+- "Conexión directa con MeLi" -- Sincronización automática de preguntas
+- "Auto-respuesta programable" -- Configurá horarios y reglas de respuesta automática
+- "Historial completo" -- Todas las preguntas y respuestas organizadas por producto y fecha
 
-2. **Modificar `handleEmptyTrash`** en SettingsPage: antes de hacer el DELETE, insertar los `meli_question_id` de las preguntas a eliminar en `dismissed_meli_questions`.
+(Se descarta "Multi-cuenta" ya que cada company tiene una sola cuenta MeLi)
 
-3. **Modificar `processQuestion`** en `sync-meli-questions`: antes de insertar una pregunta nueva, verificar si su `meli_question_id` existe en `dismissed_meli_questions`. Si existe, saltarla.
+**5. Mockups visuales (NUEVA sección)**
+- "Así se ve tu panel" con tabs para alternar entre 3 vistas:
+  - Bandeja de preguntas (expandir el mockup existente)
+  - Panel de respuesta con IA (pregunta + sugerencia + botón publicar)
+  - Vista analytics (barras/donut con datos ficticios)
+- Todo en HTML/Tailwind, sin imágenes externas
 
-## Detalle técnico
+**6. Cómo funciona (mejorado)**
+- Los 3 pasos actuales con más texto descriptivo
+- Línea conectora visual entre pasos en desktop
 
-### 1. Migración SQL
+**7. Formulario de consultas (REEMPLAZA CTA final)**
+- Sección "¿Querés saber más?"
+- Dos columnas en desktop: texto izquierda, form derecha
+- Campos: Nombre, Email, Mensaje
+- Guarda en tabla `contact_inquiries` (anon puede insertar, authenticated puede leer)
+- Toast de confirmación al enviar
+
+**8. Footer**
+- Links: "Contacto" (ancla), "Acceder" (`/login`)
+- Copyright
+
+### Backend -- Migración SQL
+
 ```sql
-CREATE TABLE public.dismissed_meli_questions (
+CREATE TABLE public.contact_inquiries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  meli_question_id text NOT NULL,
-  company_id uuid NOT NULL,
-  dismissed_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(meli_question_id, company_id)
+  name text NOT NULL,
+  email text NOT NULL,
+  message text NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 
-ALTER TABLE public.dismissed_meli_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contact_inquiries ENABLE ROW LEVEL SECURITY;
 
--- Admins pueden insertar (al vaciar papelera)
-CREATE POLICY "Admins can insert dismissed questions"
-  ON public.dismissed_meli_questions FOR INSERT
-  WITH CHECK (
-    company_id = get_user_company_id(auth.uid())
-    AND has_role(auth.uid(), 'admin'::app_role)
-  );
+CREATE POLICY "Anyone can insert inquiries"
+  ON public.contact_inquiries FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
 
--- Admins pueden ver
-CREATE POLICY "Admins can view dismissed questions"
-  ON public.dismissed_meli_questions FOR SELECT
-  USING (
-    company_id = get_user_company_id(auth.uid())
-    AND has_role(auth.uid(), 'admin'::app_role)
-  );
-
-ALTER PUBLICATION supabase_realtime ADD TABLE public.dismissed_meli_questions;
+CREATE POLICY "Authenticated users can read inquiries"
+  ON public.contact_inquiries FOR SELECT
+  TO authenticated
+  USING (true);
 ```
 
-### 2. SettingsPage - `handleEmptyTrash`
-Antes del `DELETE`, consultar los `meli_question_id` de los items a eliminar e insertarlos en `dismissed_meli_questions`. Luego hacer el DELETE como antes.
+### Archivos a modificar
+- `src/pages/Landing.tsx` -- rediseño completo
+- Migración SQL -- tabla `contact_inquiries`
 
-### 3. Edge Function - `processQuestion`
-Agregar un chequeo al inicio:
-```ts
-const { data: dismissed } = await supabase
-  .from("dismissed_meli_questions")
-  .select("id")
-  .eq("meli_question_id", meliQuestionId)
-  .eq("company_id", companyId)
-  .maybeSingle();
-
-if (dismissed) return false; // ya fue descartada permanentemente
-```
-
-Esto se ejecuta con service_role, así que no hay problema de RLS.
-
-### 4. Actualizar types.ts
-Se actualizará automáticamente al crear la migración.
+### Notas técnicas
+- Counters animados con `framer-motion` + `useInView`
+- Tabs de mockups con componente `Tabs` de Radix (ya instalado)
+- Formulario usa SDK de Supabase directo (insert anónimo con anon key)
+- No se toca `/login` ni `/signup` -- siguen accesibles
 
