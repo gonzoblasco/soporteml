@@ -27,11 +27,18 @@ const Inbox = () => {
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink)')
       .eq('status', statusFilter)
       .order('created_at', { ascending: false });
+
+    // Exclude questions flagged for human review — those belong in Priority Inbox
+    if (statusFilter === 'pending') {
+      query = query.eq('requires_human', false);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       const mapped: QuestionRow[] = data.map((q: any) => ({
