@@ -9,8 +9,33 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle } from 'lucide-react';
+import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+
+const useSearch = <T,>(items: T[], keys: (keyof T)[]) => {
+  const [query, setQuery] = useState('');
+  const filtered = query.trim()
+    ? items.filter(item =>
+        keys.some(k => {
+          const val = item[k];
+          return typeof val === 'string' && val.toLowerCase().includes(query.toLowerCase());
+        })
+      )
+    : items;
+  return { query, setQuery, filtered };
+};
+
+const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <Input
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="pl-9"
+    />
+  </div>
+);
 
 const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
 
@@ -76,6 +101,8 @@ const InquiriesTab = () => {
 
   useEffect(() => { fetchInquiries(); }, []);
 
+  const { query, setQuery, filtered } = useSearch(inquiries, ['name', 'email', 'message']);
+
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('contact_inquiries').delete().eq('id', id);
     if (error) {
@@ -93,8 +120,13 @@ const InquiriesTab = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Consultas del Landing</CardTitle>
-        <CardDescription>{inquiries.length} consulta{inquiries.length !== 1 ? 's' : ''} recibida{inquiries.length !== 1 ? 's' : ''}</CardDescription>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Consultas del Landing</CardTitle>
+            <CardDescription>{filtered.length} de {inquiries.length} consulta{inquiries.length !== 1 ? 's' : ''}</CardDescription>
+          </div>
+          <SearchInput value={query} onChange={setQuery} placeholder="Buscar por nombre, email..." />
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -108,7 +140,7 @@ const InquiriesTab = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inquiries.map(inq => (
+            {filtered.map(inq => (
               <TableRow key={inq.id}>
                 <TableCell className="font-medium">{inq.name}</TableCell>
                 <TableCell className="text-muted-foreground">{inq.email}</TableCell>
@@ -123,6 +155,9 @@ const InquiriesTab = () => {
                 </TableCell>
               </TableRow>
             ))}
+            {filtered.length === 0 && (
+              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sin resultados para "{query}"</TableCell></TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>
@@ -207,6 +242,8 @@ const CompaniesTab = () => {
     toast({ title: 'Código copiado' });
   };
 
+  const { query: companyQuery, setQuery: setCompanyQuery, filtered: filteredCompanies } = useSearch(companies, ['name', 'invite_code']);
+
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
@@ -240,8 +277,13 @@ const CompaniesTab = () => {
       {/* Companies table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Companies registradas</CardTitle>
-          <CardDescription>{companies.length} company{companies.length !== 1 ? 's' : ''}</CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg">Companies registradas</CardTitle>
+              <CardDescription>{filteredCompanies.length} de {companies.length} company{companies.length !== 1 ? 's' : ''}</CardDescription>
+            </div>
+            {companies.length > 0 && <SearchInput value={companyQuery} onChange={setCompanyQuery} placeholder="Buscar company..." />}
+          </div>
         </CardHeader>
         <CardContent>
           {companies.length === 0 ? (
@@ -259,7 +301,7 @@ const CompaniesTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {companies.map(c => (
+                {filteredCompanies.map(c => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>
@@ -289,6 +331,9 @@ const CompaniesTab = () => {
                     </TableCell>
                   </TableRow>
                 ))}
+                {filteredCompanies.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sin resultados para "{companyQuery}"</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           )}
@@ -326,13 +371,20 @@ const UsersTab = () => {
     fetchUsers();
   }, []);
 
+  const { query: userQuery, setQuery: setUserQuery, filtered: filteredUsers } = useSearch(users, ['email', 'full_name', 'company_name', 'role'] as (keyof AdminUser)[]);
+
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Usuarios registrados</CardTitle>
-        <CardDescription>{users.length} usuario{users.length !== 1 ? 's' : ''}</CardDescription>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Usuarios registrados</CardTitle>
+            <CardDescription>{filteredUsers.length} de {users.length} usuario{users.length !== 1 ? 's' : ''}</CardDescription>
+          </div>
+          {users.length > 0 && <SearchInput value={userQuery} onChange={setUserQuery} placeholder="Buscar por nombre, email, company..." />}
+        </div>
       </CardHeader>
       <CardContent>
         {users.length === 0 ? (
@@ -349,7 +401,7 @@ const UsersTab = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map(u => (
+              {filteredUsers.map(u => (
                 <TableRow key={u.user_id}>
                   <TableCell className="font-medium">{u.full_name ?? '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
@@ -364,6 +416,9 @@ const UsersTab = () => {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredUsers.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sin resultados para "{userQuery}"</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         )}
