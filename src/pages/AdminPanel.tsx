@@ -135,10 +135,17 @@ const CompaniesTab = () => {
   const [creating, setCreating] = useState(false);
 
   const fetchCompanies = async () => {
-    const { data: companiesData } = await supabase
+    const { data: companiesData, error } = await supabase
       .from('companies')
       .select('id, name, invite_code, created_at')
       .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching companies:', error);
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
 
     if (!companiesData) { setLoading(false); return; }
 
