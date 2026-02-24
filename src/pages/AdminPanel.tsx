@@ -357,25 +357,30 @@ interface AdminUser {
 
 const UsersTab = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingRole, setUpdatingRole] = useState<string | null>(null);
+  const [updatingCompany, setUpdatingCompany] = useState<string | null>(null);
 
-  const fetchUsers = async () => {
-    const { data, error } = await supabase.rpc('get_admin_users');
-    if (error) {
-      console.error('Error fetching users:', error);
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+  const fetchData = async () => {
+    const [usersRes, companiesRes] = await Promise.all([
+      supabase.rpc('get_admin_users'),
+      supabase.from('companies').select('id, name').order('name'),
+    ]);
+    if (usersRes.error) {
+      console.error('Error fetching users:', usersRes.error);
+      toast({ title: 'Error', description: usersRes.error.message, variant: 'destructive' });
     }
-    setUsers((data as AdminUser[]) ?? []);
+    setUsers((usersRes.data as AdminUser[]) ?? []);
+    setCompanies(companiesRes.data ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     setUpdatingRole(userId);
     if (newRole === 'none') {
-      // Remove role
       const { error } = await supabase.from('user_roles').delete().eq('user_id', userId);
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -384,10 +389,8 @@ const UsersTab = () => {
         toast({ title: 'Rol removido' });
       }
     } else {
-      // Upsert role
       const currentUser = users.find(u => u.user_id === userId);
       if (currentUser?.role) {
-        // Update existing
         const { error } = await supabase.from('user_roles').update({ role: newRole as 'admin' | 'agent' }).eq('user_id', userId);
         if (error) {
           toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -396,7 +399,6 @@ const UsersTab = () => {
           toast({ title: 'Rol actualizado' });
         }
       } else {
-        // Insert new
         const { error } = await supabase.from('user_roles').insert({ user_id: userId, role: newRole as 'admin' | 'agent' });
         if (error) {
           toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -407,6 +409,20 @@ const UsersTab = () => {
       }
     }
     setUpdatingRole(null);
+  };
+
+  const handleCompanyChange = async (userId: string, companyId: string) => {
+    setUpdatingCompany(userId);
+    const newCompanyId = companyId === 'none' ? null : companyId;
+    const { error } = await supabase.from('profiles').update({ company_id: newCompanyId }).eq('id', userId);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      const companyName = companies.find(c => c.id === companyId)?.name ?? null;
+      setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, company_id: newCompanyId, company_name: newCompanyId ? companyName : null } : u));
+      toast({ title: newCompanyId ? 'Company asignada' : 'Company removida' });
+    }
+    setUpdatingCompany(null);
   };
 
   const { query: userQuery, setQuery: setUserQuery, filtered: filteredUsers } = useSearch(users, ['email', 'full_name', 'company_name', 'role'] as (keyof AdminUser)[]);
@@ -443,7 +459,27 @@ const UsersTab = () => {
                 <TableRow key={u.user_id}>
                   <TableCell className="font-medium">{u.full_name ?? '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">{u.company_name ?? '—'}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Select
+                      value={u.company_id ?? 'none'}
+                      onValueChange={val => handleCompanyChange(u.user_id, val)}
+                      disabled={updatingCompany === u.user_id}
+                    >
+                      <SelectTrigger className="w-36 h-8 text-xs">
+                        {updatingCompany === u.user_id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <SelectValue />
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin company</SelectItem>
+                        {companies.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={u.role ?? 'none'}
