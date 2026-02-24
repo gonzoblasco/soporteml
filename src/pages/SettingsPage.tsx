@@ -579,10 +579,35 @@ const AiConfigSection = () => {
 };
 
 // ─── Auto Reply Section (Admins only) ───
+const DAYS_OF_WEEK = [
+  { key: 'lunes', label: 'Lun' },
+  { key: 'martes', label: 'Mar' },
+  { key: 'miércoles', label: 'Mié' },
+  { key: 'jueves', label: 'Jue' },
+  { key: 'viernes', label: 'Vie' },
+  { key: 'sábado', label: 'Sáb' },
+  { key: 'domingo', label: 'Dom' },
+];
+
+type AutoReplyMode = 'off' | 'always' | 'outside_business_hours';
+
+interface BusinessHours {
+  days: string[];
+  start_time: string;
+  end_time: string;
+}
+
+const DEFAULT_BUSINESS_HOURS: BusinessHours = {
+  days: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes'],
+  start_time: '09:00',
+  end_time: '18:00',
+};
+
 const AutoReplySection = () => {
   const { companyId } = useAuth();
   const { toast } = useToast();
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [mode, setMode] = useState<AutoReplyMode>('off');
+  const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
   const [exclusionRules, setExclusionRules] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -592,13 +617,22 @@ const AutoReplySection = () => {
     (async () => {
       const { data } = await supabase
         .from('company_settings')
-        .select('auto_reply_enabled, auto_reply_exclusion_rules')
+        .select('auto_reply_enabled, auto_reply_exclusion_rules, auto_reply_mode, business_hours')
         .eq('company_id', companyId)
         .maybeSingle();
 
       if (data) {
-        setAutoReplyEnabled(data.auto_reply_enabled ?? false);
-        setExclusionRules((data as any).auto_reply_exclusion_rules ?? '');
+        const d = data as any;
+        // Migration compat: if auto_reply_mode exists use it, else derive from enabled flag
+        if (d.auto_reply_mode && d.auto_reply_mode !== 'off') {
+          setMode(d.auto_reply_mode as AutoReplyMode);
+        } else if (d.auto_reply_enabled) {
+          setMode('always');
+        }
+        if (d.business_hours) {
+          setBusinessHours({ ...DEFAULT_BUSINESS_HOURS, ...d.business_hours });
+        }
+        setExclusionRules(d.auto_reply_exclusion_rules ?? '');
       }
       setLoading(false);
     })();
@@ -612,7 +646,9 @@ const AutoReplySection = () => {
       .from('company_settings')
       .upsert({
         company_id: companyId,
-        auto_reply_enabled: autoReplyEnabled,
+        auto_reply_enabled: mode !== 'off',
+        auto_reply_mode: mode,
+        business_hours: businessHours,
         auto_reply_exclusion_rules: exclusionRules || null,
       } as any, { onConflict: 'company_id' });
 
@@ -623,7 +659,16 @@ const AutoReplySection = () => {
     setSaving(false);
   };
 
+  const toggleDay = (day: string) => {
+    setBusinessHours(prev => ({
+      ...prev,
+      days: prev.days.includes(day) ? prev.days.filter(d => d !== day) : [...prev.days, day],
+    }));
+  };
+
   if (loading) return null;
+
+  const isActive = mode !== 'off';
 
   return (
     <Card>
@@ -637,16 +682,82 @@ const AutoReplySection = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="auto-reply-toggle" className="text-sm">Habilitar auto-respuesta</Label>
-          <Switch
-            id="auto-reply-toggle"
-            checked={autoReplyEnabled}
-            onCheckedChange={setAutoReplyEnabled}
-          />
+        {/* Mode selector */}
+        <div className="space-y-2">
+          <Label className="text-sm">Modo de funcionamiento</Label>
+          <Select value={mode} onValueChange={(v) => setMode(v as AutoReplyMode)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">Desactivada</SelectItem>
+              <SelectItem value="always">Siempre activa (24/7)</SelectItem>
+              <SelectItem value="outside_business_hours">Solo fuera del horario comercial</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {mode === 'off' && 'Las respuestas nunca se publican automáticamente.'}
+            {mode === 'always' && 'La IA responde automáticamente a todas las preguntas, las 24 horas.'}
+            {mode === 'outside_business_hours' && 'La IA responde solo cuando estás fuera del horario comercial definido.'}
+          </p>
         </div>
 
-        {autoReplyEnabled && (
+        {/* Business hours panel */}
+        {mode === 'outside_business_hours' && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <Label className="text-sm">Horario comercial</Label>
+              <p className="text-xs text-muted-foreground">
+                Definí tu horario de atención. La auto-respuesta funcionará FUERA de este horario.
+              </p>
+
+              {/* Days checkboxes */}
+              <div className="flex flex-wrap gap-2">
+                {DAYS_OF_WEEK.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleDay(key)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                      businessHours.days.includes(key)
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted text-muted-foreground border-border hover:bg-accent'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Time range */}
+              <div className="flex items-center gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Desde</Label>
+                  <Input
+                    type="time"
+                    value={businessHours.start_time}
+                    onChange={(e) => setBusinessHours(prev => ({ ...prev, start_time: e.target.value }))}
+                    className="w-28"
+                  />
+                </div>
+                <span className="text-muted-foreground mt-5">—</span>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Hasta</Label>
+                  <Input
+                    type="time"
+                    value={businessHours.end_time}
+                    onChange={(e) => setBusinessHours(prev => ({ ...prev, end_time: e.target.value }))}
+                    className="w-28"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Exclusion rules - shown when active */}
+        {isActive && (
           <>
             <Separator />
             <div className="space-y-3">
