@@ -1,86 +1,76 @@
 
 
-## Plan: Rediseño del Landing (corregido)
+## Plan: Panel de Super Admin
 
-### Corrección importante
-Elimino la feature "Multi-cuenta" del landing. Cada company = una cuenta de MeLi. Multi-company por usuario queda para v2.
+### Contexto
+El super admin (gonzoblasco@icloud.com) necesita un panel exclusivo para ver las consultas del landing y gestionar cuentas de clientes (companies). Actualmente no existe ninguna página de administración global; toda la gestión está scoped a la company del usuario.
 
-### Cambios en `src/pages/Landing.tsx`
+### Enfoque
+Crear una nueva página `/admin` protegida por rol, accesible solo para usuarios con rol `admin` cuyo email sea el del super admin. Esto se valida client-side para la UI, pero la seguridad real está en RLS (las tablas `contact_inquiries` ya permiten SELECT a authenticated, y `companies` se puede extender).
 
-**1. Navbar**
-- Quitar botón "Registrarse"
-- Dejar "Iniciar Sesión" + toggle tema
-- Agregar links ancla: "Funciones", "Cómo funciona", "Contacto"
+### Cambios
 
-**2. Hero**
-- CTA: "Empezar gratis" → "Acceder al panel" (`/login`)
-- Subtítulo: "Solución exclusiva para vendedores profesionales de Mercado Libre"
-- Mockup dashboard: agregar barra de stats animada encima ("147 preguntas hoy", "92% respondidas", "< 3 min promedio")
+**1. Nueva página `src/pages/AdminPanel.tsx`**
 
-**3. Sección stats animada (NUEVA)**
-- Counters con framer-motion: "+10.000 preguntas gestionadas", "< 2 min respuesta promedio", "95% precisión IA", "+50 vendedores"
+Dos secciones con tabs:
 
-**4. Features -- grilla de 6 (expandida)**
-Las 3 actuales + 3 nuevas:
-- "Conexión directa con MeLi" -- Sincronización automática de preguntas
-- "Auto-respuesta programable" -- Configurá horarios y reglas de respuesta automática
-- "Historial completo" -- Todas las preguntas y respuestas organizadas por producto y fecha
+**Tab 1: Consultas recibidas**
+- Tabla con nombre, email, mensaje, fecha de cada `contact_inquiries`
+- Ordenadas por fecha descendente
+- Botón para eliminar consultas ya procesadas
 
-(Se descarta "Multi-cuenta" ya que cada company tiene una sola cuenta MeLi)
+**Tab 2: Gestión de clientes (Companies)**
+- Lista de todas las companies con: nombre, invite_code, fecha de creación, cantidad de miembros, estado de conexión MeLi
+- Botón para crear nueva company manualmente (nombre → genera invite_code automático)
+- Posibilidad de crear un usuario para esa company (signup vía edge function con service_role)
 
-**5. Mockups visuales (NUEVA sección)**
-- "Así se ve tu panel" con tabs para alternar entre 3 vistas:
-  - Bandeja de preguntas (expandir el mockup existente)
-  - Panel de respuesta con IA (pregunta + sugerencia + botón publicar)
-  - Vista analytics (barras/donut con datos ficticios)
-- Todo en HTML/Tailwind, sin imágenes externas
+**2. Ruta en `src/App.tsx`**
+- Agregar ruta `/admin` dentro del bloque protegido, con un guard adicional que verifica que el email del usuario sea `gonzoblasco@icloud.com`
 
-**6. Cómo funciona (mejorado)**
-- Los 3 pasos actuales con más texto descriptivo
-- Línea conectora visual entre pasos en desktop
+**3. Link en sidebar `src/components/AppSidebar.tsx`**
+- Agregar item "Admin" con icono `Shield` al final del nav, visible solo si el email del usuario es `gonzoblasco@icloud.com`
 
-**7. Formulario de consultas (REEMPLAZA CTA final)**
-- Sección "¿Querés saber más?"
-- Dos columnas en desktop: texto izquierda, form derecha
-- Campos: Nombre, Email, Mensaje
-- Guarda en tabla `contact_inquiries` (anon puede insertar, authenticated puede leer)
-- Toast de confirmación al enviar
-
-**8. Footer**
-- Links: "Contacto" (ancla), "Acceder" (`/login`)
-- Copyright
-
-### Backend -- Migración SQL
+**4. Migración SQL -- RLS para que el super admin pueda listar TODAS las companies**
+- Crear una policy SELECT en `companies` que permita a usuarios con rol admin leer todas las rows (no solo la propia). Usar `has_role(auth.uid(), 'admin')` pero restringido al super admin. Opción más simple: crear una función `is_super_admin()` que chequee el email, o simplemente usar `has_role` ya que solo hay un admin global.
 
 ```sql
-CREATE TABLE public.contact_inquiries (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  email text NOT NULL,
-  message text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.contact_inquiries ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Anyone can insert inquiries"
-  ON public.contact_inquiries FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
-
-CREATE POLICY "Authenticated users can read inquiries"
-  ON public.contact_inquiries FOR SELECT
+-- Policy para que admins puedan ver todas las companies (para el panel admin)
+CREATE POLICY "Super admin can view all companies"
+  ON public.companies FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    (SELECT email FROM auth.users WHERE id = auth.uid()) = 'gonzoblasco@icloud.com'
+  );
+
+-- Policy para que el super admin pueda insertar companies
+CREATE POLICY "Super admin can insert companies"
+  ON public.companies FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    (SELECT email FROM auth.users WHERE id = auth.uid()) = 'gonzoblasco@icloud.com'
+  );
+
+-- Policy para que el super admin pueda eliminar consultas procesadas
+CREATE POLICY "Super admin can delete inquiries"
+  ON public.contact_inquiries FOR DELETE
+  TO authenticated
+  USING (
+    (SELECT email FROM auth.users WHERE id = auth.uid()) = 'gonzoblasco@icloud.com'
+  );
 ```
 
-### Archivos a modificar
-- `src/pages/Landing.tsx` -- rediseño completo
-- Migración SQL -- tabla `contact_inquiries`
+**5. Edge function `create-client-account` (opcional, v2)**
+- Para crear usuarios directamente desde el panel admin usando `supabase.auth.admin.createUser()`. Esto requiere service_role y se puede agregar después. Por ahora, el flujo sería: crear company → copiar invite_code → compartir link de signup.
+
+### Archivos a crear/modificar
+- `src/pages/AdminPanel.tsx` -- nueva página
+- `src/App.tsx` -- agregar ruta `/admin`
+- `src/components/AppSidebar.tsx` -- agregar link Admin condicional
+- Migración SQL -- policies para super admin
 
 ### Notas técnicas
-- Counters animados con `framer-motion` + `useInView`
-- Tabs de mockups con componente `Tabs` de Radix (ya instalado)
-- Formulario usa SDK de Supabase directo (insert anónimo con anon key)
-- No se toca `/login` ni `/signup` -- siguen accesibles
+- El email del super admin se hardcodea como constante en el frontend para mostrar/ocultar UI, pero la seguridad real está en las policies RLS del backend que también verifican el email
+- Se usa `auth.users.email` en las policies (lectura directa de la tabla auth, permitida en policies RLS)
+- La tabla `contact_inquiries` ya tiene SELECT para authenticated; la policy de DELETE es nueva
+- No se necesitan nuevas tablas
 
