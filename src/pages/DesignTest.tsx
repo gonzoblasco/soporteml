@@ -1,3 +1,5 @@
+import { useTheme } from 'next-themes';
+import { Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 
@@ -28,11 +30,25 @@ const Swatch = ({ name, cssVar, fgVar }: { name: string; cssVar: string; fgVar: 
 );
 
 const DesignTest = () => {
+  const { theme, setTheme } = useTheme();
+
   return (
     <div className="min-h-screen bg-background p-8 space-y-12 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-1">Design System Test</h1>
-        <p className="text-sm text-muted-foreground">Temporary page for visual validation</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-1">Design System Test</h1>
+          <p className="text-sm text-muted-foreground">Temporary page for visual validation</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="gap-2"
+        >
+          <Sun className="w-4 h-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute w-4 h-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        </Button>
       </div>
 
       {/* Color Swatches */}
