@@ -10,7 +10,7 @@ import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import Inbox from "@/pages/Inbox";
 import PriorityInbox from "@/pages/PriorityInbox";
-import Analytics from "@/pages/Analytics";
+import Home from "@/pages/Home";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
@@ -54,9 +54,9 @@ const AppRoutes = () => (
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/" element={<SmartHome />} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-      <Route path="/dashboard" element={<Inbox />} />
+      <Route path="/dashboard" element={<Home />} />
+      <Route path="/inbox" element={<Inbox />} />
       <Route path="/priority" element={<PriorityInbox />} />
-      <Route path="/analytics" element={<Analytics />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/admin" element={<AdminPanel />} />
     </Route>

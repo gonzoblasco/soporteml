@@ -140,7 +140,7 @@ const DashboardLayout = () => {
             icon: <Inbox className="w-4 h-4 text-primary" />,
             action: {
               label: 'Ver',
-              onClick: () => navigate('/'),
+              onClick: () => navigate('/inbox'),
             },
             duration: 5000,
           });

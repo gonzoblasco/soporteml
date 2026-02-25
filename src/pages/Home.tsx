@@ -1,9 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users } from 'lucide-react';
+import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Precio: 'hsl(200, 80%, 45%)',
@@ -15,8 +19,18 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 type RankingMode = 'products' | 'buyers';
 
-const Analytics = () => {
+interface RecentQuestion {
+  id: string;
+  question_text: string;
+  buyer_nickname: string | null;
+  requires_human: boolean;
+  created_at: string;
+}
+
+const Home = () => {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<any[]>([]);
+  const [recentQuestions, setRecentQuestions] = useState<RecentQuestion[]>([]);
   const [agentData, setAgentData] = useState<{ name: string; answered: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [rankingMode, setRankingMode] = useState<RankingMode>('products');
@@ -25,14 +39,23 @@ const Analytics = () => {
     const fetchData = async () => {
       setLoading(true);
 
-      const { data: qs } = await supabase
-        .from('questions')
-        .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)');
+      const [{ data: qs }, { data: recent }] = await Promise.all([
+        supabase
+          .from('questions')
+          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)'),
+        supabase
+          .from('questions')
+          .select('id, question_text, buyer_nickname, requires_human, created_at')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ]);
+
+      if (recent) setRecentQuestions(recent);
 
       if (qs) {
         setQuestions(qs);
 
-        // Agent performance
         const answered = qs.filter((q: any) => q.status === 'published' && q.answered_by);
         const agentMap: Record<string, number> = {};
         answered.forEach((q: any) => {
@@ -73,7 +96,6 @@ const Analytics = () => {
 
     const pending = questions.filter((q) => q.status === 'pending').length;
 
-    // Avg response time (answered_at - created_at) for published questions
     const withTimes = questions.filter((q) => q.status === 'published' && q.answered_at && q.created_at);
     let avgMinutes = 0;
     if (withTimes.length > 0) {
@@ -145,7 +167,7 @@ const Analytics = () => {
   return (
     <div className="p-6 overflow-y-auto h-full space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Analytics</h1>
+        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
       </div>
 
@@ -166,7 +188,7 @@ const Analytics = () => {
         ))}
       </div>
 
-      {categoryData.length === 0 && agentData.length === 0 ? (
+      {categoryData.length === 0 && agentData.length === 0 && recentQuestions.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay datos suficientes todavía.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -238,6 +260,60 @@ const Analytics = () => {
               </Card>
             </motion.div>
           )}
+
+          {/* Recent Activity Widget */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+            <Card className="glass-panel">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium">Actividad reciente</CardTitle>
+                  <button
+                    onClick={() => navigate('/inbox')}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    Ver todo <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {recentQuestions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No hay consultas pendientes</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {recentQuestions.map((q) => {
+                      const date = new Date(q.created_at);
+                      const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
+                      return (
+                        <button
+                          key={q.id}
+                          onClick={() => navigate(q.requires_human ? '/priority' : '/inbox')}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                        >
+                          {q.requires_human ? (
+                            <Badge variant="outline" className="shrink-0 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 text-[10px]">
+                              <AlertTriangle className="w-3 h-3 mr-0.5" />
+                              Priority
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="shrink-0 border-primary/50 text-primary bg-primary/10 px-1.5 py-0.5 text-[10px]">
+                              <Inbox className="w-3 h-3 mr-0.5" />
+                              Inbox
+                            </Badge>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm truncate text-foreground">{q.question_text}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {q.buyer_nickname ?? 'Comprador'} · {elapsed}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Bar Chart */}
           {agentData.length > 0 && (
@@ -325,4 +401,4 @@ const Analytics = () => {
   );
 };
 
-export default Analytics;
+export default Home;
