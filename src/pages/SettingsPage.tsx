@@ -45,8 +45,16 @@ const ProfileSection = () => {
   };
 
   const handleChangePassword = async () => {
-    if (newPassword.length < 6) {
-      toast({ title: 'Error', description: 'La contraseña debe tener al menos 6 caracteres.', variant: 'destructive' });
+    if (newPassword.length < 8) {
+      toast({ title: 'Error', description: 'La contraseña debe tener al menos 8 caracteres.', variant: 'destructive' });
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      toast({ title: 'Error', description: 'La contraseña debe incluir al menos una letra mayúscula.', variant: 'destructive' });
+      return;
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      toast({ title: 'Error', description: 'La contraseña debe incluir al menos un número.', variant: 'destructive' });
       return;
     }
     setChangingPw(true);
@@ -220,7 +228,7 @@ const MeliConnectionSection = () => {
   const { companyId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string; expires_at: string; refresh_token: string | null } | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string; expires_at: string; has_refresh_token: boolean } | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncInterval, setSyncInterval] = useState<number>(15);
   const [savingInterval, setSavingInterval] = useState(false);
@@ -229,7 +237,7 @@ const MeliConnectionSection = () => {
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const [tokenRes, settingsRes] = await Promise.all([
-      supabase.from('meli_tokens').select('meli_user_id, updated_at, expires_at, refresh_token').eq('company_id', companyId).maybeSingle(),
+      supabase.from('meli_connection_status').select('meli_user_id, updated_at, expires_at, has_refresh_token').eq('company_id', companyId).maybeSingle(),
       supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', companyId).maybeSingle(),
     ]);
     setTokenInfo(tokenRes.data ?? null);

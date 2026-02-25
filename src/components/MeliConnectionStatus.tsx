@@ -11,8 +11,8 @@ const MeliConnectionStatus = () => {
   useEffect(() => {
     const loadStatus = async () => {
       const { data: token } = await supabase
-        .from('meli_tokens')
-        .select('id, expires_at, refresh_token')
+        .from('meli_connection_status')
+        .select('id, expires_at, has_refresh_token')
         .limit(1)
         .maybeSingle();
 

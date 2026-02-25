@@ -53,8 +53,8 @@ const Home = () => {
           .order('created_at', { ascending: false })
           .limit(5),
         supabase
-          .from('meli_tokens')
-          .select('expires_at, refresh_token')
+          .from('meli_connection_status')
+          .select('expires_at, has_refresh_token')
           .limit(1)
           .maybeSingle(),
       ]);
