@@ -14,25 +14,32 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state"); // company_id
+    const rawState = url.searchParams.get("state"); // company_id|code_verifier
 
-    console.log("OAuth callback triggered with code:", code ? "YES" : "NO", "state:", state);
+    console.log("OAuth callback triggered with code:", code ? "YES" : "NO", "rawState length:", rawState?.length);
 
-    if (!code || !state) {
+    if (!code || !rawState) {
       console.error("Missing code or state in callback URL");
-      return new Response("Missing code or state (company_id)", { status: 400 });
+      return new Response("Missing code or state", { status: 400 });
     }
 
-    // Basic UUID validation for state (company_id)
+    // Parse state: "company_id|code_verifier" or legacy "company_id"
+    const pipeIndex = rawState.indexOf("|");
+    const companyId = pipeIndex > -1 ? rawState.substring(0, pipeIndex) : rawState;
+    const codeVerifier = pipeIndex > -1 ? rawState.substring(pipeIndex + 1) : null;
+
+    console.log("Parsed companyId:", companyId, "| code_verifier present:", !!codeVerifier);
+
+    // Basic UUID validation for company_id
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(state)) {
-      console.error("Invalid company_id format (state):", state);
+    if (!uuidRegex.test(companyId)) {
+      console.error("Invalid company_id format:", companyId);
       return new Response("Invalid company_id format", { status: 400 });
     }
 
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID");
     const MELI_SECRET_KEY = Deno.env.get("MELI_SECRET_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, ""); // Ensure no trailing slash
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!MELI_APP_ID || !MELI_SECRET_KEY || !SUPABASE_URL) {
@@ -43,18 +50,25 @@ Deno.serve(async (req) => {
     const redirectUri = `${SUPABASE_URL}/functions/v1/meli-oauth-callback`;
     console.log("Using redirect_uri:", redirectUri);
 
+    // Build token exchange body with PKCE code_verifier if available
+    const tokenBody: Record<string, string> = {
+      grant_type: "authorization_code",
+      client_id: MELI_APP_ID,
+      client_secret: MELI_SECRET_KEY,
+      code,
+      redirect_uri: redirectUri,
+    };
+    if (codeVerifier) {
+      tokenBody.code_verifier = codeVerifier;
+      console.log("Including code_verifier in token exchange (PKCE)");
+    }
+
     // Exchange code for tokens
     console.log("Exchanging code for tokens with MeLi...");
     const tokenRes = await fetch("https://api.mercadolibre.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", accept: "application/json" },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        client_id: MELI_APP_ID,
-        client_secret: MELI_SECRET_KEY,
-        code,
-        redirect_uri: redirectUri,
-      }),
+      body: new URLSearchParams(tokenBody),
     });
 
     if (!tokenRes.ok) {
@@ -66,19 +80,19 @@ Deno.serve(async (req) => {
     const tokenData = await tokenRes.json();
     const { access_token, refresh_token = null, expires_in, user_id: meli_user_id } = tokenData;
 
-    console.log("Token exchange successful for MeLi User ID:", meli_user_id, "| refresh_token received:", !!refresh_token);
+    console.log("Token exchange successful for MeLi User ID:", meli_user_id, "| refresh_token received:", !!refresh_token, "| refresh_token value:", refresh_token ? "PRESENT" : "NULL");
 
     const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
 
     // Store tokens using service role
-    console.log("Storing tokens in database for company:", state);
+    console.log("Storing tokens in database for company:", companyId);
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { error: upsertError } = await supabase
       .from("meli_tokens")
       .upsert(
         {
-          company_id: state,
+          company_id: companyId,
           access_token,
           refresh_token,
           meli_user_id: String(meli_user_id),
