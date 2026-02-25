@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell } from 'lucide-react';
+import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -219,7 +219,7 @@ const MeliConnectionSection = () => {
   const { companyId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string } | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string; expires_at: string; refresh_token: string | null } | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncInterval, setSyncInterval] = useState<number>(15);
   const [savingInterval, setSavingInterval] = useState(false);
@@ -228,7 +228,7 @@ const MeliConnectionSection = () => {
     if (!companyId) { setLoading(false); return; }
     setLoading(true);
     const [tokenRes, settingsRes] = await Promise.all([
-      supabase.from('meli_tokens').select('meli_user_id, updated_at').eq('company_id', companyId).maybeSingle(),
+      supabase.from('meli_tokens').select('meli_user_id, updated_at, expires_at, refresh_token').eq('company_id', companyId).maybeSingle(),
       supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', companyId).maybeSingle(),
     ]);
     setTokenInfo(tokenRes.data ?? null);
@@ -281,6 +281,34 @@ const MeliConnectionSection = () => {
 
   const isConnected = !!tokenInfo;
 
+  // Compute token health for badge
+  const tokenHealth = (() => {
+    if (!tokenInfo) return 'disconnected';
+    const now = Date.now();
+    const expiresAt = new Date(tokenInfo.expires_at).getTime();
+    const minutesLeft = Math.round((expiresAt - now) / 60000);
+    if (!tokenInfo.refresh_token) return 'no_refresh';
+    if (expiresAt <= now) return 'expired';
+    if (minutesLeft <= 30) return 'expiring_soon';
+    return 'connected';
+  })();
+
+  const healthBadge = () => {
+    if (loading) return null;
+    switch (tokenHealth) {
+      case 'connected':
+        return <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10"><CheckCircle2 className="w-3 h-3 mr-1" /> Conectado</Badge>;
+      case 'expiring_soon':
+        return <Badge variant="default" className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/10"><RefreshCw className="w-3 h-3 mr-1" /> Expira pronto</Badge>;
+      case 'expired':
+        return <Badge variant="destructive"><AlertTriangle className="w-3 h-3 mr-1" /> Expirado</Badge>;
+      case 'no_refresh':
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Reconexión necesaria</Badge>;
+      default:
+        return <Badge variant="secondary"><XCircle className="w-3 h-3 mr-1" /> Desconectado</Badge>;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -292,11 +320,7 @@ const MeliConnectionSection = () => {
               <CardDescription>Conectá tu cuenta para sincronizar preguntas automáticamente</CardDescription>
             </div>
           </div>
-          {!loading && (
-            <Badge variant={isConnected ? 'default' : 'secondary'} className={isConnected ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/10' : ''}>
-              {isConnected ? (<><CheckCircle2 className="w-3 h-3 mr-1" /> Conectado</>) : (<><XCircle className="w-3 h-3 mr-1" /> Desconectado</>)}
-            </Badge>
-          )}
+          {healthBadge()}
         </div>
       </CardHeader>
       <CardContent>
@@ -306,6 +330,24 @@ const MeliConnectionSection = () => {
           </div>
         ) : isConnected ? (
           <div className="space-y-3">
+            {tokenHealth === 'no_refresh' && (
+              <div className="flex items-center gap-2 p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                <XCircle className="w-4 h-4 shrink-0" />
+                <span>Sin refresh token — reconectá MercadoLibre para restaurar la renovación automática.</span>
+              </div>
+            )}
+            {tokenHealth === 'expired' && (
+              <div className="flex items-center gap-2 p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Token expirado — se renovará automáticamente en el próximo sync.</span>
+              </div>
+            )}
+            {tokenHealth === 'expiring_soon' && (
+              <div className="flex items-center gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-sm text-amber-600 dark:text-amber-400">
+                <RefreshCw className="w-4 h-4 shrink-0" />
+                <span>Token próximo a expirar — se renovará automáticamente.</span>
+              </div>
+            )}
             <div className="text-sm text-muted-foreground space-y-1">
               <p>Seller ID: <span className="font-mono text-foreground">{tokenInfo.meli_user_id}</span></p>
               <p>Última actualización: {formatDistanceToNow(new Date(tokenInfo.updated_at), { addSuffix: true, locale: es })}</p>

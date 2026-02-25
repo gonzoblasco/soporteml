@@ -8,6 +8,7 @@ import { groupQuestions } from '@/lib/groupQuestions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import MeliConnectionStatus from '@/components/MeliConnectionStatus';
 
 const PriorityInbox = () => {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
@@ -70,6 +71,7 @@ const PriorityInbox = () => {
                 {filtered.length}
               </span>
             </div>
+            <MeliConnectionStatus />
           </div>
 
           <div className="px-4 py-2 border-b border-border/50">
