@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, X, Bot, User, Package, RotateCcw, Trash2, ExternalLink, Save } from 'lucide-react';
 import TemplatePicker from './TemplatePicker';
+import AICopilotPanel from './AICopilotPanel';
 import ProductSideCard from './ProductSideCard';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -170,12 +171,17 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
             </p>
           </div>
 
+          {/* AI Copilot — only for non-published */}
+          {question.status !== 'published' && (
+            <AICopilotPanel question={question} onUseDraft={(draft) => setAnswer(draft)} />
+          )}
+
           {/* AI Suggestion Block — primary tinted */}
           <div className="rounded-lg bg-primary/5 p-4 border border-primary/20 flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <Bot className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-primary">
-                {question.status === 'published' ? 'Respuesta Publicada' : 'Sugerencia IA'}
+                {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta'}
               </span>
             </div>
             {question.status === 'published' ? (
@@ -186,6 +192,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
               <Textarea
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
+                placeholder="Editá la respuesta o usá el copiloto para generar un borrador…"
                 className="flex-1 min-h-[120px] bg-background/50 border-primary/10 resize-none text-sm leading-relaxed"
               />
             )}
