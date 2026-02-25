@@ -240,13 +240,36 @@ const MeliConnectionSection = () => {
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!companyId) {
       toast({ title: 'Error', description: 'No se encontró una empresa asociada.', variant: 'destructive' });
       return;
     }
+
+    // Generate PKCE code_verifier and code_challenge
+    const generateCodeVerifier = () => {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    };
+
+    const generateCodeChallenge = async (verifier: string) => {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(verifier);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    };
+
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    // Encode company_id + code_verifier in state (separated by |)
+    const statePayload = `${companyId}|${codeVerifier}`;
+
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meli-oauth-callback`;
-    const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${companyId}&scope=offline_access`;
+    const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(statePayload)}&scope=offline_access%20read%20write&code_challenge=${codeChallenge}&code_challenge_method=S256`;
     const popup = window.open(authUrl, 'meli_oauth', 'width=600,height=700');
     const interval = setInterval(() => {
       if (!popup || popup.closed) { clearInterval(interval); fetchStatus(); }
