@@ -390,7 +390,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      meli_connection_status: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          expires_at: string | null
+          has_refresh_token: boolean | null
+          id: string | null
+          meli_user_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          has_refresh_token?: never
+          id?: string | null
+          meli_user_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          has_refresh_token?: never
+          id?: string | null
+          meli_user_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meli_tokens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_admin_users: {

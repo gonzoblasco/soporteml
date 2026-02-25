@@ -65,25 +65,29 @@ Deno.serve(async (req) => {
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID")!;
     const MELI_SECRET_KEY = Deno.env.get("MELI_SECRET_KEY")!;
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Extract user ID from auth header if present
-    let callerUserId: string | null = null;
+    // Authenticate request
     const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      try {
-        const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-          global: { headers: { Authorization: authHeader } },
-        });
-        const token = authHeader.replace("Bearer ", "");
-        const { data: claimsData } = await anonClient.auth.getClaims(token);
-        if (claimsData?.claims?.sub) {
-          callerUserId = claimsData.claims.sub;
-        }
-      } catch (e) {
-        console.warn("Could not extract user from auth header:", e);
-      }
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    const anonClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const callerUserId = claimsData.claims.sub;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { question_id, answer } = await req.json();
 
@@ -104,6 +108,15 @@ Deno.serve(async (req) => {
     if (qErr || !question) {
       return new Response(JSON.stringify({ error: "Question not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify user belongs to the question's company
+    const { data: userCompanyId } = await supabase.rpc('get_user_company_id', { _user_id: callerUserId });
+    if (!userCompanyId || userCompanyId !== question.company_id) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -161,10 +174,8 @@ Deno.serve(async (req) => {
       final_answer: answer,
       status: "published",
       answered_at: new Date().toISOString(),
+      answered_by: callerUserId,
     };
-    if (callerUserId) {
-      updatePayload.answered_by = callerUserId;
-    }
     await supabase
       .from("questions")
       .update(updatePayload)

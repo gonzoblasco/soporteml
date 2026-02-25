@@ -23,14 +23,14 @@ export interface MeliHealthUI {
   showReconnectCTA: boolean;
 }
 
-export function computeHealth(token: { expires_at: string; refresh_token: string | null } | null): MeliHealthInfo {
+export function computeHealth(token: { expires_at: string; refresh_token?: string | null; has_refresh_token?: boolean } | null): MeliHealthInfo {
   if (!token) return { status: 'disconnected' };
 
   const now = Date.now();
   const expiresAt = new Date(token.expires_at).getTime();
   const minutesLeft = Math.max(0, Math.round((expiresAt - now) / 60000));
   const isExpired = expiresAt <= now;
-  const hasRefresh = !!token.refresh_token;
+  const hasRefresh = token.has_refresh_token ?? !!token.refresh_token;
 
   if (isExpired) {
     return {
