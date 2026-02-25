@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     const tokenData = await tokenRes.json();
     const { access_token, refresh_token = null, expires_in, user_id: meli_user_id } = tokenData;
 
-    console.log("Token exchange successful for MeLi User ID:", meli_user_id);
+    console.log("Token exchange successful for MeLi User ID:", meli_user_id, "| refresh_token received:", !!refresh_token);
 
     const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
 
