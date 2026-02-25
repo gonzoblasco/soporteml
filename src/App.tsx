@@ -12,6 +12,7 @@ import Inbox from "@/pages/Inbox";
 import PriorityInbox from "@/pages/PriorityInbox";
 import Home from "@/pages/Home";
 import SettingsPage from "@/pages/SettingsPage";
+import TemplatesPage from "@/pages/TemplatesPage";
 import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
 import AdminPanel from "./pages/AdminPanel";
@@ -58,6 +59,7 @@ const AppRoutes = () => (
       <Route path="/inbox" element={<Inbox />} />
       <Route path="/priority" element={<PriorityInbox />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/templates" element={<TemplatesPage />} />
       <Route path="/admin" element={<AdminPanel />} />
     </Route>
     <Route path="/design-test" element={<DesignTest />} />
