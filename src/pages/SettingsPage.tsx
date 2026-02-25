@@ -246,7 +246,7 @@ const MeliConnectionSection = () => {
       return;
     }
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meli-oauth-callback`;
-    const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${companyId}`;
+    const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${companyId}&scope=offline_access`;
     const popup = window.open(authUrl, 'meli_oauth', 'width=600,height=700');
     const interval = setInterval(() => {
       if (!popup || popup.closed) { clearInterval(interval); fetchStatus(); }
