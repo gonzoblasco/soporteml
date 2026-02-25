@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users } from 'lucide-react';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Precio: 'hsl(200, 80%, 45%)',
@@ -13,47 +13,32 @@ const CATEGORY_COLORS: Record<string, string> = {
   Garantía: 'hsl(340, 65%, 45%)',
 };
 
+type RankingMode = 'products' | 'buyers';
+
 const Analytics = () => {
-  const [categoryData, setCategoryData] = useState<{ name: string; value: number; fill: string }[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [agentData, setAgentData] = useState<{ name: string; answered: number }[]>([]);
-  const [topProducts, setTopProducts] = useState<{ rank: number; name: string; questions: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rankingMode, setRankingMode] = useState<RankingMode>('products');
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       setLoading(true);
 
-      // All questions for this company (RLS handles scoping)
-      const { data: questions } = await supabase
+      const { data: qs } = await supabase
         .from('questions')
-        .select('ai_category, status, answered_by, product_id, products(title)');
+        .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)');
 
-      if (questions) {
-        // Category breakdown
-        const catMap: Record<string, number> = {};
-        questions.forEach((q: any) => {
-          const cat = q.ai_category ?? 'Sin categoría';
-          catMap[cat] = (catMap[cat] || 0) + 1;
-        });
-        setCategoryData(
-          Object.entries(catMap)
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, value]) => ({
-              name,
-              value,
-              fill: CATEGORY_COLORS[name] ?? 'hsl(220, 10%, 50%)',
-            }))
-        );
+      if (qs) {
+        setQuestions(qs);
 
-        // Agent performance (answered questions)
-        const answered = questions.filter((q: any) => q.status === 'published' && q.answered_by);
+        // Agent performance
+        const answered = qs.filter((q: any) => q.status === 'published' && q.answered_by);
         const agentMap: Record<string, number> = {};
         answered.forEach((q: any) => {
-          const id = q.answered_by as string;
-          agentMap[id] = (agentMap[id] || 0) + 1;
+          agentMap[q.answered_by] = (agentMap[q.answered_by] || 0) + 1;
         });
 
-        // Fetch agent names
         const agentIds = Object.keys(agentMap);
         if (agentIds.length > 0) {
           const { data: profiles } = await supabase
@@ -71,29 +56,83 @@ const Analytics = () => {
               .map(([id, count]) => ({ name: nameMap[id] ?? id.slice(0, 8), answered: count }))
           );
         }
-
-        // Top products
-        const prodMap: Record<string, { name: string; count: number }> = {};
-        questions.forEach((q: any) => {
-          const pid = q.product_id as string;
-          if (!pid) return;
-          if (!prodMap[pid]) {
-            prodMap[pid] = { name: q.products?.title ?? 'Producto', count: 0 };
-          }
-          prodMap[pid].count += 1;
-        });
-        setTopProducts(
-          Object.values(prodMap)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5)
-            .map((p, i) => ({ rank: i + 1, name: p.name, questions: p.count }))
-        );
       }
 
       setLoading(false);
     };
-    fetch();
+    fetchData();
   }, []);
+
+  // --- Derived data ---
+  const today = new Date().toISOString().slice(0, 10);
+
+  const kpis = useMemo(() => {
+    const answeredToday = questions.filter(
+      (q) => q.status === 'published' && q.answered_at?.slice(0, 10) === today
+    ).length;
+
+    const pending = questions.filter((q) => q.status === 'pending').length;
+
+    // Avg response time (answered_at - created_at) for published questions
+    const withTimes = questions.filter((q) => q.status === 'published' && q.answered_at && q.created_at);
+    let avgMinutes = 0;
+    if (withTimes.length > 0) {
+      const totalMs = withTimes.reduce((sum: number, q: any) => {
+        return sum + (new Date(q.answered_at).getTime() - new Date(q.created_at).getTime());
+      }, 0);
+      avgMinutes = Math.round(totalMs / withTimes.length / 60000);
+    }
+    const avgLabel = avgMinutes < 1 ? '< 1 min' : avgMinutes < 60 ? `${avgMinutes} min` : `${Math.round(avgMinutes / 60)}h`;
+
+    return { answeredToday, pending, avgLabel };
+  }, [questions, today]);
+
+  const categoryData = useMemo(() => {
+    const catMap: Record<string, number> = {};
+    questions.forEach((q: any) => {
+      const cat = q.ai_category ?? 'Sin categoría';
+      catMap[cat] = (catMap[cat] || 0) + 1;
+    });
+    return Object.entries(catMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({
+        name,
+        value,
+        fill: CATEGORY_COLORS[name] ?? 'hsl(220, 10%, 50%)',
+      }));
+  }, [questions]);
+
+  const totalQuestions = useMemo(() => questions.length, [questions]);
+
+  const topProducts = useMemo(() => {
+    const prodMap: Record<string, { name: string; count: number }> = {};
+    questions.forEach((q: any) => {
+      const pid = q.product_id as string;
+      if (!pid) return;
+      if (!prodMap[pid]) prodMap[pid] = { name: q.products?.title ?? 'Producto', count: 0 };
+      prodMap[pid].count += 1;
+    });
+    return Object.values(prodMap)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map((p, i) => ({ rank: i + 1, name: p.name, questions: p.count }));
+  }, [questions]);
+
+  const topBuyers = useMemo(() => {
+    const buyerMap: Record<string, { name: string; count: number }> = {};
+    questions.forEach((q: any) => {
+      const key = q.buyer_nickname ?? q.buyer_id;
+      if (!key) return;
+      if (!buyerMap[key]) buyerMap[key] = { name: key, count: 0 };
+      buyerMap[key].count += 1;
+    });
+    return Object.values(buyerMap)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map((b, i) => ({ rank: i + 1, name: b.name, questions: b.count }));
+  }, [questions]);
+
+  const rankingData = rankingMode === 'products' ? topProducts : topBuyers;
 
   if (loading) {
     return (
@@ -104,13 +143,30 @@ const Analytics = () => {
   }
 
   return (
-    <div className="p-6 overflow-y-auto h-full">
-      <div className="mb-6">
+    <div className="p-6 overflow-y-auto h-full space-y-6">
+      <div>
         <h1 className="text-xl font-semibold text-foreground">Analytics</h1>
         <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
       </div>
 
-      {categoryData.length === 0 && agentData.length === 0 && topProducts.length === 0 ? (
+      {/* KPI Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Respondidas hoy', value: String(kpis.answeredToday), icon: MessageSquare },
+          { label: 'Tiempo promedio', value: kpis.avgLabel, icon: Clock },
+          { label: 'Pendientes', value: String(kpis.pending), icon: AlertTriangle },
+        ].map((kpi, i) => (
+          <motion.div key={kpi.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <div className="text-center p-4 rounded-lg bg-muted/50 border border-border/30">
+              <kpi.icon className="w-4 h-4 mx-auto mb-1.5 text-muted-foreground" />
+              <div className="text-2xl font-bold text-primary">{kpi.value}</div>
+              <div className="text-xs text-muted-foreground">{kpi.label}</div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {categoryData.length === 0 && agentData.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay datos suficientes todavía.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -155,6 +211,34 @@ const Analytics = () => {
             </motion.div>
           )}
 
+          {/* Category Progress Bars */}
+          {categoryData.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <Card className="glass-panel">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Distribución por Categoría</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {categoryData.map((c) => {
+                    const pct = totalQuestions > 0 ? Math.round((c.value / totalQuestions) * 100) : 0;
+                    return (
+                      <div key={c.name} className="flex items-center gap-3">
+                        <span className="text-xs w-20 text-muted-foreground truncate">{c.name}</span>
+                        <div className="flex-1 h-2 rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, backgroundColor: c.fill }}
+                          />
+                        </div>
+                        <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Bar Chart */}
           {agentData.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -186,20 +270,48 @@ const Analytics = () => {
             </motion.div>
           )}
 
-          {/* Top Products */}
-          {topProducts.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-2">
+          {/* Ranking: Products or Buyers toggle */}
+          {rankingData.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
               <Card className="glass-panel">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Top 5 Productos más consultados</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">
+                      {rankingMode === 'products' ? 'Top 5 Productos' : 'Top 5 Compradores'}
+                    </CardTitle>
+                    <div className="flex items-center rounded-md border border-border/50 overflow-hidden">
+                      <button
+                        onClick={() => setRankingMode('products')}
+                        className={`flex items-center gap-1 px-2.5 py-1 text-xs transition-colors ${
+                          rankingMode === 'products'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Package className="w-3 h-3" />
+                        Productos
+                      </button>
+                      <button
+                        onClick={() => setRankingMode('buyers')}
+                        className={`flex items-center gap-1 px-2.5 py-1 text-xs transition-colors ${
+                          rankingMode === 'buyers'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <Users className="w-3 h-3" />
+                        Compradores
+                      </button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {topProducts.map((p) => (
-                      <div key={p.rank} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                        <span className="text-lg font-bold text-primary w-6 text-center">{p.rank}</span>
-                        <span className="flex-1 text-sm text-foreground">{p.name}</span>
-                        <span className="text-sm font-medium text-muted-foreground">{p.questions} consultas</span>
+                    {rankingData.map((item) => (
+                      <div key={item.rank} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <span className="text-lg font-bold text-primary w-6 text-center">{item.rank}</span>
+                        <span className="flex-1 text-sm text-foreground truncate">{item.name}</span>
+                        <span className="text-sm font-medium text-muted-foreground">{item.questions} consultas</span>
                       </div>
                     ))}
                   </div>
