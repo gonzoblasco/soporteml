@@ -6,6 +6,29 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.1.0] — 2026-02-25
+
+### 🎨 Rediseño Visual — Estética MockupTabs
+
+Tres fases de mejora visual para unificar la estética del preview (MockupTabs) con los componentes reales de la app, tomando lo mejor de cada uno.
+
+### Cambiado
+
+- **QuestionCard**: layout aplanado a una sola fila horizontal — `[CategoryBadge] [texto truncado] [buyer · tiempo]`. Padding reducido a `p-3`, bordes sutiles `border-border/30`, esquinas `rounded-md`. Se mantiene `showHumanReason` como fila condicional.
+- **GroupedQuestionCard**: header colapsado con el mismo estilo compacto horizontal. Badge de cantidad y chevron alineados a la derecha en una sola fila. Funcionalidad de agrupación intacta.
+- **QuestionDetail**: rediseñado con dos bloques visuales diferenciados:
+  - **Bloque de pregunta**: fondo `bg-muted/50` con metadata inline (categoría + buyer + tiempo) y producto + precio como subtítulo.
+  - **Bloque de respuesta IA**: fondo `bg-primary/5` con `border-primary/20`, icono Bot y label "Sugerencia IA".
+  - Textarea editable y ProductSideCard mantenidos.
+
+### Añadido
+
+- **KPIs rápidos en Analytics**: fila de 3 tarjetas — "Respondidas hoy", "Tiempo promedio" (calculado real), "Pendientes" — con estilo MockupTabs (`bg-muted/50 border-border/30`).
+- **Barras de progreso por categoría**: panel complementario al PieChart con porcentajes y barras coloreadas por categoría.
+- **Ranking con toggle Productos/Compradores**: botón segmentado para alternar entre Top 5 Productos más consultados y Top 5 Compradores que más preguntan.
+
+---
+
 ## [1.0.0] — 2026-02-24
 
 ### 🎉 Release Inicial
