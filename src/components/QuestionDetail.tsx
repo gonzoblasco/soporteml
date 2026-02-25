@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Sparkles, User, Package, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
+import { Send, X, Bot, User, Package, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
 import ProductSideCard from './ProductSideCard';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -112,63 +112,60 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         className="flex-1 flex overflow-hidden"
       >
         {/* Main content */}
-        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-          {/* Header */}
-          <div className="mb-6">
+        <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-4">
+          {/* Question Block — muted background */}
+          <div className="rounded-lg bg-muted/50 p-4 border border-border/30">
             <div className="flex items-center gap-2 mb-2">
               <CategoryBadge category={question.ai_category} />
-              <span className="text-xs text-muted-foreground">{elapsed}</span>
+              <span className="text-xs text-muted-foreground">
+                {question.buyer_nickname ?? question.buyer_id ?? 'Comprador'} · {elapsed}
+              </span>
             </div>
-            <h2 className="text-lg font-semibold text-foreground mb-1">
+            <p className="text-sm font-medium text-foreground mb-1">{question.question_text}</p>
+            <p className="text-xs text-muted-foreground">
+              Producto:{' '}
               {question.product_permalink ? (
                 <a
                   href={question.product_permalink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-primary hover:underline inline-flex items-center gap-1.5"
+                  className="hover:text-primary hover:underline inline-flex items-center gap-1"
                 >
                   {question.product_title ?? 'Producto'}
-                  <ExternalLink className="w-4 h-4 shrink-0 opacity-50" />
+                  <ExternalLink className="w-3 h-3 shrink-0 opacity-50" />
                 </a>
               ) : (
                 question.product_title ?? 'Producto'
               )}
-            </h2>
-            <p className="text-xs text-muted-foreground font-mono">{question.product_meli_id}</p>
+              {question.product_price != null && (
+                <span> — ${question.product_price.toLocaleString('es-AR')}</span>
+              )}
+            </p>
           </div>
 
-          {/* Question */}
-          <div className="glass-panel rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
-            </div>
-            <p className="text-sm text-foreground leading-relaxed">{question.question_text}</p>
-          </div>
-
-          {/* Answer */}
-          <div className="flex-1 flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">
-                {question.status === 'published' ? 'Respuesta Publicada' : 'Respuesta Sugerida por IA'}
+          {/* AI Suggestion Block — primary tinted */}
+          <div className="rounded-lg bg-primary/5 p-4 border border-primary/20 flex-1 flex flex-col">
+            <div className="flex items-center gap-2 mb-3">
+              <Bot className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-primary">
+                {question.status === 'published' ? 'Respuesta Publicada' : 'Sugerencia IA'}
               </span>
             </div>
             {question.status === 'published' ? (
-              <div className="flex-1 min-h-[140px] bg-muted/30 border border-border/50 rounded-md p-3 text-sm leading-relaxed text-foreground">
+              <div className="flex-1 min-h-[120px] text-sm leading-relaxed text-foreground">
                 {question.final_answer ?? answer}
               </div>
             ) : (
               <Textarea
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                className="flex-1 min-h-[140px] bg-muted/30 border-border/50 resize-none text-sm leading-relaxed"
+                className="flex-1 min-h-[120px] bg-background/50 border-primary/10 resize-none text-sm leading-relaxed"
               />
             )}
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/50 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {question.status === 'archived' ? (
               <>
                 <Button onClick={handleRestore} className="gap-2">
@@ -187,7 +184,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                          La pregunta será movida a la papelera.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -202,9 +199,9 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
               </>
             ) : question.status === 'published' ? null : (
               <>
-                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2">
+                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2 flex-1 sm:flex-none">
                   <Send className="w-4 h-4" />
-                  Publicar Respuesta
+                  Publicar respuesta
                 </Button>
                 <Button variant="outline" onClick={handleDiscard} className="gap-2">
                   <X className="w-4 h-4" />
@@ -222,7 +219,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
                       <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          La pregunta será movida a la papelera. Podrás restaurarla o eliminarla definitivamente desde Settings.
+                          La pregunta será movida a la papelera.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
