@@ -26,6 +26,13 @@ Tres fases de mejora visual para unificar la estética del preview (MockupTabs) 
 - **KPIs rápidos en Analytics**: fila de 3 tarjetas — "Respondidas hoy", "Tiempo promedio" (calculado real), "Pendientes" — con estilo MockupTabs (`bg-muted/50 border-border/30`).
 - **Barras de progreso por categoría**: panel complementario al PieChart con porcentajes y barras coloreadas por categoría.
 - **Ranking con toggle Productos/Compradores**: botón segmentado para alternar entre Top 5 Productos más consultados y Top 5 Compradores que más preguntan.
+- **Alerta de token MeLi en Dashboard**: banner visual con 3 niveles de severidad (sin refresh token → reconectar, expirado → se renueva solo, próximo a expirar → informativo). Clickeable para ir a Settings.
+- **Sidebar colapsable**: modo mini (solo iconos) en desktop con botón de toggle, tooltips en hover, badges visibles en ambos modos. Estado persistido en localStorage.
+
+### Corregido
+
+- **Preservación de refresh_token**: el sync de MeLi ya no sobreescribe `refresh_token` con `null` cuando la API no devuelve uno nuevo. Esto evitaba la renovación automática y forzaba reconexiones manuales.
+- **Logging de OAuth callback**: se registra si MeLi devolvió `refresh_token` para diagnóstico futuro.
 
 ---
 
