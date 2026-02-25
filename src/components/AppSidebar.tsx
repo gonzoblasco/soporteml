@@ -1,4 +1,4 @@
-import { Inbox, BarChart3, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield } from 'lucide-react';
+import { Inbox, LayoutDashboard, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,9 +8,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
-  { title: 'Inbox', url: '/dashboard', icon: Inbox, badgeKey: 'inbox' as const },
+  { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Inbox', url: '/inbox', icon: Inbox, badgeKey: 'inbox' as const },
   { title: 'Priority', url: '/priority', icon: AlertTriangle, badgeKey: 'priority' as const },
-  { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
