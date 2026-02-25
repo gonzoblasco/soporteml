@@ -23,6 +23,15 @@ const ContactForm = () => {
     e.preventDefault();
     setErrors({});
 
+    // Client-side rate limiting: 1 submission per 60 seconds
+    const RATE_LIMIT_KEY = 'contact_form_last_submit';
+    const RATE_LIMIT_MS = 60 * 1000;
+    const lastSubmit = localStorage.getItem(RATE_LIMIT_KEY);
+    if (lastSubmit && Date.now() - parseInt(lastSubmit) < RATE_LIMIT_MS) {
+      toast.error('Por favor esperá un minuto antes de enviar otra consulta.');
+      return;
+    }
+
     const result = contactSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -42,6 +51,7 @@ const ContactForm = () => {
       return;
     }
 
+    localStorage.setItem('contact_form_last_submit', Date.now().toString());
     toast.success('¡Consulta enviada! Te responderemos a la brevedad.');
     setForm({ name: '', email: '', message: '' });
   };
