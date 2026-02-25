@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, Bot, User, Package, RotateCcw, Trash2, ExternalLink } from 'lucide-react';
+import { Send, X, Bot, User, Package, RotateCcw, Trash2, ExternalLink, Save } from 'lucide-react';
+import TemplatePicker from './TemplatePicker';
 import ProductSideCard from './ProductSideCard';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -22,7 +23,8 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [answer, setAnswer] = useState('');
   const [key, setKey] = useState('');
   const [publishing, setPublishing] = useState(false);
-  const { userRole } = useAuth();
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const { userRole, companyId } = useAuth();
   const isAdmin = userRole === 'admin';
 
   useEffect(() => {
@@ -99,6 +101,31 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
       toast.success('Pregunta movida a la papelera');
       onUpdated?.();
     }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!companyId || !answer.trim()) return;
+    setSavingTemplate(true);
+    const { error } = await supabase
+      .from('templates')
+      .insert({
+        company_id: companyId,
+        title: (question.question_text ?? '').slice(0, 60) || 'Sin título',
+        category: (question.ai_category ?? 'general').toLowerCase(),
+        content: answer.trim(),
+        variables: [],
+      });
+    setSavingTemplate(false);
+    if (error) {
+      toast.error('Error al guardar plantilla: ' + error.message);
+    } else {
+      toast.success('Guardada como plantilla');
+    }
+  };
+
+  const templateVars: Record<string, string> = {
+    producto: question.product_title ?? '',
+    nombre: question.buyer_nickname ?? '',
   };
 
   return (
@@ -199,10 +226,17 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
               </>
             ) : question.status === 'published' ? null : (
               <>
+                <TemplatePicker onSelect={(text) => setAnswer(text)} variables={templateVars} />
                 <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2 flex-1 sm:flex-none">
                   <Send className="w-4 h-4" />
                   Publicar respuesta
                 </Button>
+                {isAdmin && answer.trim() && (
+                  <Button variant="outline" size="sm" onClick={handleSaveAsTemplate} disabled={savingTemplate} className="gap-1.5 text-xs">
+                    <Save className="w-3.5 h-3.5" />
+                    Guardar como plantilla
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handleDiscard} className="gap-2">
                   <X className="w-4 h-4" />
                   Archivar
