@@ -20,29 +20,28 @@ const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props)
     <motion.button
       layout
       onClick={onClick}
-      className={`w-full text-left p-4 rounded-lg border transition-colors ${
+      className={`w-full text-left rounded-md border p-3 transition-colors ${
         isSelected
           ? 'bg-accent border-primary/30 shadow-sm'
-          : 'bg-card/40 border-border/50 hover:bg-accent/50'
+          : 'bg-card border-border/30 hover:bg-accent/50'
       }`}
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h4 className="text-sm font-medium text-foreground line-clamp-1">
-          {question.product_title ?? 'Producto'}
-        </h4>
+      <div className="flex items-center gap-3">
         <CategoryBadge category={question.ai_category} />
+        <div className="flex-1 min-w-0">
+          <span className="text-sm truncate block">{question.question_text}</span>
+          <span className="text-xs text-muted-foreground">
+            {question.buyer_nickname ?? question.buyer_id ?? 'Comprador'} · {elapsed}
+          </span>
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{question.question_text}</p>
+
       {showHumanReason && question.requires_human_reason && (
-        <div className="flex items-start gap-1.5 mb-2 text-xs text-amber-600 dark:text-amber-400">
-          <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-          <span className="line-clamp-1">{question.requires_human_reason}</span>
+        <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
+          <AlertTriangle className="w-3 h-3 shrink-0" />
+          <span className="truncate">{question.requires_human_reason}</span>
         </div>
       )}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{question.buyer_nickname ?? question.buyer_id ?? 'Comprador'}</span>
-        <span>{elapsed}</span>
-      </div>
     </motion.button>
   );
 };

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { QuestionGroup } from '@/lib/groupQuestions';
-import type { QuestionRow } from '@/types/question';
 import QuestionCard from './QuestionCard';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
@@ -46,46 +45,37 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: P
 
   return (
     <div className="space-y-1">
-      {/* Collapsed header */}
       <motion.button
         layout
         onClick={() => setExpanded(prev => !prev)}
-        className={`w-full text-left p-4 rounded-lg border transition-colors ${
+        className={`w-full text-left rounded-md border p-3 transition-colors ${
           isAnySelected
             ? 'bg-accent border-primary/30 shadow-sm'
-            : 'bg-card/40 border-border/50 hover:bg-accent/50'
+            : 'bg-card border-border/30 hover:bg-accent/50'
         }`}
       >
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h4 className="text-sm font-medium text-foreground line-clamp-1">
-            {group.product_title ?? 'Producto'}
-          </h4>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {topCategory && <CategoryBadge category={topCategory} />}
+        <div className="flex items-center gap-3">
+          {topCategory && <CategoryBadge category={topCategory} />}
+          <div className="flex-1 min-w-0">
+            <span className="text-sm truncate block">
+              {group.product_title ?? 'Producto'}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {group.buyer_nickname ?? group.buyer_id ?? 'Comprador'} · {elapsed}
+            </span>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant="secondary" className="text-xs gap-1 font-normal">
+          <Badge variant="secondary" className="text-xs gap-1 font-normal shrink-0">
             <MessageSquare className="w-3 h-3" />
-            {count} {count === 1 ? 'mensaje pendiente' : 'mensajes pendientes'}
+            {count}
           </Badge>
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{group.buyer_nickname ?? group.buyer_id ?? 'Comprador'}</span>
-          <div className="flex items-center gap-1.5">
-            <span>{elapsed}</span>
-            {expanded ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
-            )}
-          </div>
+          {expanded ? (
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          )}
         </div>
       </motion.button>
 
-      {/* Expanded children */}
       <AnimatePresence>
         {expanded && (
           <motion.div
