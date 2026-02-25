@@ -4,6 +4,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
+import { derivePriorityChips } from '@/lib/priorityChips';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Props {
   question: QuestionRow;
@@ -15,6 +17,7 @@ interface Props {
 const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props) => {
   const date = new Date(question.created_at);
   const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
+  const chips = showHumanReason ? derivePriorityChips(question) : [];
 
   return (
     <motion.button
@@ -36,10 +39,28 @@ const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props)
         </div>
       </div>
 
-      {showHumanReason && question.requires_human_reason && (
-        <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
-          <AlertTriangle className="w-3 h-3 shrink-0" />
-          <span className="truncate">{question.requires_human_reason}</span>
+      {showHumanReason && chips.length > 0 && (
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          {chips.map(chip => (
+            <span
+              key={chip.label}
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${chip.color}`}
+            >
+              {chip.label}
+            </span>
+          ))}
+          {question.requires_human_reason && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center text-muted-foreground cursor-help">
+                  <AlertTriangle className="w-3 h-3" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs max-w-[240px]">
+                {question.requires_human_reason}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       )}
     </motion.button>
