@@ -19,14 +19,23 @@ interface Props {
   onUseDraft: (draft: string) => void;
 }
 
+const TONE_OPTIONS = [
+  { value: 'breve', label: 'Breve', description: 'Corta y directa' },
+  { value: 'cálida', label: 'Cálida', description: 'Amable y cercana' },
+  { value: 'técnica', label: 'Técnica', description: 'Precisa y detallada' },
+] as const;
+
+type ToneValue = typeof TONE_OPTIONS[number]['value'];
+
 const AICopilotPanel = ({ question, onUseDraft }: Props) => {
   const { companyId } = useAuth();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
+  const [activeTone, setActiveTone] = useState<ToneValue | null>(null);
 
-  const fetchCopilot = async () => {
+  const fetchCopilot = async (toneOverride?: ToneValue) => {
     setLoading(true);
     setError(null);
     setCheckedItems(new Set());
@@ -44,6 +53,12 @@ const AICopilotPanel = ({ question, onUseDraft }: Props) => {
         aiTone = settings.ai_tone;
         aiCustomInstructions = settings.ai_custom_instructions;
       }
+    }
+
+    // Override with user-selected tone variant
+    if (toneOverride) {
+      aiTone = toneOverride;
+      setActiveTone(toneOverride);
     }
 
     const { data, error: fnError } = await supabase.functions.invoke('ai-copilot', {
@@ -92,7 +107,7 @@ const AICopilotPanel = ({ question, onUseDraft }: Props) => {
       <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
         <Button
           variant="outline"
-          onClick={fetchCopilot}
+          onClick={() => fetchCopilot()}
           className="w-full gap-2 text-sm"
         >
           <Sparkles className="w-4 h-4 text-primary" />
@@ -123,13 +138,32 @@ const AICopilotPanel = ({ question, onUseDraft }: Props) => {
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={fetchCopilot}
+              onClick={() => fetchCopilot(activeTone ?? undefined)}
               title="Regenerar"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </Button>
           )}
         </div>
+
+        {/* Tone variants */}
+        {!loading && result && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground mr-1">Tono:</span>
+            {TONE_OPTIONS.map(t => (
+              <Button
+                key={t.value}
+                variant={activeTone === t.value ? 'default' : 'outline'}
+                size="sm"
+                className="h-6 px-2.5 text-[11px] rounded-full"
+                onClick={() => fetchCopilot(t.value)}
+                title={t.description}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
