@@ -46,14 +46,22 @@ async function refreshTokenIfNeeded(
   const data = await res.json();
   const expiresAtNew = new Date(Date.now() + data.expires_in * 1000).toISOString();
 
+  const updatePayload: Record<string, any> = {
+    access_token: data.access_token,
+    expires_at: expiresAtNew,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Solo actualizar refresh_token si MeLi devolvió uno nuevo
+  if (data.refresh_token) {
+    updatePayload.refresh_token = data.refresh_token;
+  }
+
+  console.log("Token refreshed. New refresh_token received:", !!data.refresh_token);
+
   await supabase
     .from("meli_tokens")
-    .update({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_at: expiresAtNew,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", tokenRow.id);
 
   return data.access_token;
