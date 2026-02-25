@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ExternalLink, Package, Tag, Truck, Shield, Layers, DollarSign, Loader2 } from 'lucide-react';
+import { ExternalLink, Package, Tag, Truck, Shield, Layers, DollarSign, Loader2, AlertTriangle, Settings } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 interface MeliItem {
   title: string;
@@ -35,60 +37,118 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
   const [item, setItem] = useState<MeliItem | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!meliItemId) return;
     setLoading(true);
     setItem(null);
     setDescription(null);
+    setError(false);
 
     supabase.functions.invoke('meli-item-proxy', {
       body: { item_id: meliItemId },
-    }).then(({ data, error }) => {
-      if (!error && data?.item) {
+    }).then(({ data, error: err }) => {
+      if (!err && data?.item) {
         setItem(data.item);
         setDescription(data.description ?? null);
+      } else {
+        setError(true);
       }
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setError(true);
+      setLoading(false);
+    });
   }, [meliItemId]);
 
   // Hide on mobile
   if (isMobile) return null;
   if (!meliItemId) return null;
 
+  // Loading skeleton
   if (loading) {
     return (
-      <div className="w-72 shrink-0 border-l border-border/50 flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
+        <div className="p-4 space-y-4">
+          <Skeleton className="w-full h-48 rounded-lg" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-6 w-1/2" />
+          </div>
+          <div className="flex gap-1.5">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-px w-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Fallback from DB when API fails
+  // Error / fallback state with graceful messaging
   if (!item) {
-    if (!fallbackTitle) return null;
     return (
       <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
         <div className="p-4 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">{fallbackTitle}</h3>
-            {fallbackPrice && (
-              <p className="text-lg font-bold text-foreground">
-                {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(fallbackPrice)}
-              </p>
-            )}
-          </div>
-          <Separator />
-          <p className="text-[11px] text-muted-foreground">
-            No se pudo cargar información adicional del producto.
-          </p>
+          {/* Show whatever data we have from DB */}
+          {fallbackTitle && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">{fallbackTitle}</h3>
+              {fallbackPrice && (
+                <p className="text-lg font-bold text-foreground">
+                  {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(fallbackPrice)}
+                </p>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <>
+              <Separator />
+              <div className="rounded-lg bg-muted/50 border border-border/50 p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-foreground">
+                      No pudimos cargar los detalles del producto
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Puede deberse a una conexión en curso o a la sincronización. No te preocupes, los datos básicos están disponibles.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="flex items-center gap-1.5 text-[11px] text-primary hover:underline mt-1"
+                >
+                  <Settings className="w-3 h-3" />
+                  Ir a Settings para verificar la conexión
+                </button>
+              </div>
+            </>
+          )}
+
           {fallbackPermalink && (
-            <a href={fallbackPermalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-              <ExternalLink className="w-3 h-3" />
-              Ver publicación en MeLi
-            </a>
+            <>
+              <Separator />
+              <a href={fallbackPermalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                <ExternalLink className="w-3 h-3" />
+                Ver publicación en MeLi
+              </a>
+            </>
+          )}
+
+          {!fallbackTitle && !error && (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              Seleccioná una consulta para ver los detalles del producto.
+            </p>
           )}
         </div>
       </div>
