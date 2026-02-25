@@ -1,42 +1,63 @@
 
 
-## Plan: Convertir Analytics en Home del Dashboard + Widget de actividad reciente
+## Diagnóstico: Por qué el refresh_token vuelve a quedar NULL
 
-### Entendimiento
+### Causa raíz
 
-- **Home** = la página actual de Analytics (KPIs, charts, rankings) + un **widget nuevo** que muestra las últimas 4-5 preguntas combinando Inbox y Priority en una sola lista compacta.
-- Las páginas **Inbox** (`/dashboard` actual) y **Priority** (`/priority`) **siguen existiendo por separado** como están hoy.
-- El widget es solo un vistazo rápido, no reemplaza las bandejas.
+El problema está en la función `refreshTokenIfNeeded` dentro de `sync-meli-questions/index.ts` (línea 53).
 
-### Cambios
+Cuando el sync refresca el token, guarda el resultado así:
 
-#### 1. Ruta y navegación
+```text
+.update({
+  access_token: data.access_token,
+  refresh_token: data.refresh_token,    // ← BUG AQUÍ
+  expires_at: expiresAtNew,
+})
+```
 
-- **`/dashboard`** → renderiza el nuevo **Home** (actualmente Analytics).
-- **`/inbox`** → renderiza **Inbox** (actualmente en `/dashboard`).
-- **`/priority`** → sigue igual.
-- **Sidebar**: `Home` (icono LayoutDashboard) como primer item apuntando a `/dashboard`, luego `Inbox` → `/inbox`, `Priority` → `/priority`. Se elimina el item "Analytics" porque ahora es Home.
+La API de MeLi **a veces no devuelve un nuevo `refresh_token`** en la respuesta del refresh grant. Cuando `data.refresh_token` es `undefined`, el update lo convierte en `null`, **borrando el refresh_token válido que ya existía en la DB**.
 
-#### 2. Widget "Actividad reciente" en Home
+Entonces el ciclo es:
+1. OAuth callback guarda tokens correctamente (access + refresh) ✅
+2. El token expira, sync lo refresca con éxito ✅
+3. El update sobreescribe `refresh_token` con `null` porque MeLi no devolvió uno nuevo ❌
+4. El NUEVO token expira → no hay refresh_token → error fatal 💀
 
-Se ubica debajo de "Distribución por Categoría" (el espacio que queda vacío en el grid 2-col).
+### Fix
 
-- Query: últimas 5 preguntas pendientes ordenadas por `created_at DESC`, sin filtrar por `requires_human` (trae ambas).
-- Cada fila muestra: indicador visual (badge amber con ⚠️ si `requires_human`, badge azul normal si no), texto truncado de la pregunta, buyer nickname, y tiempo relativo.
-- Click en una fila navega a `/priority` o `/inbox` según corresponda.
-- Título del card: "Actividad reciente" con un link "Ver todo →".
+**Archivo**: `supabase/functions/sync-meli-questions/index.ts` (líneas 49-57)
 
-#### 3. Archivos afectados
+Cambiar el update para que solo sobreescriba `refresh_token` si MeLi devuelve uno nuevo:
+
+```typescript
+const updatePayload: Record<string, any> = {
+  access_token: data.access_token,
+  expires_at: expiresAtNew,
+  updated_at: new Date().toISOString(),
+};
+
+// Solo actualizar refresh_token si MeLi devolvió uno nuevo
+if (data.refresh_token) {
+  updatePayload.refresh_token = data.refresh_token;
+}
+
+await supabase
+  .from("meli_tokens")
+  .update(updatePayload)
+  .eq("id", tokenRow.id);
+```
+
+**Mismo fix preventivo en `meli-oauth-callback/index.ts`** (línea 67): Agregar logging del valor de `refresh_token` recibido para diagnóstico futuro.
+
+### Archivos afectados
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/Analytics.tsx` | Renombrar export a `Home`, agregar widget de actividad reciente con query de últimas 5 preguntas. Actualizar título de "Analytics" a "Dashboard". |
-| `src/App.tsx` | Cambiar import: `Home` en `/dashboard`, `Inbox` en `/inbox`. |
-| `src/components/AppSidebar.tsx` | Actualizar `navItems`: Home → `/dashboard` (icon LayoutDashboard), Inbox → `/inbox`, Priority → `/priority`. Ajustar badge keys y `end` prop. |
+| `supabase/functions/sync-meli-questions/index.ts` | Condicionar el update de `refresh_token` para no sobreescribir con `null` |
+| `supabase/functions/meli-oauth-callback/index.ts` | Agregar log del refresh_token recibido para monitoreo |
 
-#### 4. Detalles técnicos
+### Post-fix
 
-- El widget hace un `supabase.from('questions').select(...).eq('status','pending').order('created_at', {ascending: false}).limit(5)` — sin filtro de `requires_human`, trayendo ambas.
-- Se usa `useNavigate` para redirigir al hacer click en cada item del widget.
-- El widget se renderiza como un `Card` más dentro del grid de 2 columnas de Home, ocupando el espacio debajo del panel de distribución por categoría.
+Después de deployar, reconectar MeLi desde Settings para obtener un par fresco de tokens. A partir de ahí, el refresh_token se preservará entre renovaciones.
 
