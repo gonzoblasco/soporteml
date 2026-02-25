@@ -290,7 +290,7 @@ const Home = () => {
                           className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left"
                         >
                           {q.requires_human ? (
-                            <Badge variant="outline" className="shrink-0 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 text-[10px]">
+                            <Badge className="shrink-0 border-transparent bg-amber-500 text-white dark:bg-amber-600 px-1.5 py-0.5 text-[10px]">
                               <AlertTriangle className="w-3 h-3 mr-0.5" />
                               Priority
                             </Badge>
