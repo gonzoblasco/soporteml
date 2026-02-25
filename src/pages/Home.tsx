@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox } from 'lucide-react';
+import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -27,6 +27,8 @@ interface RecentQuestion {
   created_at: string;
 }
 
+type TokenAlert = 'ok' | 'no_refresh' | 'expired' | 'expiring_soon' | null;
+
 const Home = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<any[]>([]);
@@ -34,12 +36,13 @@ const Home = () => {
   const [agentData, setAgentData] = useState<{ name: string; answered: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [rankingMode, setRankingMode] = useState<RankingMode>('products');
+  const [tokenAlert, setTokenAlert] = useState<TokenAlert>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
 
-      const [{ data: qs }, { data: recent }] = await Promise.all([
+      const [{ data: qs }, { data: recent }, { data: token }] = await Promise.all([
         supabase
           .from('questions')
           .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)'),
@@ -49,7 +52,29 @@ const Home = () => {
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(5),
+        supabase
+          .from('meli_tokens')
+          .select('expires_at, refresh_token')
+          .limit(1)
+          .maybeSingle(),
       ]);
+
+      // Token health check
+      if (token) {
+        const now = Date.now();
+        const expiresAt = new Date(token.expires_at).getTime();
+        const minutesLeft = Math.round((expiresAt - now) / 60000);
+
+        if (!token.refresh_token) {
+          setTokenAlert('no_refresh');
+        } else if (expiresAt <= now) {
+          setTokenAlert('expired');
+        } else if (minutesLeft <= 30) {
+          setTokenAlert('expiring_soon');
+        } else {
+          setTokenAlert('ok');
+        }
+      }
 
       if (recent) setRecentQuestions(recent);
 
@@ -170,6 +195,44 @@ const Home = () => {
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
       </div>
+
+      {/* Token Alert Banner */}
+      {tokenAlert === 'no_refresh' && (
+        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-full flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-left hover:bg-destructive/15 transition-colors"
+          >
+            <XCircle className="w-5 h-5 text-destructive shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-destructive">Reconexión necesaria</p>
+              <p className="text-xs text-destructive/80">El token de MercadoLibre no tiene refresh token. Reconectá desde Settings para evitar interrupciones.</p>
+            </div>
+          </button>
+        </motion.div>
+      )}
+      {tokenAlert === 'expired' && (
+        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-full flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-left hover:bg-amber-500/15 transition-colors"
+          >
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Token expirado</p>
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/80">Se renovará automáticamente en el próximo sync.</p>
+            </div>
+          </button>
+        </motion.div>
+      )}
+      {tokenAlert === 'expiring_soon' && (
+        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <RefreshCw className="w-4 h-4 text-amber-500 shrink-0" />
+            <p className="text-xs text-amber-600 dark:text-amber-400">Token de MeLi próximo a expirar — se renovará automáticamente.</p>
+          </div>
+        </motion.div>
+      )}
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
