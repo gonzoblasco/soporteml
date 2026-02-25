@@ -38,8 +38,6 @@ const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange
   </div>
 );
 
-const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
-
 interface Inquiry {
   id: string;
   name: string;
@@ -59,10 +57,19 @@ interface CompanyRow {
 
 const AdminPanel = () => {
   const { user } = useAuth();
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(true);
 
-  if (user?.email !== SUPER_ADMIN_EMAIL) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  useEffect(() => {
+    if (!user) { setChecking(false); return; }
+    supabase.rpc('is_super_admin').then(({ data }) => {
+      setIsSuperAdmin(data === true);
+      setChecking(false);
+    });
+  }, [user]);
+
+  if (checking) return <div className="flex justify-center items-center h-screen"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (!isSuperAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
@@ -193,7 +200,7 @@ const CompaniesTab = () => {
 
     const [profilesRes, meliRes] = await Promise.all([
       supabase.from('profiles').select('company_id').in('company_id', companyIds),
-      supabase.from('meli_tokens').select('company_id').in('company_id', companyIds),
+      supabase.from('meli_connection_status').select('company_id').in('company_id', companyIds),
     ]);
 
     const memberCounts: Record<string, number> = {};

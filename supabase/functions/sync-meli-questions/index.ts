@@ -211,8 +211,34 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID")!;
     const MELI_SECRET_KEY = Deno.env.get("MELI_SECRET_KEY")!;
+
+    // Authenticate: require valid JWT (user-triggered) or service role key (cron/webhook)
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    // Allow service role key (used by pg_cron) or validate user JWT
+    const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
+    if (!isServiceRole) {
+      const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
+      if (claimsErr || !claimsData?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

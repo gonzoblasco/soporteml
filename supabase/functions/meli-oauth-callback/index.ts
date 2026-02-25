@@ -23,18 +23,35 @@ Deno.serve(async (req) => {
       return new Response("Missing code or state", { status: 400 });
     }
 
+    // Validate total state length to prevent abuse
+    if (rawState.length > 200) {
+      console.error("State parameter too long:", rawState.length);
+      return new Response("Invalid state parameter", { status: 400 });
+    }
+
     // Parse state: "company_id|code_verifier" or legacy "company_id"
-    const pipeIndex = rawState.indexOf("|");
-    const companyId = pipeIndex > -1 ? rawState.substring(0, pipeIndex) : rawState;
-    const codeVerifier = pipeIndex > -1 ? rawState.substring(pipeIndex + 1) : null;
+    const parts = rawState.split("|");
+    if (parts.length > 2) {
+      console.error("Invalid state format: too many segments");
+      return new Response("Invalid state format", { status: 400 });
+    }
+
+    const companyId = parts[0];
+    const codeVerifier = parts.length === 2 ? parts[1] : null;
 
     console.log("Parsed companyId:", companyId, "| code_verifier present:", !!codeVerifier);
 
-    // Basic UUID validation for company_id
+    // UUID validation for company_id
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(companyId)) {
       console.error("Invalid company_id format:", companyId);
       return new Response("Invalid company_id format", { status: 400 });
+    }
+
+    // Validate code_verifier format (PKCE spec: 43-128 chars, base64url)
+    if (codeVerifier && !/^[A-Za-z0-9_-]{43,128}$/.test(codeVerifier)) {
+      console.error("Invalid code_verifier format");
+      return new Response("Invalid code_verifier format", { status: 400 });
     }
 
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID");
@@ -121,7 +138,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("OAuth callback error:", error);
     return new Response(
-      `<html><body><h2>❌ Error al conectar MercadoLibre</h2><p>${error.message}</p></body></html>`,
+      `<html><body><h2>❌ Error al conectar MercadoLibre</h2><p>Ocurrió un error inesperado. Por favor intentá de nuevo.</p></body></html>`,
       { headers: { "Content-Type": "text/html" }, status: 500 }
     );
   }
