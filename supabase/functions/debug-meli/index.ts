@@ -10,6 +10,40 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth check: require super admin
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabaseAuth = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const token = authHeader.replace("Bearer ", "");
+  const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+  if (claimsError || !claimsData?.claims) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Verify super admin
+  const { data: isSA } = await supabaseAuth.rpc("is_super_admin");
+  if (!isSA) {
+    return new Response(JSON.stringify({ error: "Forbidden: super admin only" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Proceed with service role client for data access
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -31,7 +65,6 @@ Deno.serve(async (req) => {
   const MELI_APP_ID = Deno.env.get("MELI_APP_ID");
   const results: Record<string, any> = {};
 
-  // 1. Check grants & scopes for this app
   if (MELI_APP_ID) {
     const grantsRes = await fetch(
       `https://api.mercadolibre.com/applications/${MELI_APP_ID}/grants`,
@@ -43,7 +76,6 @@ Deno.serve(async (req) => {
     results.grants_error = "MELI_APP_ID secret not configured";
   }
 
-  // 2. Token info from DB
   results.token_info = {
     meli_user_id: tokenRow.meli_user_id,
     expires_at: tokenRow.expires_at,
