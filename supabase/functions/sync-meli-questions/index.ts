@@ -165,9 +165,23 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    // Allow service role key (used by pg_cron) or validate user JWT
+
+    // Parse body early so we can validate cron calls
+    let body: any = {};
+    try { body = await req.json(); } catch { /* cron calls may have empty body */ }
+
+    // Allow service role key ONLY for cron-triggered calls (must include source: "cron")
     const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
-    if (!isServiceRole) {
+    if (isServiceRole) {
+      if (body.source !== "cron") {
+        console.warn("Service role key used without source=cron, rejecting");
+        return new Response(JSON.stringify({ error: "Forbidden: service role requires source=cron" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // Validate user JWT
       const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         global: { headers: { Authorization: authHeader } },
       });
@@ -181,9 +195,6 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    let body: any = {};
-    try { body = await req.json(); } catch { /* cron calls with empty body */ }
 
     let query = supabase.from("meli_tokens").select("*");
     if (body.meli_user_id) {
