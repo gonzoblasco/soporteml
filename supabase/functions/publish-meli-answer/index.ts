@@ -1,58 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { refreshTokenIfNeeded } from "../_shared/refreshMeliToken.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-async function refreshTokenIfNeeded(
-  supabase: any,
-  tokenRow: any,
-  appId: string,
-  secretKey: string
-): Promise<string> {
-  const now = new Date();
-  const expiresAt = new Date(tokenRow.expires_at);
-
-  if (expiresAt.getTime() - now.getTime() > 10 * 60 * 1000) {
-    return tokenRow.access_token;
-  }
-
-  console.log("Refreshing MeLi token for company:", tokenRow.company_id);
-
-  const res = await fetch("https://api.mercadolibre.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", accept: "application/json" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: appId,
-      client_secret: secretKey,
-      refresh_token: tokenRow.refresh_token,
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error("Token refresh failed:", errText);
-    throw new Error(`Token refresh failed: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const expiresAtNew = new Date(Date.now() + data.expires_in * 1000).toISOString();
-
-  await supabase
-    .from("meli_tokens")
-    .update({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_at: expiresAtNew,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", tokenRow.id);
-
-  return data.access_token;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

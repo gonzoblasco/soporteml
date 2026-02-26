@@ -95,9 +95,11 @@ Deno.serve(async (req) => {
     }
 
     const tokenData = await tokenRes.json();
-    const { access_token, refresh_token = null, expires_in, user_id: meli_user_id } = tokenData;
+    const { access_token, refresh_token, expires_in, user_id: meli_user_id } = tokenData;
 
-    console.log("Token exchange successful for MeLi User ID:", meli_user_id, "| refresh_token received:", !!refresh_token, "| refresh_token value:", refresh_token ? "PRESENT" : "NULL");
+    console.log("Token exchange successful for MeLi User ID:", meli_user_id,
+      "| refresh_token:", refresh_token ? "RECEIVED" : "NOT_RECEIVED",
+      "| expires_in:", expires_in);
 
     const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
 
@@ -105,19 +107,43 @@ Deno.serve(async (req) => {
     console.log("Storing tokens in database for company:", companyId);
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { error: upsertError } = await supabase
+    // Build upsert payload – protect existing refresh_token if MeLi didn't return one
+    const upsertPayload: Record<string, unknown> = {
+      company_id: companyId,
+      access_token,
+      meli_user_id: String(meli_user_id),
+      expires_at: expiresAt,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only overwrite refresh_token if we actually received one
+    if (refresh_token) {
+      upsertPayload.refresh_token = refresh_token;
+    }
+
+    // Check if row exists to decide insert vs update (to avoid nullifying refresh_token on upsert)
+    const { data: existingToken } = await supabase
       .from("meli_tokens")
-      .upsert(
-        {
-          company_id: companyId,
-          access_token,
-          refresh_token,
-          meli_user_id: String(meli_user_id),
-          expires_at: expiresAt,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "company_id" }
-      );
+      .select("id, refresh_token")
+      .eq("company_id", companyId)
+      .maybeSingle();
+
+    let upsertError;
+    if (existingToken) {
+      // Update existing – never null out refresh_token
+      const { error } = await supabase
+        .from("meli_tokens")
+        .update(upsertPayload)
+        .eq("id", existingToken.id);
+      upsertError = error;
+    } else {
+      // First time insert
+      upsertPayload.refresh_token = refresh_token ?? null;
+      const { error } = await supabase
+        .from("meli_tokens")
+        .insert(upsertPayload);
+      upsertError = error;
+    }
 
     if (upsertError) {
       console.error("Failed to store tokens in 'meli_tokens' table:", upsertError);
