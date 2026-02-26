@@ -28,30 +28,28 @@ Deno.serve(async (req) => {
   }
 
   const accessToken = tokenRow.access_token;
+  const MELI_APP_ID = Deno.env.get("MELI_APP_ID");
   const results: Record<string, any> = {};
 
-  // 1. Fetch the question
-  const qRes = await fetch(`https://api.mercadolibre.com/questions/13531654362`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  results.question_status = qRes.status;
-  results.question_body = await qRes.json();
-
-  // 2. Try fetching the item from the question
-  const itemId = results.question_body?.item_id;
-  if (itemId) {
-    // Auth endpoint
-    const itemRes1 = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    results.item_auth_status = itemRes1.status;
-    results.item_auth_body = await itemRes1.json();
-
-    // Public endpoint  
-    const itemRes2 = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
-    results.item_public_status = itemRes2.status;
-    results.item_public_body = await itemRes2.json();
+  // 1. Check grants & scopes for this app
+  if (MELI_APP_ID) {
+    const grantsRes = await fetch(
+      `https://api.mercadolibre.com/applications/${MELI_APP_ID}/grants`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    results.grants_status = grantsRes.status;
+    results.grants_body = await grantsRes.json();
+  } else {
+    results.grants_error = "MELI_APP_ID secret not configured";
   }
+
+  // 2. Token info from DB
+  results.token_info = {
+    meli_user_id: tokenRow.meli_user_id,
+    expires_at: tokenRow.expires_at,
+    has_refresh_token: !!tokenRow.refresh_token,
+    updated_at: tokenRow.updated_at,
+  };
 
   return new Response(JSON.stringify(results, null, 2), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
