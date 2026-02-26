@@ -6,7 +6,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
-## [1.1.0] — 2026-02-25
+## [1.1.0] — 2026-02-26
 
 ### 🎨 Rediseño Visual — Estética MockupTabs
 
@@ -32,7 +32,14 @@ Tres fases de mejora visual para unificar la estética del preview (MockupTabs) 
 ### Corregido
 
 - **Preservación de refresh_token**: el sync de MeLi ya no sobreescribe `refresh_token` con `null` cuando la API no devuelve uno nuevo. Esto evitaba la renovación automática y forzaba reconexiones manuales.
-- **Logging de OAuth callback**: se registra si MeLi devolvió `refresh_token` para diagnóstico futuro.
+- **Lógica de refresh centralizada**: nueva función compartida `refreshMeliToken.ts` con bloqueo optimista (`WHERE refresh_token = current`) para evitar condiciones de carrera en renovaciones concurrentes. Incluye retry automático tras conflicto de lock.
+- **OAuth callback robusto**: protege el `refresh_token` existente en DB si MeLi no devuelve uno nuevo durante re-autenticación (check-then-update en vez de upsert ciego).
+- **UI de estado de token mejorada**: Settings muestra "Última renovación", countdown de expiración y botón "Reintentar renovación" cuando el token expira con refresh disponible.
+
+### Seguridad
+
+- **debug-meli autenticado**: el endpoint de diagnóstico ahora requiere JWT válido + verificación de super admin antes de exponer datos de token.
+- **sync-meli-questions hardened**: llamadas con service role key ahora requieren `source: "cron"` en el body, rechazando invocaciones no autorizadas con 403.
 
 ---
 
