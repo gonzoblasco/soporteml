@@ -364,7 +364,19 @@ const MeliConnectionSection = () => {
             )}
             <div className="text-sm text-muted-foreground space-y-1">
               <p>Seller ID: <span className="font-mono text-foreground">{tokenInfo!.meli_user_id}</span></p>
-              <p>Última actualización: {formatDistanceToNow(new Date(tokenInfo!.updated_at), { addSuffix: true, locale: es })}</p>
+              <p>Última renovación: {formatDistanceToNow(new Date(tokenInfo!.updated_at), { addSuffix: true, locale: es })}</p>
+              <p>Expira {(() => {
+                const expiresMs = new Date(tokenInfo!.expires_at).getTime() - Date.now();
+                if (expiresMs <= 0) return <span className="text-destructive font-medium">expirado</span>;
+                const mins = Math.round(expiresMs / 60000);
+                if (mins < 60) return <span className={mins <= 5 ? 'text-destructive font-medium' : 'text-foreground'}>en {mins} min</span>;
+                const hrs = Math.round(mins / 60);
+                return <span className="text-foreground">en {hrs}h</span>;
+              })()}</p>
+              <p>Refresh token: {tokenInfo!.has_refresh_token 
+                ? <span className="text-emerald-600">✓ disponible</span> 
+                : <span className="text-destructive">✗ no disponible</span>}
+              </p>
             </div>
             <Separator />
             <div className="space-y-1.5">
@@ -382,7 +394,21 @@ const MeliConnectionSection = () => {
               </Select>
             </div>
             <Separator />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {healthInfo.status === 'expired_with_refresh' && (
+                <Button variant="outline" size="sm" onClick={async () => {
+                  toast({ title: 'Renovando token...', description: 'Se está intentando renovar el token automáticamente.' });
+                  const { error } = await supabase.functions.invoke('sync-meli-questions');
+                  if (error) {
+                    toast({ title: 'Error de renovación', description: 'No se pudo renovar el token. Intentá reconectar MercadoLibre.', variant: 'destructive' });
+                  } else {
+                    toast({ title: 'Renovación exitosa', description: 'El token fue renovado correctamente.' });
+                    fetchStatus();
+                  }
+                }}>
+                  <RotateCcw className="w-4 h-4 mr-2" />Reintentar renovación
+                </Button>
+              )}
               <SyncButton />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
