@@ -47,6 +47,7 @@ Catálogo interno estilo CRM para que la IA responda con información confiable 
 
 - **Audit log obligatorio** para cambios (create/update/archive/restore).
 - **Preparado para múltiples fuentes** (CRM-ready): `source`, `external_id`, `external_url` (futuro Tiendanube u otras).
+- “Shell CRM” listo para expandirse (Clientes / Órdenes / Conocimiento) como **próximamente**.
 
 ### 🔔 Notificaciones en Tiempo Real
 
@@ -105,7 +106,7 @@ Catálogo interno estilo CRM para que la IA responda con información confiable 
 
 Tablas relevantes (multi-tenant por `company_id`):
 
-- `products` (extendida con campos CRM + multi-fuente: `source`, `external_id`, `external_url`, knowledge fields)
+- `products` (campos CRM + multi-fuente: `source`, `external_id`, `external_url`, knowledge fields)
 - `product_variants` (variantes/atributos/notas por producto)
 - `audit_logs` (historial de cambios: actor, acción, before/after)
 - (existentes) `questions`, `answers`, `companies`, `memberships`, etc.
@@ -150,26 +151,72 @@ Incluye RLS + políticas/controles para mantener los datos aislados por empresa.
 ## ✅ Estado del release
 
 - v1.1 consolida estabilidad (OAuth/refresh), hardening de seguridad y una base de conocimiento (Catálogo CRM) para mejorar respuestas con IA.
-- Próximos pasos típicos: pruebas end-to-end, QA de permisos/RLS y luego epics de ingesta automática (API/crawling) si aplica.
+- Próximos pasos típicos: QA end-to-end, re-scan de seguridad y mejoras de UX/estabilidad.
 
 ---
 
-## 🗺️ Roadmap (alto nivel)
+## 🗺️ Roadmap (por versiones)
 
-### Próximo (v1.1.x)
+### v1.1.x — Hardening + Release Quality
 
-- QA end-to-end del flujo completo: Inbox → Conversación → Copiloto → Publicación.
-- Hardening de permisos/RLS y re-scan de seguridad.
-- Mejoras de confianza: estados degradados “amables” cuando falten datos (token, producto, sync).
+- **QA end-to-end** (Inbox → Conversación → Copiloto → Publicación)
+  - Casos críticos: múltiples preguntas, producto sin catálogo, token expirado, reconexión, rate limits.
+  - Smoke tests sobre Edge Functions clave.
 
-### Luego (v1.2)
+- **Seguridad y aislamiento multi-tenant**
+  - Auditoría RLS por tabla (`products`, `questions`, `answers`, `audit_logs`).
+  - Revisión de Edge Functions: auth, validación de inputs, logging de acciones sensibles.
 
-- **Auto-fill del Catálogo** desde datos ya disponibles (consulta/sidecard), reduciendo carga manual.
-- Integración más fuerte entre Copiloto y Catálogo (sugerir “faltan campos” en la ficha para mejorar respuestas).
+- **Confiabilidad operacional**
+  - Estados degradados “amables” (token/sync/producto/IA).
+  - Instrumentación mínima: logs de refresh, fallas de publicación, reintentos.
+  - UX de reconexión: mensajes claros + CTA único (sin confusión).
 
-### Más adelante (v1.3 / v2)
+### v1.2 — Catálogo “menos esfuerzo” + Loop de calidad (IA)
 
-- **Ingesta on-demand por API** (cachear productos/variantes al primer uso y guardar en Lovable Cloud).
-- Sincronización masiva opcional de publicaciones (para catálogos grandes).
-- Expansión del “shell CRM”: Clientes / Órdenes / Conocimiento (cuando el producto lo pida).
-- Nuevo source de consultas (ej: Tiendanube) usando el modelo multi-fuente (`source`, `external_id`, `external_url`).
+- **Auto-fill del Catálogo** desde el contexto de la consulta
+  - Crear producto desde conversación con prefill (título, link, atributos básicos, meli_item_id).
+  - Detección de duplicados (match por `meli_item_id`, `sku`, título similar) + merge asistido.
+
+- **Copiloto → Catálogo (feedback loop)**
+  - El copiloto sugiere “qué falta” para responder mejor (envío/garantía/variantes).
+  - Destacar campos incompletos en la ficha + “completar ahora” sin perder contexto.
+
+- **Métrica interna de completitud**
+  - `completeness_score` y “faltan X campos clave” para guiar adopción tipo CRM.
+
+### v1.3 — Enriquecimiento on-demand por API (cache first)
+
+- **Fetch por primer uso** (cachear y no repetir)
+  - Si entra un `meli_item_id` no registrado: traer datos por API, normalizar y guardar en Lovable Cloud.
+  - TTL / refresh manual para evitar desactualización.
+
+- **Variantes y atributos**
+  - Mapping de variaciones a `product_variants`.
+  - Estrategia de “diff” para no pisar conocimiento humano (merge inteligente).
+
+- **Resiliencia**
+  - Manejo de errores externos (API down/limits) con fallback y reintento.
+
+### v2.0 — CRM real (adopción progresiva)
+
+- **Clientes (CRM)**
+  - Perfil del cliente, historial de conversaciones, etiquetas internas, notas.
+
+- **Órdenes / Post-venta**
+  - Relación consulta ↔ orden ↔ producto ↔ cliente (cuando aplique).
+
+- **Conocimiento transversal**
+  - Base de conocimiento reusable (no solo por producto): políticas globales, macros, guías internas.
+
+- **Colaboración**
+  - Asignación, comentarios internos, SLA, roles más finos (audit + permisos por acción).
+
+### v2.1 — Nuevos sources (multi-fuente)
+
+- **Tiendanube u otras plataformas**
+  - Adaptadores por plataforma (ingesta de consultas + asociación a productos por `source/external_id`).
+  - Unificación de UI y lógica de negocio independientemente del origen.
+
+- **Estrategias de ingesta**
+  - API/webhooks cuando existan; fallback por email/forwarding si el canal no está expuesto por API.
