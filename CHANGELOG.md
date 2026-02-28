@@ -35,6 +35,7 @@ Tres fases de mejora visual para unificar la estética del preview (MockupTabs) 
 - **Lógica de refresh centralizada**: nueva función compartida `refreshMeliToken.ts` con bloqueo optimista (`WHERE refresh_token = current`) para evitar condiciones de carrera en renovaciones concurrentes. Incluye retry automático tras conflicto de lock.
 - **OAuth callback robusto**: protege el `refresh_token` existente en DB si MeLi no devuelve uno nuevo durante re-autenticación (check-then-update en vez de upsert ciego).
 - **UI de estado de token mejorada**: Settings muestra "Última renovación", countdown de expiración y botón "Reintentar renovación" cuando el token expira con refresh disponible.
+- **`getClaims` → `getUser` en todas las Edge Functions**: reemplazado `auth.getClaims(token)` (método inexistente en el SDK) por `auth.getUser()` en `ai-copilot`, `debug-meli`, `disconnect-meli`, `publish-meli-answer` y `sync-meli-questions`. Corrige error 500 "getClaims is not a function" en todas las funciones autenticadas.
 
 ### Seguridad
 
