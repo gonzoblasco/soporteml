@@ -1,9 +1,9 @@
-import { Inbox, LayoutDashboard, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield, ChevronsLeft, ChevronsRight, FileText } from 'lucide-react';
+import { Inbox, LayoutDashboard, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield, ChevronsLeft, ChevronsRight, FileText, Package, Users, ShoppingCart, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -14,6 +14,13 @@ const navItems = [
   { title: 'Priority', url: '/priority', icon: AlertTriangle, badgeKey: 'priority' as const },
   { title: 'Plantillas', url: '/templates', icon: FileText },
   { title: 'Settings', url: '/settings', icon: Settings },
+];
+
+const crmSubItems = [
+  { title: 'Productos', url: '/catalog', icon: Package, enabled: true },
+  { title: 'Clientes', url: '#', icon: Users, enabled: false },
+  { title: 'Órdenes', url: '#', icon: ShoppingCart, enabled: false },
+  { title: 'Conocimiento', url: '#', icon: BookOpen, enabled: false },
 ];
 
 const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
@@ -35,6 +42,7 @@ const AppSidebar = () => {
   });
   const [priorityCount, setPriorityCount] = useState(0);
   const [inboxCount, setInboxCount] = useState(0);
+  const [crmOpen, setCrmOpen] = useState(true);
 
   useEffect(() => {
     localStorage.setItem('sidebar_collapsed', String(collapsed));
@@ -128,6 +136,59 @@ const AppSidebar = () => {
           {navItems.map((item) => (
             <NavItem key={item.url} item={item} />
           ))}
+
+          {/* CRM Group */}
+          {(!collapsed || isMobile) ? (
+            <div className="pt-2">
+              <button
+                onClick={() => setCrmOpen(!crmOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 w-full text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {crmOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                Catálogo
+              </button>
+              {crmOpen && (
+                <div className="space-y-0.5">
+                  {crmSubItems.map((sub) =>
+                    sub.enabled ? (
+                      <NavLink
+                        key={sub.url}
+                        to={sub.url}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                        activeClassName="bg-sidebar-accent text-foreground font-medium"
+                        onClick={() => isMobile && setOpen(false)}
+                      >
+                        <sub.icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1">{sub.title}</span>
+                      </NavLink>
+                    ) : (
+                      <div
+                        key={sub.title}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground/50 cursor-not-allowed"
+                      >
+                        <sub.icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1">{sub.title}</span>
+                        <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full">Próximamente</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <NavLink
+                  to="/catalog"
+                  className="flex items-center justify-center px-2 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+                  activeClassName="bg-sidebar-accent text-foreground font-medium"
+                >
+                  <Package className="w-4 h-4" />
+                </NavLink>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">Catálogo</TooltipContent>
+            </Tooltip>
+          )}
           {user?.email === SUPER_ADMIN_EMAIL && (
             collapsed && !isMobile ? (
               <Tooltip>

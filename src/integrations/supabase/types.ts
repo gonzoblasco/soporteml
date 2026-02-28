@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string
+          after_snapshot: Json | null
+          before_snapshot: Json | null
+          company_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          after_snapshot?: Json | null
+          before_snapshot?: Json | null
+          company_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          after_snapshot?: Json | null
+          before_snapshot?: Json | null
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -174,39 +218,138 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          archived_at: string | null
+          attributes: Json
+          company_id: string
+          created_at: string
+          id: string
+          product_id: string
+          support_notes: string | null
+          updated_at: string
+          updated_by: string | null
+          variant_name: string
+          variant_sku: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          attributes?: Json
+          company_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          support_notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          variant_name: string
+          variant_sku?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          attributes?: Json
+          company_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          support_notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          variant_name?: string
+          variant_sku?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           company_id: string
           created_at: string
+          do_not_say: Json
+          external_id: string | null
+          external_url: string | null
+          faq_bullets: Json
           id: string
+          key_points: Json
           meli_category_id: string | null
           meli_category_name: string | null
-          meli_item_id: string
+          meli_item_id: string | null
           permalink: string | null
           price: number | null
+          returns_notes: string | null
+          shipping_notes: string | null
+          sku: string | null
+          source: string
+          status: string
+          support_summary: string | null
           title: string
+          updated_at: string
+          updated_by: string | null
+          warranty_notes: string | null
         }
         Insert: {
           company_id: string
           created_at?: string
+          do_not_say?: Json
+          external_id?: string | null
+          external_url?: string | null
+          faq_bullets?: Json
           id?: string
+          key_points?: Json
           meli_category_id?: string | null
           meli_category_name?: string | null
-          meli_item_id: string
+          meli_item_id?: string | null
           permalink?: string | null
           price?: number | null
+          returns_notes?: string | null
+          shipping_notes?: string | null
+          sku?: string | null
+          source?: string
+          status?: string
+          support_summary?: string | null
           title: string
+          updated_at?: string
+          updated_by?: string | null
+          warranty_notes?: string | null
         }
         Update: {
           company_id?: string
           created_at?: string
+          do_not_say?: Json
+          external_id?: string | null
+          external_url?: string | null
+          faq_bullets?: Json
           id?: string
+          key_points?: Json
           meli_category_id?: string | null
           meli_category_name?: string | null
-          meli_item_id?: string
+          meli_item_id?: string | null
           permalink?: string | null
           price?: number | null
+          returns_notes?: string | null
+          shipping_notes?: string | null
+          sku?: string | null
+          source?: string
+          status?: string
+          support_summary?: string | null
           title?: string
+          updated_at?: string
+          updated_by?: string | null
+          warranty_notes?: string | null
         }
         Relationships: [
           {
