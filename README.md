@@ -24,7 +24,7 @@ SoporteML es una plataforma diseñada para automatizar y optimizar la gestión d
 ### 🤖 Respuestas con IA (Copiloto)
 
 - Generación de **sugerencias** basadas en contexto de la consulta + contexto del producto (si existe).
-- **Categorización automática** (Precio, Stock, Técnico, Envío, Garantía).
+- **Categorización automática** (Precio, Stock, Técnico, Envío, Garantía, Especificaciones, Características).
 - Explica el motivo cuando detecta que requiere intervención humana.
 - Human-in-the-loop: la IA sugiere, el humano decide.
 
@@ -84,70 +84,3 @@ Catálogo interno estilo CRM para que la IA responda con información confiable 
 ## 🌐 Landing Page
 
 - Página pública con presentación del producto, mockups y formulario de contacto.
-
----
-
-## 🛠️ Stack Tecnológico
-
-| Capa               | Tecnologías                                          |
-| ------------------ | ---------------------------------------------------- |
-| **Frontend**       | Vite, React 18, TypeScript                           |
-| **UI/UX**          | shadcn/ui, Tailwind CSS, Framer Motion, Lucide React |
-| **Backend & DB**   | **Lovable Cloud** (PostgreSQL, Auth, Edge Functions) |
-| **Estado & Datos** | TanStack Query (React Query)                         |
-| **Tiempo Real**    | Supabase Realtime (postgres_changes)                 |
-| **Routing**        | React Router v6                                      |
-| **Theming**        | next-themes (dark/light mode)                        |
-
----
-
-## 🗃️ Base de datos (Lovable Cloud)
-
-Tablas relevantes (multi-tenant por `company_id`):
-
-- `products` (extendida con campos CRM + multi-fuente: `source`, `external_id`, `external_url`, knowledge fields)
-- `product_variants` (variantes/atributos/notas por producto)
-- `audit_logs` (historial de cambios: actor, acción, before/after)
-- (existentes) `questions`, `answers`, `companies`, `memberships`, etc.
-
-Incluye RLS + políticas/controles para mantener los datos aislados por empresa.
-
----
-
-## 📁 Estructura del Proyecto (alto nivel)
-
-```text
-├── src/
-│   ├── components/
-│   │   ├── ui/                 # Primitivos shadcn/ui
-│   │   ├── landing/            # Componentes de landing
-│   │   ├── catalog/            # CRM catálogo (lista, ficha, tabs, audit timeline)
-│   │   ├── AppSidebar.tsx
-│   │   ├── DashboardLayout.tsx
-│   │   ├── GroupedQuestionCard.tsx
-│   │   ├── QuestionDetail.tsx
-│   │   └── ProductSideCard.tsx # puede mostrar knowledge CRM si existe
-│   ├── pages/
-│   │   ├── Inbox.tsx
-│   │   ├── PriorityInbox.tsx
-│   │   ├── Analytics.tsx
-│   │   ├── SettingsPage.tsx
-│   │   ├── AdminPanel.tsx
-│   │   ├── Catalog.tsx         # /catalog
-│   │   └── Landing.tsx
-│   ├── integrations/supabase/
-│   ├── hooks/
-│   ├── lib/
-│   └── types/
-├── supabase/
-│   ├── functions/              # Edge Functions (copiloto, sync, publish answer, oauth callback, etc.)
-│   └── migrations/             # Migraciones: products extendida, product_variants, audit_logs, RLS/triggers
-└── CHANGELOG.md
-```
-
----
-
-## ✅ Estado del release
-
-- v1.1 consolida estabilidad (OAuth/refresh), hardening de seguridad y una base de conocimiento (Catálogo CRM) para mejorar respuestas con IA.
-- Próximos pasos típicos: pruebas end-to-end, QA de permisos/RLS y luego epics de ingesta automática (API/crawling) si aplica.
