@@ -32,7 +32,7 @@ serve(async (req) => {
       });
     }
 
-    const { question_text, product_title, product_price, buyer_nickname, ai_category, ai_suggested_answer, ai_tone, ai_custom_instructions } = await req.json();
+    const { question_text, product_title, product_price, buyer_nickname, ai_category, ai_suggested_answer, ai_tone, ai_custom_instructions, product_id } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -40,6 +40,46 @@ serve(async (req) => {
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
 
+    // Fetch CRM product knowledge if product_id is provided
+    let productKnowledge = "";
+    if (product_id) {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: crmProduct } = await serviceClient
+        .from("products")
+        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say")
+        .eq("id", product_id)
+        .maybeSingle();
+
+      if (crmProduct?.support_summary) {
+        const parts: string[] = [`\n\n--- CONOCIMIENTO CRM DEL PRODUCTO ---`];
+        parts.push(`Resumen: ${crmProduct.support_summary}`);
+        if (crmProduct.key_points?.length) parts.push(`Puntos clave:\n${(crmProduct.key_points as string[]).map((p: string) => `• ${p}`).join('\n')}`);
+        if (crmProduct.shipping_notes) parts.push(`Envíos: ${crmProduct.shipping_notes}`);
+        if (crmProduct.returns_notes) parts.push(`Devoluciones: ${crmProduct.returns_notes}`);
+        if (crmProduct.warranty_notes) parts.push(`Garantía: ${crmProduct.warranty_notes}`);
+        if (crmProduct.faq_bullets?.length) parts.push(`FAQ:\n${(crmProduct.faq_bullets as string[]).map((f: string) => `• ${f}`).join('\n')}`);
+        if (crmProduct.do_not_say?.length) parts.push(`NO PROMETER:\n${(crmProduct.do_not_say as string[]).map((d: string) => `⚠️ ${d}`).join('\n')}`);
+        productKnowledge = parts.join('\n');
+
+        // Fetch variants
+        const { data: variants } = await serviceClient
+          .from("product_variants")
+          .select("variant_name, attributes, support_notes")
+          .eq("product_id", product_id)
+          .is("archived_at", null);
+
+        if (variants?.length) {
+          const varLines = variants.map((v: any) => {
+            const attrs = Object.entries(v.attributes || {}).map(([k, val]) => `${k}: ${val}`).join(', ');
+            return `- ${v.variant_name}${attrs ? ` (${attrs})` : ''}${v.support_notes ? ` — ${v.support_notes}` : ''}`;
+          });
+          productKnowledge += `\nVariantes:\n${varLines.join('\n')}`;
+        }
+      }
+    }
     const systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
 Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
 
@@ -53,7 +93,7 @@ Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estru
 }
 
 Si no falta ningún dato, devolvé "missing_data": [].
-Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.`;
+Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}`;
 
     const userPrompt = `Pregunta del comprador: "${question_text}"
 Comprador: ${buyer_nickname || "desconocido"}

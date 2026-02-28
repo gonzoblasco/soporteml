@@ -16,6 +16,7 @@ import TemplatesPage from "@/pages/TemplatesPage";
 import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
 import AdminPanel from "./pages/AdminPanel";
+import CatalogPage from "./pages/CatalogPage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const AppRoutes = () => (
       <Route path="/priority" element={<PriorityInbox />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/templates" element={<TemplatesPage />} />
+      <Route path="/catalog" element={<CatalogPage />} />
       <Route path="/admin" element={<AdminPanel />} />
     </Route>
     <Route path="/design-test" element={<DesignTest />} />

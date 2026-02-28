@@ -389,6 +389,9 @@ async function fetchAndStoreProduct(
         permalink: item.permalink,
         meli_category_id: itemCategoryId,
         meli_category_name: itemCategoryName,
+        source: 'meli',
+        external_id: itemId,
+        external_url: item.permalink ?? null,
       })
       .select("id")
       .single();
@@ -526,6 +529,9 @@ async function processQuestion(
             permalink: item.permalink,
             meli_category_id: itemCategoryId,
             meli_category_name: itemCategoryName,
+            source: 'meli',
+            external_id: q.item_id,
+            external_url: item.permalink ?? null,
           })
           .select("id")
           .single();
