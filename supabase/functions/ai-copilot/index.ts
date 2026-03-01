@@ -95,6 +95,30 @@ Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estru
 Si no falta ningún dato, devolvé "missing_data": [].
 Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}`;
 
+    // Deterministic CRM suggestions based on field completeness
+    const crmSuggestions: Array<{message: string; tab?: string}> = [];
+    if (product_id) {
+      const serviceClient2 = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: crmCheck } = await serviceClient2
+        .from("products")
+        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets")
+        .eq("id", product_id)
+        .maybeSingle();
+
+      if (crmCheck) {
+        if (!crmCheck.support_summary) crmSuggestions.push({ message: "Completá el resumen de soporte para respuestas más precisas", tab: "conocimiento" });
+        if (!(crmCheck.key_points as string[])?.length) crmSuggestions.push({ message: "Agregá puntos clave del producto", tab: "conocimiento" });
+        if (!crmCheck.shipping_notes) crmSuggestions.push({ message: "Completá las notas de envío", tab: "politicas" });
+        if (!crmCheck.returns_notes) crmSuggestions.push({ message: "Agregá la política de devoluciones", tab: "politicas" });
+        if (!crmCheck.warranty_notes) crmSuggestions.push({ message: "Completá los datos de garantía", tab: "politicas" });
+      }
+    } else {
+      crmSuggestions.push({ message: "Creá una ficha CRM para este producto y mejorá las respuestas automáticas" });
+    }
+
     const userPrompt = `Pregunta del comprador: "${question_text}"
 Comprador: ${buyer_nickname || "desconocido"}
 Producto: ${product_title || "sin título"}${product_price != null ? ` — $${product_price}` : ""}
@@ -151,6 +175,11 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
         draft: raw || "",
         missing_data: [],
       };
+    }
+
+    // Attach CRM suggestions to response
+    if (crmSuggestions.length > 0) {
+      parsed.crm_suggestions = crmSuggestions;
     }
 
     return new Response(JSON.stringify(parsed), {

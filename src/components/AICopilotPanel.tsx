@@ -4,19 +4,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { QuestionRow } from '@/types/question';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Bot, Sparkles, RotateCcw, Loader2, AlertCircle, ClipboardList } from 'lucide-react';
+import { Bot, Sparkles, RotateCcw, Loader2, AlertCircle, ClipboardList, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface CrmSuggestion {
+  message: string;
+  tab?: string;
+}
 
 interface CopilotResult {
   summary: string;
   draft: string;
   missing_data: string[];
+  crm_suggestions?: CrmSuggestion[];
 }
 
 interface Props {
   question: QuestionRow;
   onUseDraft: (draft: string) => void;
+  onOpenCrmDrawer?: (tab?: string) => void;
 }
 
 const TONE_OPTIONS = [
@@ -27,7 +34,7 @@ const TONE_OPTIONS = [
 
 type ToneValue = typeof TONE_OPTIONS[number]['value'];
 
-const AICopilotPanel = ({ question, onUseDraft }: Props) => {
+const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const { companyId } = useAuth();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -71,6 +78,7 @@ const AICopilotPanel = ({ question, onUseDraft }: Props) => {
         ai_suggested_answer: question.ai_suggested_answer,
         ai_tone: aiTone,
         ai_custom_instructions: aiCustomInstructions,
+        product_id: question.product_id || undefined,
       },
     });
 
@@ -227,6 +235,25 @@ const AICopilotPanel = ({ question, onUseDraft }: Props) => {
                     </label>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* CRM Suggestions from quality loop */}
+            {result.crm_suggestions && result.crm_suggestions.length > 0 && onOpenCrmDrawer && (
+              <div className="rounded-md bg-accent/50 border border-border/30 p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-[11px] font-medium text-primary">Mejorá tu catálogo</p>
+                </div>
+                {result.crm_suggestions.map((s, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onOpenCrmDrawer(s.tab)}
+                    className="block w-full text-left text-[11px] text-foreground hover:text-primary transition-colors leading-relaxed"
+                  >
+                    → {s.message}
+                  </button>
+                ))}
               </div>
             )}
           </>

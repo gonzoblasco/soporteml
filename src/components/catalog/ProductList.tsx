@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Package, SlidersHorizontal } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { CompletenessIndicator } from './CompletenessIndicator';
 
 interface Product {
   id: string;
@@ -14,6 +15,12 @@ interface Product {
   source: string;
   external_id: string | null;
   support_summary: string | null;
+  key_points: string[];
+  faq_bullets: string[];
+  do_not_say: string[];
+  shipping_notes: string | null;
+  returns_notes: string | null;
+  warranty_notes: string | null;
   updated_at: string;
 }
 
@@ -154,11 +161,7 @@ export function ProductList({ products, selectedId, onSelect, onNew }: Props) {
                     {p.source === 'meli' ? `MeLi: ${p.meli_item_id || p.external_id}` : p.sku ? `SKU: ${p.sku}` : 'Manual'}
                   </p>
                 </div>
-                {!p.support_summary && p.status === 'active' && (
-                  <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-600 shrink-0">
-                    Incompleto
-                  </Badge>
-                )}
+                <CompletenessIndicator product={p as any} />
               </button>
             ))}
           </div>

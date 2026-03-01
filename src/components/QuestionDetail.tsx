@@ -9,6 +9,7 @@ import { Send, X, Bot, User, Package, RotateCcw, Trash2, ExternalLink, Save } fr
 import TemplatePicker from './TemplatePicker';
 import AICopilotPanel from './AICopilotPanel';
 import ProductSideCard from './ProductSideCard';
+import { ProductFormDrawer } from './catalog/ProductFormDrawer';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +26,8 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [key, setKey] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [crmDrawerOpen, setCrmDrawerOpen] = useState(false);
+  const [crmDrawerTab, setCrmDrawerTab] = useState<string | undefined>();
   const { userRole, companyId } = useAuth();
   const isAdmin = userRole === 'admin';
 
@@ -173,7 +176,14 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
 
           {/* AI Copilot — only for non-published */}
           {question.status !== 'published' && (
-            <AICopilotPanel question={question} onUseDraft={(draft) => setAnswer(draft)} />
+            <AICopilotPanel
+              question={question}
+              onUseDraft={(draft) => setAnswer(draft)}
+              onOpenCrmDrawer={(tab) => {
+                setCrmDrawerTab(tab);
+                setCrmDrawerOpen(true);
+              }}
+            />
           )}
 
           {/* AI Suggestion Block — primary tinted */}
@@ -280,10 +290,21 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         {/* Product Side Card */}
         <ProductSideCard
           meliItemId={question.product_meli_id}
+          productId={question.product_id}
           fallbackTitle={question.product_title}
           fallbackPrice={question.product_price}
           fallbackPermalink={question.product_permalink}
         />
+
+        {/* CRM Drawer from Copilot suggestions */}
+        {question.product_id && (
+          <ProductFormDrawer
+            open={crmDrawerOpen}
+            onOpenChange={setCrmDrawerOpen}
+            productId={question.product_id}
+            defaultTab={crmDrawerTab}
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );

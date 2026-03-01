@@ -38,6 +38,7 @@ interface Props {
   product: Product;
   onRefresh: () => void;
   onClose: () => void;
+  defaultTab?: string;
 }
 
 function EditableList({ items, onChange, placeholder }: { items: string[]; onChange: (v: string[]) => void; placeholder: string }) {
@@ -76,7 +77,7 @@ function EditableList({ items, onChange, placeholder }: { items: string[]; onCha
   );
 }
 
-export function ProductForm({ product, onRefresh, onClose }: Props) {
+export function ProductForm({ product, onRefresh, onClose, defaultTab }: Props) {
   const { user } = useAuth();
   const [form, setForm] = useState<Product>(product);
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -233,7 +234,7 @@ export function ProductForm({ product, onRefresh, onClose }: Props) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="resumen" className="flex-1 overflow-hidden flex flex-col">
+      <Tabs defaultValue={defaultTab || "resumen"} className="flex-1 overflow-hidden flex flex-col">
         <TabsList className="mx-4 mt-3 w-fit">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="conocimiento">Conocimiento IA</TabsTrigger>
