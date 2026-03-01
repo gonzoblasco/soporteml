@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { ExternalLink, Package, Tag, Truck, Shield, Layers, DollarSign, Loader2, AlertTriangle, Settings } from 'lucide-react';
+import { ExternalLink, Package, Tag, Truck, Shield, Layers, DollarSign, AlertTriangle, Settings, Sparkles, BookOpen, Pencil } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useNavigate } from 'react-router-dom';
+import { CompletenessIndicator } from '@/components/catalog/CompletenessIndicator';
+import { ProductFormDrawer, type NewProductParams } from '@/components/catalog/ProductFormDrawer';
 
 interface MeliItem {
   title: string;
@@ -26,20 +28,40 @@ interface MeliItem {
   }>;
 }
 
+interface CrmProduct {
+  id: string;
+  support_summary: string | null;
+  key_points: string[];
+  faq_bullets: string[];
+  do_not_say: string[];
+  shipping_notes: string | null;
+  returns_notes: string | null;
+  warranty_notes: string | null;
+  status: string;
+  source: string;
+  sku: string | null;
+  external_id: string | null;
+}
+
 interface Props {
   meliItemId: string | undefined | null;
+  productId?: string | null;
   fallbackTitle?: string | null;
   fallbackPrice?: number | null;
   fallbackPermalink?: string | null;
 }
 
-const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPermalink }: Props) => {
+const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, fallbackPermalink }: Props) => {
   const [item, setItem] = useState<MeliItem | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [crmProduct, setCrmProduct] = useState<CrmProduct | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerProductId, setDrawerProductId] = useState<string | null>(null);
+  const [drawerNewParams, setDrawerNewParams] = useState<NewProductParams | null>(null);
+  const [drawerDefaultTab, setDrawerDefaultTab] = useState<string | undefined>();
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!meliItemId) return;
@@ -64,11 +86,60 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
     });
   }, [meliItemId]);
 
-  // Hide on mobile
+  // Fetch CRM product data
+  useEffect(() => {
+    setCrmProduct(null);
+    if (productId) {
+      supabase
+        .from('products')
+        .select('id, support_summary, key_points, faq_bullets, do_not_say, shipping_notes, returns_notes, warranty_notes, status, source, sku, external_id')
+        .eq('id', productId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setCrmProduct({
+              ...data,
+              key_points: (data.key_points ?? []) as string[],
+              faq_bullets: (data.faq_bullets ?? []) as string[],
+              do_not_say: (data.do_not_say ?? []) as string[],
+            });
+          }
+        });
+    }
+  }, [productId]);
+
+  const openDrawerEdit = (tab?: string) => {
+    setDrawerProductId(productId || crmProduct?.id || null);
+    setDrawerNewParams(null);
+    setDrawerDefaultTab(tab);
+    setDrawerOpen(true);
+  };
+
+  const openDrawerCreate = () => {
+    setDrawerProductId(null);
+    setDrawerNewParams({
+      meli_item_id: meliItemId || undefined,
+      title: fallbackTitle || undefined,
+      permalink: fallbackPermalink || undefined,
+    });
+    setDrawerDefaultTab(undefined);
+    setDrawerOpen(true);
+  };
+
+  // Count missing CRM fields
+  const countMissingFields = (p: CrmProduct) => {
+    let missing = 0;
+    if (!p.support_summary) missing++;
+    if (!p.key_points?.length) missing++;
+    if (!p.shipping_notes) missing++;
+    if (!p.returns_notes) missing++;
+    if (!p.warranty_notes) missing++;
+    return missing;
+  };
+
   if (isMobile) return null;
   if (!meliItemId) return null;
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
@@ -82,22 +153,15 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
             <Skeleton className="h-5 w-16 rounded-full" />
             <Skeleton className="h-5 w-20 rounded-full" />
           </div>
-          <Skeleton className="h-px w-full" />
-          <div className="space-y-1.5">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
         </div>
       </div>
     );
   }
 
-  // Error / fallback state with graceful messaging
   if (!item) {
     return (
       <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
         <div className="p-4 space-y-4">
-          {/* Show whatever data we have from DB */}
           {fallbackTitle && (
             <div>
               <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">{fallbackTitle}</h3>
@@ -109,6 +173,13 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
             </div>
           )}
 
+          {/* CRM CTA even in fallback state */}
+          {crmProduct ? (
+            <CrmKnowledgeSection crm={crmProduct} onEdit={openDrawerEdit} countMissing={countMissingFields} />
+          ) : meliItemId ? (
+            <CreateCrmCta onClick={openDrawerCreate} />
+          ) : null}
+
           {error && (
             <>
               <Separator />
@@ -116,21 +187,12 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-foreground">
-                      No pudimos cargar los detalles del producto
-                    </p>
+                    <p className="text-xs font-medium text-foreground">No pudimos cargar los detalles</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Puede deberse a una conexión en curso o a la sincronización. No te preocupes, los datos básicos están disponibles.
+                      Puede deberse a una conexión en curso o a la sincronización.
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => navigate('/settings')}
-                  className="flex items-center gap-1.5 text-[11px] text-primary hover:underline mt-1"
-                >
-                  <Settings className="w-3 h-3" />
-                  Ir a Settings para verificar la conexión
-                </button>
               </div>
             </>
           )}
@@ -144,13 +206,14 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
               </a>
             </>
           )}
-
-          {!fallbackTitle && !error && (
-            <p className="text-xs text-muted-foreground text-center py-4">
-              Seleccioná una consulta para ver los detalles del producto.
-            </p>
-          )}
         </div>
+        <ProductFormDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          productId={drawerProductId}
+          newProductParams={drawerNewParams}
+          defaultTab={drawerDefaultTab}
+        />
       </div>
     );
   }
@@ -160,37 +223,24 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
     .filter(a => a.value_name && !['ITEM_CONDITION', 'GTIN', 'SELLER_SKU', 'MPN'].includes(a.id))
     .slice(0, 10);
 
-  const formatPrice = (price: number, currency: string) => {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(price);
-  };
+  const formatPrice = (price: number, currency: string) =>
+    new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(price);
 
   return (
     <div className="w-72 shrink-0 border-l border-border/50 bg-muted/20">
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4">
-          {/* Product Image */}
           {mainPic && (
             <div className="rounded-lg overflow-hidden border border-border/50 bg-background">
-              <img
-                src={mainPic}
-                alt={item.title}
-                className="w-full h-48 object-contain bg-white"
-                loading="lazy"
-              />
+              <img src={mainPic} alt={item.title} className="w-full h-48 object-contain bg-white" loading="lazy" />
             </div>
           )}
 
-          {/* Title & Price */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">
-              {item.title}
-            </h3>
-            <p className="text-lg font-bold text-foreground">
-              {formatPrice(item.price, item.currency_id)}
-            </p>
+            <h3 className="text-sm font-semibold text-foreground leading-snug mb-1">{item.title}</h3>
+            <p className="text-lg font-bold text-foreground">{formatPrice(item.price, item.currency_id)}</p>
           </div>
 
-          {/* Quick Stats */}
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="outline" className="text-[10px] gap-1">
               <Package className="w-3 h-3" />
@@ -220,7 +270,13 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
             )}
           </div>
 
-          {/* Variations */}
+          {/* CRM Knowledge Section */}
+          {crmProduct ? (
+            <CrmKnowledgeSection crm={crmProduct} onEdit={openDrawerEdit} countMissing={countMissingFields} />
+          ) : meliItemId ? (
+            <CreateCrmCta onClick={openDrawerCreate} />
+          ) : null}
+
           {item.variations?.length > 0 && (
             <>
               <Separator />
@@ -241,7 +297,6 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
             </>
           )}
 
-          {/* Attributes */}
           {relevantAttrs.length > 0 && (
             <>
               <Separator />
@@ -261,7 +316,6 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
             </>
           )}
 
-          {/* Description */}
           {description && (
             <>
               <Separator />
@@ -274,21 +328,78 @@ const ProductSideCard = ({ meliItemId, fallbackTitle, fallbackPrice, fallbackPer
             </>
           )}
 
-          {/* Link */}
           <Separator />
-          <a
-            href={item.permalink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-          >
+          <a href={item.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-primary hover:underline">
             <ExternalLink className="w-3 h-3" />
             Ver publicación en MeLi
           </a>
         </div>
       </ScrollArea>
+      <ProductFormDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        productId={drawerProductId}
+        newProductParams={drawerNewParams}
+        defaultTab={drawerDefaultTab}
+      />
     </div>
   );
 };
+
+// Sub-components
+
+function CrmKnowledgeSection({ crm, onEdit, countMissing }: { crm: CrmProduct; onEdit: (tab?: string) => void; countMissing: (p: CrmProduct) => number }) {
+  const missing = countMissing(crm);
+
+  return (
+    <>
+      <Separator />
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <BookOpen className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[11px] font-semibold text-primary">Conocimiento CRM</span>
+          </div>
+          <CompletenessIndicator product={crm as any} />
+        </div>
+
+        {crm.support_summary && (
+          <p className="text-[11px] text-foreground leading-relaxed line-clamp-3">
+            {crm.support_summary}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
+          {crm.key_points?.length > 0 && <span>{crm.key_points.length} puntos clave</span>}
+          {crm.faq_bullets?.length > 0 && <span>· {crm.faq_bullets.length} FAQ</span>}
+        </div>
+
+        {missing > 0 ? (
+          <Button variant="outline" size="sm" className="w-full gap-1.5 text-[11px] h-7" onClick={() => onEdit('conocimiento')}>
+            <Pencil className="w-3 h-3" />
+            Completar ficha ({missing} campos)
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" className="w-full gap-1.5 text-[11px] h-7" onClick={() => onEdit()}>
+            <Pencil className="w-3 h-3" />
+            Editar ficha CRM
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CreateCrmCta({ onClick }: { onClick: () => void }) {
+  return (
+    <>
+      <Separator />
+      <Button variant="outline" size="sm" className="w-full gap-1.5 text-[11px]" onClick={onClick}>
+        <Sparkles className="w-3 h-3 text-primary" />
+        Crear ficha CRM
+      </Button>
+    </>
+  );
+}
 
 export default ProductSideCard;
