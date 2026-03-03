@@ -13,6 +13,8 @@ import { logAuditEntry } from '@/lib/auditLog';
 import { CompletenessIndicator } from './CompletenessIndicator';
 import { VariantsTable, type Variant } from './VariantsTable';
 import { AuditTimeline } from './AuditTimeline';
+import { EnrichButton } from './EnrichButton';
+import { DuplicateDetector } from './DuplicateDetector';
 
 interface Product {
   id: string;
@@ -32,6 +34,7 @@ interface Product {
   warranty_notes: string | null;
   faq_bullets: string[];
   do_not_say: string[];
+  meli_cache_fetched_at?: string | null;
 }
 
 interface Props {
@@ -268,6 +271,21 @@ export function ProductForm({ product, onRefresh, onClose, defaultTab }: Props) 
               <Label className="text-xs">Permalink</Label>
               <Input value={form.permalink || ''} onChange={(e) => updateField('permalink', e.target.value || null)} placeholder="URL del producto" />
             </div>
+
+            {/* Epic 3: Enrichment + Duplicate Detection */}
+            <EnrichButton
+              productId={product.id}
+              meliItemId={form.meli_item_id}
+              externalId={form.external_id}
+              meliFetchedAt={form.meli_cache_fetched_at ?? null}
+              onEnriched={() => { onRefresh(); }}
+            />
+            <DuplicateDetector
+              productId={product.id}
+              onSelectDuplicate={(dupId) => {
+                window.open(`/catalog?product=${dupId}`, '_blank');
+              }}
+            />
           </TabsContent>
 
           {/* Tab 2 — Conocimiento IA */}

@@ -285,6 +285,8 @@ export type Database = {
           faq_bullets: Json
           id: string
           key_points: Json
+          meli_cache: Json | null
+          meli_cache_fetched_at: string | null
           meli_category_id: string | null
           meli_category_name: string | null
           meli_item_id: string | null
@@ -310,6 +312,8 @@ export type Database = {
           faq_bullets?: Json
           id?: string
           key_points?: Json
+          meli_cache?: Json | null
+          meli_cache_fetched_at?: string | null
           meli_category_id?: string | null
           meli_category_name?: string | null
           meli_item_id?: string | null
@@ -335,6 +339,8 @@ export type Database = {
           faq_bullets?: Json
           id?: string
           key_points?: Json
+          meli_cache?: Json | null
+          meli_cache_fetched_at?: string | null
           meli_category_id?: string | null
           meli_category_name?: string | null
           meli_item_id?: string | null
@@ -573,6 +579,20 @@ export type Database = {
       }
     }
     Functions: {
+      find_similar_products: {
+        Args: {
+          _company_id: string
+          _limit?: number
+          _product_id: string
+          _threshold?: number
+          _title: string
+        }
+        Returns: {
+          id: string
+          similarity: number
+          title: string
+        }[]
+      }
       get_admin_users: {
         Args: never
         Returns: {
