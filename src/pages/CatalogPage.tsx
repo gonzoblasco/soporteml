@@ -29,6 +29,7 @@ interface Product {
   faq_bullets: string[];
   do_not_say: string[];
   updated_at: string;
+  meli_cache_fetched_at: string | null;
 }
 
 const CatalogPage = () => {
@@ -44,7 +45,7 @@ const CatalogPage = () => {
     if (!companyId) return;
     const { data } = await supabase
       .from('products')
-      .select('id, company_id, title, meli_item_id, sku, permalink, status, source, external_id, external_url, support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, updated_at')
+      .select('id, company_id, title, meli_item_id, sku, permalink, status, source, external_id, external_url, support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, updated_at, meli_cache_fetched_at')
       .eq('company_id', companyId)
       .order('updated_at', { ascending: false });
 
