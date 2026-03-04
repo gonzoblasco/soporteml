@@ -35,6 +35,9 @@ interface Product {
   faq_bullets: string[];
   do_not_say: string[];
   meli_cache_fetched_at?: string | null;
+  meli_cache?: Record<string, unknown> | null;
+  price?: number | null;
+  meli_category_name?: string | null;
 }
 
 interface Props {
@@ -280,6 +283,82 @@ export function ProductForm({ product, onRefresh, onClose, defaultTab }: Props) 
               meliFetchedAt={form.meli_cache_fetched_at ?? null}
               onEnriched={() => { onRefresh(); }}
             />
+
+            {/* MeLi Cache Data Display */}
+            {form.meli_cache && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+                <p className="text-[11px] font-semibold text-foreground">Datos de MeLi</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                  {form.price && (
+                    <div>
+                      <span className="text-muted-foreground">Precio:</span>{' '}
+                      <span className="font-medium text-foreground">
+                        ${Number(form.price).toLocaleString('es-AR')}
+                      </span>
+                    </div>
+                  )}
+                  {form.meli_category_name && (
+                    <div>
+                      <span className="text-muted-foreground">Categoría:</span>{' '}
+                      <span className="font-medium text-foreground">{form.meli_category_name}</span>
+                    </div>
+                  )}
+                  {(form.meli_cache as any)?.condition && (
+                    <div>
+                      <span className="text-muted-foreground">Condición:</span>{' '}
+                      <span className="font-medium text-foreground">{(form.meli_cache as any).condition === 'new' ? 'Nuevo' : 'Usado'}</span>
+                    </div>
+                  )}
+                  {(form.meli_cache as any)?.warranty && (
+                    <div>
+                      <span className="text-muted-foreground">Garantía:</span>{' '}
+                      <span className="font-medium text-foreground">{(form.meli_cache as any).warranty}</span>
+                    </div>
+                  )}
+                  {(form.meli_cache as any)?.available_quantity != null && (
+                    <div>
+                      <span className="text-muted-foreground">Stock:</span>{' '}
+                      <span className="font-medium text-foreground">{(form.meli_cache as any).available_quantity}</span>
+                    </div>
+                  )}
+                  {(form.meli_cache as any)?.sold_quantity != null && (
+                    <div>
+                      <span className="text-muted-foreground">Vendidos:</span>{' '}
+                      <span className="font-medium text-foreground">{(form.meli_cache as any).sold_quantity}</span>
+                    </div>
+                  )}
+                  {(form.meli_cache as any)?.shipping?.free_shipping && (
+                    <div>
+                      <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200">Envío gratis</Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Attributes */}
+                {Array.isArray((form.meli_cache as any)?.attributes) && (form.meli_cache as any).attributes.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Atributos</p>
+                    <div className="flex flex-wrap gap-1">
+                      {((form.meli_cache as any).attributes as { name: string; value_name: string }[]).slice(0, 12).map((attr, i) => (
+                        <Badge key={i} variant="secondary" className="text-[10px] font-normal">
+                          {attr.name}: {attr.value_name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description preview */}
+                {(form.meli_cache as any)?.description && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Descripción MeLi</p>
+                    <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-line">
+                      {(form.meli_cache as any).description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             <DuplicateDetector
               productId={product.id}
               onSelectDuplicate={(dupId) => {
