@@ -90,12 +90,12 @@ export function ProductForm({ product, onRefresh, onClose, defaultTab }: Props) 
   const [saved, setSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Reset form when product changes
+  // Reset form when product changes (including after enrichment)
   useEffect(() => {
     setForm(product);
     setSaved(false);
     fetchVariants();
-  }, [product.id]);
+  }, [product.id, product.support_summary, product.key_points, product.faq_bullets, product.warranty_notes, product.shipping_notes, product.meli_cache_fetched_at]);
 
   const fetchVariants = async () => {
     const { data } = await supabase
