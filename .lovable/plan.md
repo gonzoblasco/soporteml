@@ -1,65 +1,68 @@
 
 
-## Epic 4: Hardening & Confiabilidad
+## Epic 5: Notificaciones & Engagement
 
 ### Alcance
 
-Tres pilares: (1) Error Boundaries para evitar pantallas blancas, (2) corregir todos los hallazgos del escaneo de seguridad RLS, (3) mejorar manejo de errores en la app.
+Tres pilares: (1) Centro de notificaciones in-app con badge en tiempo real, (2) notificaciones por email para eventos críticos, (3) indicadores de engagement (resumen diario, streaks).
 
 ---
 
-### 1. Error Boundary global + por sección
+### 1. Centro de notificaciones in-app
 
-No existe ningún ErrorBoundary en el proyecto. Se creará:
+- **Tabla `notifications`**: Almacena notificaciones por usuario con tipo, título, mensaje, link, leído/no leído.
+- **Componente `NotificationBell`**: Icono de campana en el sidebar con badge rojo de no leídas. Click abre un popover con las últimas 20 notificaciones.
+- **Realtime**: Suscripción a `postgres_changes` en la tabla `notifications` para actualizar el badge sin refresh.
+- **Tipos de notificación**: `new_question`, `priority_question`, `token_expiring`, `answer_published`.
 
-- **`src/components/ErrorBoundary.tsx`**: Componente class-based que captura errores de render. Muestra una UI amigable con botón "Reintentar" y opción de volver al dashboard.
-- **Integración en `App.tsx`**: Wrappear `<AppRoutes />` con el ErrorBoundary global.
-- **ErrorBoundary por sección**: Wrappear cada ruta del dashboard (Home, Inbox, Catalog, Settings, etc.) con un boundary individual para que un crash en una sección no tire toda la app.
-
----
-
-### 2. Corrección de hallazgos de seguridad RLS (8 findings)
-
-Migraciones SQL para resolver:
-
-| Finding | Nivel | Acción |
-|---|---|---|
-| `contact_inquiries` INSERT `WITH CHECK (true)` | warn | Reemplazar por política anon-only o mantener (es un form público, aceptable) |
-| `contact_inquiries` SELECT expuesto | error | Ya tiene `is_super_admin()` — el scan parece falso positivo, verificar |
-| `meli_tokens` sin SELECT para company | error | **No agregar** SELECT para usuarios normales — los tokens se acceden vía Edge Functions con service role. Esto es by design. |
-| `meli_connection_status` sin policies | warn | Agregar SELECT policy: `company_id = get_user_company_id(auth.uid())` |
-| `meli_tokens` sin INSERT/UPDATE | warn | No cambiar — tokens se manejan desde Edge Functions con service role |
-| `audit_logs` sin INSERT | warn | No cambiar — inserts via Edge Function `audit-log` con service role |
-| `products` sin DELETE | info | Agregar DELETE policy para admins |
-| Leaked password protection | warn | Habilitar via auth config |
-
-**Migraciones concretas:**
-```sql
--- meli_connection_status: allow company members to SELECT
-CREATE POLICY "Company members can view connection status"
-ON public.meli_connection_status FOR SELECT
-TO authenticated
-USING (company_id = get_user_company_id(auth.uid()));
-
--- products: allow admin DELETE
-CREATE POLICY "Admins can delete products"
-ON public.products FOR DELETE
-TO authenticated
-USING (
-  company_id = get_user_company_id(auth.uid())
-  AND has_role(auth.uid(), 'admin'::app_role)
-);
+```text
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Edge Func   │────▶│ notifications│────▶│ NotifBell UI │
+│ (insert row) │     │   table      │     │ (realtime)   │
+└──────────────┘     └──────────────┘     └──────────────┘
 ```
 
-Se marcarán como "aceptados" los findings que son by-design (tokens via service role, audit via edge function).
+**Migración SQL:**
+```sql
+CREATE TABLE public.notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE,
+  type text NOT NULL,
+  title text NOT NULL,
+  message text,
+  link text,
+  read boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users see own notifications"
+ON public.notifications FOR SELECT TO authenticated
+USING (user_id = auth.uid());
+
+CREATE POLICY "Users mark own as read"
+ON public.notifications FOR UPDATE TO authenticated
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+```
 
 ---
 
-### 3. Mejorar manejo de errores en la app
+### 2. Generación automática de notificaciones
 
-- **Wrappear llamadas a `supabase.functions.invoke()`** con try/catch consistente y toasts de error en las páginas principales (Home, Inbox, Catalog, Settings).
-- **Agregar estados de error** en los componentes que hacen fetch (mostrar mensaje en lugar de spinner infinito si falla).
-- **Habilitar leaked password protection** via auth configuration.
+- **Edge Function `notify`**: Recibe tipo + company_id, busca los usuarios de esa empresa y crea notificaciones. Llamada desde `sync-meli-questions` cuando llegan preguntas nuevas y desde `publish-meli-answer` cuando se publica una respuesta.
+- **Integración en funciones existentes**: Agregar llamada a `notify` al final de `sync-meli-questions` (para preguntas priority) y opcionalmente en `publish-meli-answer`.
+
+---
+
+### 3. Engagement: resumen y métricas rápidas
+
+- **Widget "Resumen del día"** en el Dashboard (Home): card con métricas de hoy vs ayer (preguntas respondidas, tiempo promedio, pendientes) con flechas de tendencia ↑↓.
+- **Toast de bienvenida**: Al entrar al dashboard, si hay preguntas priority pendientes, mostrar un toast con "Tenés X preguntas urgentes".
 
 ---
 
@@ -67,8 +70,11 @@ Se marcarán como "aceptados" los findings que son by-design (tokens via service
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/ErrorBoundary.tsx` | Nuevo — componente ErrorBoundary |
-| `src/App.tsx` | Wrappear rutas con ErrorBoundary |
-| Migration SQL | RLS fixes (2 policies nuevas) |
-| Security findings | Marcar 4 findings como aceptados (by design) |
+| Migration SQL | Tabla `notifications` + RLS + realtime |
+| `supabase/functions/notify/index.ts` | Nueva Edge Function para crear notificaciones |
+| `supabase/functions/sync-meli-questions/index.ts` | Llamar a notify para preguntas priority |
+| `src/components/NotificationBell.tsx` | Nuevo — campana + popover + badge |
+| `src/components/AppSidebar.tsx` | Agregar NotificationBell al header |
+| `src/pages/Home.tsx` | Agregar toast de bienvenida con pendientes priority |
+| `supabase/config.toml` | Registrar función notify |
 
