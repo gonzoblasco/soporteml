@@ -49,12 +49,23 @@ Catálogo interno estilo CRM para que la IA responda con información confiable 
 - **Preparado para múltiples fuentes** (CRM-ready): `source`, `external_id`, `external_url` (futuro Tiendanube u otras).
 - “Shell CRM” listo para expandirse (Clientes / Órdenes / Conocimiento) como **próximamente**.
 
-### 🔔 Notificaciones en Tiempo Real
+### 🔔 Centro de Notificaciones
 
-- **Notificaciones in-app** (toast) con sonido diferenciado para consultas prioritarias vs. normales.
-- **Notificaciones push del navegador** (Notification API).
-- **Vibración** en dispositivos móviles para alertas prioritarias.
+- **Centro de notificaciones in-app** con campana en el sidebar, badge de no leídas en tiempo real y popover con las últimas 20 notificaciones.
+- **Generación automática**: Edge Function `notify` crea notificaciones por empresa al detectar preguntas priority o publicar respuestas.
+- **Tipos soportados**: `new_question`, `priority_question`, `token_expiring`, `answer_published`.
+- **Toast de bienvenida** en el Dashboard con conteo de preguntas urgentes pendientes.
+- **Notificaciones push del navegador** (Notification API) y vibración en móviles.
 - Toggle configurable en Settings por usuario.
+
+### 📱 UX Mobile & Micro-interacciones
+
+- **Skeleton loaders** en Dashboard, Inbox, Priority Inbox y Catálogo para carga progresiva.
+- **Barra de acciones sticky** en detalle de pregunta para mobile (Publicar/Archivar).
+- **Swipe gestures** en sidebar mobile (derecha para abrir, izquierda para cerrar).
+- **Transiciones de página** con framer-motion entre rutas del dashboard.
+- **Keyboard navigation** (↑↓) en listas de preguntas para triage rápido.
+- **Empty states mejorados** con animaciones de éxito.
 
 ### 📊 Analítica en Tiempo Real
 

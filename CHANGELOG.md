@@ -6,6 +6,45 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.3.0] — 2026-03-05
+
+### 🔔 Epic 5 — Notificaciones & Engagement
+
+#### Añadido
+
+- **Tabla `notifications`** con RLS por usuario, realtime habilitado y políticas de lectura/actualización.
+- **Edge Function `notify`**: genera notificaciones multi-usuario por empresa. Invocada desde `sync-meli-questions` para preguntas priority.
+- **`NotificationBell`**: componente de campana en el sidebar con badge de no leídas en tiempo real (suscripción `postgres_changes`). Popover con últimas 20 notificaciones, marcar como leída individual o masiva, navegación por link.
+- **Toast de bienvenida**: al entrar al Dashboard, si hay preguntas priority pendientes se muestra un toast de advertencia con el conteo.
+
+#### Modificado
+
+- **`sync-meli-questions`**: llama a `notify` al detectar preguntas que requieren atención humana.
+- **`AppSidebar`**: integra `NotificationBell` en la sección inferior del sidebar.
+
+---
+
+## [1.2.0] — 2026-03-05
+
+### ✨ Epic 6 — Polish UX & Mobile
+
+#### Añadido
+
+- **Skeleton loaders** (`SkeletonCards.tsx`): `KpiSkeleton`, `QuestionListSkeleton`, `ChartCardSkeleton`, `ProductListSkeleton`. Reemplazan spinners genéricos en Dashboard, Inbox y Priority Inbox.
+- **Barra de acciones sticky** en `QuestionDetail` para mobile: botones Publicar/Archivar fijos en la parte inferior.
+- **Swipe gestures** en `AppSidebar`: deslizar a la derecha para abrir y a la izquierda para cerrar en dispositivos táctiles.
+- **Transiciones de página**: `AnimatePresence` de framer-motion en `DashboardLayout` con fade suave entre rutas.
+- **Keyboard navigation**: flechas ↑↓ para navegar entre preguntas en Inbox y Priority Inbox.
+- **Empty state mejorado** en Priority Inbox con animación de checkmark cuando no hay pendientes.
+- **Animación `slide-from-left`** en `index.css` para entrada del sidebar.
+
+#### Modificado
+
+- **`QuestionDetail`**: oculta `ProductSideCard` en mobile, layout responsive con detección `useIsMobile`.
+- **`Home.tsx`**, **`Inbox.tsx`**, **`PriorityInbox.tsx`**: integran skeleton loaders durante carga.
+
+---
+
 ## [1.1.0] — 2026-02-26
 
 ### 🎨 Rediseño Visual — Estética MockupTabs
