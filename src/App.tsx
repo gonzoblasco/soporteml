@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Login from "@/pages/Login";
 import Landing from "@/pages/Landing";
 import Inbox from "@/pages/Inbox";
@@ -79,13 +80,13 @@ const AppRoutes = () => (
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/" element={<SmartHome />} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-      <Route path="/dashboard" element={<Home />} />
-      <Route path="/inbox" element={<Inbox />} />
-      <Route path="/priority" element={<PriorityInbox />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/templates" element={<TemplatesPage />} />
-      <Route path="/catalog" element={<CatalogPage />} />
-      <Route path="/admin" element={<AdminPanel />} />
+      <Route path="/dashboard" element={<ErrorBoundary fallbackTitle="Error en Dashboard"><Home /></ErrorBoundary>} />
+      <Route path="/inbox" element={<ErrorBoundary fallbackTitle="Error en Inbox"><Inbox /></ErrorBoundary>} />
+      <Route path="/priority" element={<ErrorBoundary fallbackTitle="Error en Priority"><PriorityInbox /></ErrorBoundary>} />
+      <Route path="/settings" element={<ErrorBoundary fallbackTitle="Error en Settings"><SettingsPage /></ErrorBoundary>} />
+      <Route path="/templates" element={<ErrorBoundary fallbackTitle="Error en Templates"><TemplatesPage /></ErrorBoundary>} />
+      <Route path="/catalog" element={<ErrorBoundary fallbackTitle="Error en Catálogo"><CatalogPage /></ErrorBoundary>} />
+      <Route path="/admin" element={<ErrorBoundary fallbackTitle="Error en Admin"><AdminPanel /></ErrorBoundary>} />
     </Route>
     <Route path="/design-test" element={<DesignTest />} />
     <Route path="*" element={<NotFound />} />
@@ -100,7 +101,9 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AppRoutes />
+            <ErrorBoundary showHomeButton={false}>
+              <AppRoutes />
+            </ErrorBoundary>
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
