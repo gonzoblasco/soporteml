@@ -1,68 +1,40 @@
 
 
-## Epic 5: Notificaciones & Engagement
+## Epic 6: Polish UX & Mobile
 
 ### Alcance
 
-Tres pilares: (1) Centro de notificaciones in-app con badge en tiempo real, (2) notificaciones por email para eventos críticos, (3) indicadores de engagement (resumen diario, streaks).
+Tres pilares: (1) Mejoras de experiencia mobile en todas las secciones, (2) micro-interacciones y transiciones, (3) mejoras de accesibilidad y feedback visual.
 
 ---
 
-### 1. Centro de notificaciones in-app
+### 1. Mejoras Mobile
 
-- **Tabla `notifications`**: Almacena notificaciones por usuario con tipo, título, mensaje, link, leído/no leído.
-- **Componente `NotificationBell`**: Icono de campana en el sidebar con badge rojo de no leídas. Click abre un popover con las últimas 20 notificaciones.
-- **Realtime**: Suscripción a `postgres_changes` en la tabla `notifications` para actualizar el badge sin refresh.
-- **Tipos de notificación**: `new_question`, `priority_question`, `token_expiring`, `answer_published`.
+Actualmente el responsive funciona pero hay oportunidades claras de mejora:
 
-```text
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Edge Func   │────▶│ notifications│────▶│ NotifBell UI │
-│ (insert row) │     │   table      │     │ (realtime)   │
-└──────────────┘     └──────────────┘     └──────────────┘
-```
-
-**Migración SQL:**
-```sql
-CREATE TABLE public.notifications (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  company_id uuid REFERENCES public.companies(id) ON DELETE CASCADE,
-  type text NOT NULL,
-  title text NOT NULL,
-  message text,
-  link text,
-  read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users see own notifications"
-ON public.notifications FOR SELECT TO authenticated
-USING (user_id = auth.uid());
-
-CREATE POLICY "Users mark own as read"
-ON public.notifications FOR UPDATE TO authenticated
-USING (user_id = auth.uid())
-WITH CHECK (user_id = auth.uid());
-
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-```
+- **QuestionDetail en mobile**: La `ProductSideCard` no se oculta en mobile, lo cual rompe el layout. Ocultarla o moverla a un drawer/accordion colapsable.
+- **SettingsPage**: Es un archivo de 1357 líneas. Refactorizar en componentes separados ya está hecho internamente, pero en mobile las cards se apilan sin padding adecuado. Agregar scroll snap y mejor spacing.
+- **Sidebar mobile**: Agregar **swipe gesture** para abrir/cerrar el sidebar en mobile (actualmente solo funciona con el botón hamburguesa).
+- **Bottom action bar**: En QuestionDetail mobile, los botones de acción (Publicar, Archivar, Eliminar) deberían estar en un **sticky bottom bar** para acceso rápido sin scroll.
+- **Pull-to-refresh**: Agregar pull-to-refresh en Inbox y Priority en mobile para refrescar manualmente la lista.
 
 ---
 
-### 2. Generación automática de notificaciones
+### 2. Micro-interacciones y transiciones
 
-- **Edge Function `notify`**: Recibe tipo + company_id, busca los usuarios de esa empresa y crea notificaciones. Llamada desde `sync-meli-questions` cuando llegan preguntas nuevas y desde `publish-meli-answer` cuando se publica una respuesta.
-- **Integración en funciones existentes**: Agregar llamada a `notify` al final de `sync-meli-questions` (para preguntas priority) y opcionalmente en `publish-meli-answer`.
+- **Skeleton loaders**: Reemplazar los spinners genéricos `<Loader2>` con skeleton placeholders en Dashboard (KPI cards), Inbox (lista de preguntas), y Catalog (lista de productos). Da sensación de carga más rápida.
+- **Transiciones de página**: Agregar `framer-motion` `AnimatePresence` al `<Outlet>` del DashboardLayout para transiciones suaves entre secciones.
+- **Success animation**: Al publicar una respuesta exitosamente, mostrar una animación de checkmark ✓ antes de cerrar.
+- **Empty states mejorados**: Mejorar los empty states de PriorityInbox y Catalog con ilustraciones o animaciones sutiles.
 
 ---
 
-### 3. Engagement: resumen y métricas rápidas
+### 3. Accesibilidad y feedback
 
-- **Widget "Resumen del día"** en el Dashboard (Home): card con métricas de hoy vs ayer (preguntas respondidas, tiempo promedio, pendientes) con flechas de tendencia ↑↓.
-- **Toast de bienvenida**: Al entrar al dashboard, si hay preguntas priority pendientes, mostrar un toast con "Tenés X preguntas urgentes".
+- **Keyboard navigation**: Asegurar que Inbox/Priority soporten `↑`/`↓` para navegar entre preguntas y `Enter` para seleccionar.
+- **Focus management**: Al seleccionar una pregunta, mover el foco al textarea de respuesta automáticamente.
+- **Loading states en botones**: Todos los botones que disparan async (Publicar, Sincronizar, Guardar) deben mostrar spinner + disabled durante la operación (algunos ya lo hacen, unificar).
+- **Toast de confirmación en acciones destructivas**: Feedback consistente post-acción (archivar, eliminar).
 
 ---
 
@@ -70,11 +42,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 
 | Archivo | Cambio |
 |---|---|
-| Migration SQL | Tabla `notifications` + RLS + realtime |
-| `supabase/functions/notify/index.ts` | Nueva Edge Function para crear notificaciones |
-| `supabase/functions/sync-meli-questions/index.ts` | Llamar a notify para preguntas priority |
-| `src/components/NotificationBell.tsx` | Nuevo — campana + popover + badge |
-| `src/components/AppSidebar.tsx` | Agregar NotificationBell al header |
-| `src/pages/Home.tsx` | Agregar toast de bienvenida con pendientes priority |
-| `supabase/config.toml` | Registrar función notify |
-
+| `src/components/QuestionDetail.tsx` | Ocultar ProductSideCard en mobile, sticky bottom actions |
+| `src/components/SkeletonCards.tsx` | Nuevo — skeleton loaders reutilizables |
+| `src/pages/Home.tsx` | Skeletons para KPI cards |
+| `src/pages/Inbox.tsx` | Skeletons para lista, keyboard nav |
+| `src/pages/PriorityInbox.tsx` | Skeletons, empty state mejorado |
+| `src/components/DashboardLayout.tsx` | Transición AnimatePresence en Outlet |
+| `src/components/AppSidebar.tsx` | Swipe gesture en mobile |
+| `src/pages/CatalogPage.tsx` | Mobile spacing fix |
