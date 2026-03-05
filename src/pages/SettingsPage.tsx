@@ -1157,12 +1157,20 @@ const PLANS = {
 
 const BillingSection = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [subscription, setSubscription] = useState<{ subscribed: boolean; product_id?: string; subscription_end?: string } | null>(null);
 
+  const isSuperAdmin = user?.email === 'gonzoblasco@icloud.com';
+
   const checkSubscription = useCallback(async () => {
+    if (isSuperAdmin) {
+      setSubscription({ subscribed: true, product_id: '__super_admin__' });
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription');
@@ -1215,7 +1223,7 @@ const BillingSection = () => {
   };
 
   const isSubscribed = subscription?.subscribed;
-  const currentPlan = isSubscribed && subscription?.product_id === PLANS.base.product_id ? 'base' : null;
+  const currentPlan = isSuperAdmin ? 'super_admin' : (isSubscribed && subscription?.product_id === PLANS.base.product_id ? 'base' : null);
 
   return (
     <Card>
@@ -1239,7 +1247,7 @@ const BillingSection = () => {
                 <Crown className="w-4 h-4 text-emerald-600" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground">
-                    {currentPlan === 'base' ? 'Plan Base' : 'Suscripción activa'}
+                    {currentPlan === 'super_admin' ? '⚡ Super Admin — Acceso total' : currentPlan === 'base' ? 'Plan Base' : 'Suscripción activa'}
                   </p>
                   {subscription?.subscription_end && (
                     <p className="text-xs text-muted-foreground">
