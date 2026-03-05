@@ -187,7 +187,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
           )}
 
           {/* AI Suggestion Block — primary tinted */}
-          <div className="rounded-lg bg-primary/5 p-4 border border-primary/20 flex-1 flex flex-col">
+          <div className="rounded-lg bg-muted/60 p-4 border border-border/40 flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
               <Bot className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-primary">
