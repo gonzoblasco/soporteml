@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { QuestionRow } from '@/types/question';
@@ -41,11 +41,14 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const [error, setError] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
   const [activeTone, setActiveTone] = useState<ToneValue | null>(null);
+  const autoApplyRef = useRef(false);
+  const lastQuestionIdRef = useRef<string | null>(null);
 
-  const fetchCopilot = async (toneOverride?: ToneValue) => {
+  const fetchCopilot = async (toneOverride?: ToneValue, isAutoTrigger = false) => {
     setLoading(true);
     setError(null);
     setCheckedItems(new Set());
+    if (isAutoTrigger) autoApplyRef.current = true;
 
     // Fetch AI settings for tone/instructions
     let aiTone = 'profesional';
@@ -88,17 +91,40 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
       const msg = fnError.message || 'Error al consultar el copiloto';
       setError(msg);
       toast.error(msg);
+      autoApplyRef.current = false;
       return;
     }
 
     if (data?.error) {
       setError(data.error);
       toast.error(data.error);
+      autoApplyRef.current = false;
       return;
     }
 
-    setResult(data as CopilotResult);
+    const copilotResult = data as CopilotResult;
+    setResult(copilotResult);
+
+    // Auto-apply draft on initial load
+    if (autoApplyRef.current && copilotResult.draft) {
+      onUseDraft(copilotResult.draft);
+      autoApplyRef.current = false;
+    }
   };
+
+  // Auto-trigger on question change (pending questions only)
+  useEffect(() => {
+    const isPending = question.status === 'pending';
+    const isNewQuestion = lastQuestionIdRef.current !== question.id;
+    lastQuestionIdRef.current = question.id;
+
+    if (isNewQuestion && isPending) {
+      setResult(null);
+      setError(null);
+      setActiveTone(null);
+      fetchCopilot(undefined, true);
+    }
+  }, [question.id]);
 
   const toggleCheck = (idx: number) => {
     setCheckedItems(prev => {
@@ -109,7 +135,7 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
     });
   };
 
-  // Not yet requested
+  // Not yet requested (only for non-pending questions that didn't auto-trigger)
   if (!result && !loading && !error) {
     return (
       <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
