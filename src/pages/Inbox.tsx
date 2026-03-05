@@ -4,10 +4,12 @@ import type { QuestionRow } from '@/types/question';
 import QuestionDetail from '@/components/QuestionDetail';
 import GroupedQuestionCard from '@/components/GroupedQuestionCard';
 import { groupQuestions } from '@/lib/groupQuestions';
-import { Search, Loader2, ArrowLeft } from 'lucide-react';
+import { Search, Loader2, ArrowLeft, Inbox as InboxIcon, Link2, Settings } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import MeliConnectionStatus from '@/components/MeliConnectionStatus';
+import EmptyState from '@/components/EmptyState';
+import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type StatusFilter = 'pending' | 'published' | 'archived';
@@ -19,6 +21,7 @@ const TABS: { label: string; value: StatusFilter }[] = [
 ];
 
 const Inbox = () => {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -125,9 +128,14 @@ const Inbox = () => {
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             ) : filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-12">
-                No hay preguntas {statusFilter === 'pending' ? 'pendientes' : statusFilter === 'published' ? 'publicadas' : 'archivadas'}
-              </p>
+              <EmptyState
+                icon={InboxIcon}
+                title={statusFilter === 'pending' ? 'Sin preguntas pendientes' : statusFilter === 'published' ? 'Sin preguntas publicadas' : 'Sin preguntas archivadas'}
+                description={statusFilter === 'pending' ? 'Conectá tu cuenta de MercadoLibre para empezar a recibir preguntas automáticamente.' : `No hay preguntas ${statusFilter === 'published' ? 'publicadas' : 'archivadas'} todavía.`}
+                actionLabel={statusFilter === 'pending' ? 'Ir a Configuración' : undefined}
+                onAction={statusFilter === 'pending' ? () => navigate('/settings') : undefined}
+              />
+              
             ) : (
               groups.map((g) => (
                 <GroupedQuestionCard
