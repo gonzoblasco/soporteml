@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { QuestionRow } from '@/types/question';
 import QuestionDetail from '@/components/QuestionDetail';
@@ -11,6 +11,7 @@ import MeliConnectionStatus from '@/components/MeliConnectionStatus';
 import EmptyState from '@/components/EmptyState';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { QuestionListSkeleton } from '@/components/SkeletonCards';
 
 type StatusFilter = 'pending' | 'published' | 'archived';
 
@@ -122,11 +123,19 @@ const Inbox = () => {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5">
+          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5" tabIndex={0} onKeyDown={(e) => {
+            const ids = filtered.map(q => q.id);
+            const idx = selectedId ? ids.indexOf(selectedId) : -1;
+            if (e.key === 'ArrowDown' && idx < ids.length - 1) {
+              e.preventDefault();
+              setSelectedId(ids[idx + 1]);
+            } else if (e.key === 'ArrowUp' && idx > 0) {
+              e.preventDefault();
+              setSelectedId(ids[idx - 1]);
+            }
+          }}>
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
+              <QuestionListSkeleton />
             ) : filtered.length === 0 ? (
               <EmptyState
                 icon={InboxIcon}

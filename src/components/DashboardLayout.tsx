@@ -1,10 +1,11 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AlertTriangle, Inbox } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Simple notification sound using Web Audio API
 const playSound = (type: 'priority' | 'normal') => {
@@ -84,6 +85,7 @@ const requestNotificationPermission = async () => {
 const DashboardLayout = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const initialLoad = useRef(true);
 
   useEffect(() => {
@@ -166,7 +168,18 @@ const DashboardLayout = () => {
     <div className="flex h-screen w-full bg-background overflow-hidden">
       <AppSidebar />
       <main className={`flex-1 overflow-hidden h-full ${isMobile ? 'pt-14' : ''}`}>
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="h-full"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

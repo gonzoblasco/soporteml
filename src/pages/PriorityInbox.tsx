@@ -3,12 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import type { QuestionRow } from '@/types/question';
 import QuestionDetail from '@/components/QuestionDetail';
 import GroupedQuestionCard from '@/components/GroupedQuestionCard';
-import { Search, Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { groupQuestions } from '@/lib/groupQuestions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import MeliConnectionStatus from '@/components/MeliConnectionStatus';
+import { QuestionListSkeleton } from '@/components/SkeletonCards';
+import { motion } from 'framer-motion';
 
 const PriorityInbox = () => {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
@@ -91,16 +93,31 @@ const PriorityInbox = () => {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5">
+          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5" tabIndex={0} onKeyDown={(e) => {
+            const ids = filtered.map(q => q.id);
+            const idx = selectedId ? ids.indexOf(selectedId) : -1;
+            if (e.key === 'ArrowDown' && idx < ids.length - 1) {
+              e.preventDefault();
+              setSelectedId(ids[idx + 1]);
+            } else if (e.key === 'ArrowUp' && idx > 0) {
+              e.preventDefault();
+              setSelectedId(ids[idx - 1]);
+            }
+          }}>
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
+              <QuestionListSkeleton />
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12 space-y-2">
-                <AlertTriangle className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                <p className="text-sm text-muted-foreground">No hay consultas prioritarias pendientes</p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-12 space-y-3"
+              >
+                <div className="w-12 h-12 rounded-full bg-muted/80 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-foreground">¡Todo al día!</p>
+                <p className="text-xs text-muted-foreground">No hay consultas prioritarias pendientes</p>
+              </motion.div>
             ) : (
               groups.map((g) => (
                 <GroupedQuestionCard

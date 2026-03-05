@@ -315,11 +315,43 @@ const AppSidebar = () => {
     </>
   );
 
+  // Swipe handlers (always defined, only used on mobile)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (touch.clientX < 30) {
+      (e.currentTarget as any).__swipeStartX = touch.clientX;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const startX = (e.currentTarget as any).__swipeStartX;
+    if (startX == null) return;
+    const endX = e.changedTouches[0].clientX;
+    if (endX - startX > 60) setOpen(true);
+    (e.currentTarget as any).__swipeStartX = null;
+  }, []);
+
+  const handleDrawerTouchStart = useCallback((e: React.TouchEvent) => {
+    (e.currentTarget as any).__swipeStartX = e.touches[0].clientX;
+  }, []);
+
+  const handleDrawerTouchEnd = useCallback((e: React.TouchEvent) => {
+    const startX = (e.currentTarget as any).__swipeStartX;
+    if (startX == null) return;
+    const endX = e.changedTouches[0].clientX;
+    if (startX - endX > 60) setOpen(false);
+    (e.currentTarget as any).__swipeStartX = null;
+  }, []);
+
   if (isMobile) {
     return (
       <>
-        {/* Mobile header bar */}
-        <div className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center px-4 bg-sidebar border-b border-sidebar-border">
+        {/* Mobile header bar with swipe zone */}
+        <div
+          className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center px-4 bg-sidebar border-b border-sidebar-border"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <Button variant="ghost" size="icon" onClick={() => setOpen(true)} className="h-8 w-8 mr-2">
             <Menu className="w-5 h-5" />
           </Button>
@@ -333,10 +365,12 @@ const AppSidebar = () => {
 
         {/* Overlay */}
         {open && (
-          <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setOpen(false)}>
+          <div className="fixed inset-0 z-50 bg-black/40 animate-fade-in" onClick={() => setOpen(false)}>
             <aside
-              className="w-60 h-full flex flex-col bg-sidebar"
+              className="w-60 h-full flex flex-col bg-sidebar animate-slide-from-left"
               onClick={(e) => e.stopPropagation()}
+              onTouchStart={handleDrawerTouchStart}
+              onTouchEnd={handleDrawerTouchEnd}
             >
               {sidebarContent}
             </aside>
