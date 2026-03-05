@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Sparkles, AlertTriangle, BarChart3, Link2, Inbox, Bot, ArrowRight,
-  MessageSquare, Sun, Moon, Clock, History, Zap,
+  MessageSquare, Sun, Moon, Clock, History, Zap, Check, Calendar, Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
@@ -54,6 +54,7 @@ const Landing = () => {
           </Link>
           <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
             <button onClick={() => scrollTo('features')} className="hover:text-foreground transition-colors">Funciones</button>
+            <button onClick={() => scrollTo('pricing')} className="hover:text-foreground transition-colors">Precios</button>
             <button onClick={() => scrollTo('how')} className="hover:text-foreground transition-colors">Cómo funciona</button>
             <button onClick={() => scrollTo('contact')} className="hover:text-foreground transition-colors">Contacto</button>
           </div>
@@ -183,6 +184,101 @@ const Landing = () => {
               </motion.div>
             ))}
           </div>
+        </motion.div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="py-20 px-4 bg-muted/30">
+        <motion.div className="max-w-4xl mx-auto" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={stagger}>
+          <motion.h2 variants={fadeUp} className="text-3xl font-bold text-center mb-4">
+            Planes simples, sin sorpresas
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-center text-muted-foreground mb-12 max-w-xl mx-auto">
+            Elegí el plan que mejor se adapte a tu operación. Sin contratos, cancelá cuando quieras.
+          </motion.p>
+
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Plan Base */}
+            <motion.div variants={fadeUp} className="glass-panel rounded-2xl p-8 flex flex-col relative">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-1">Base</h3>
+                <p className="text-sm text-muted-foreground">Para vendedores que quieren responder más rápido</p>
+              </div>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-foreground">$100</span>
+                <span className="text-muted-foreground text-sm ml-1">USD / mes</span>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {[
+                  'Inbox inteligente con IA',
+                  'Bandeja prioritaria',
+                  'Copiloto IA (respuestas asistidas)',
+                  'Catálogo CRM de productos',
+                  'Plantillas de respuesta',
+                  'Analítica en tiempo real',
+                  'Conexión con Mercado Libre',
+                  'Hasta 3 usuarios',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm text-foreground">
+                    <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Button size="lg" className="w-full" asChild>
+                <Link to="/signup">Empezar ahora</Link>
+              </Button>
+            </motion.div>
+
+            {/* Plan Pro */}
+            <motion.div variants={fadeUp} className="glass-panel rounded-2xl p-8 flex flex-col relative border-2 border-primary/30">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
+                  <Crown className="w-3 h-3" /> Próximamente
+                </span>
+              </div>
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-1">Pro</h3>
+                <p className="text-sm text-muted-foreground">Para equipos que necesitan escalar</p>
+              </div>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-foreground">$200</span>
+                <span className="text-muted-foreground text-sm ml-1">USD / mes</span>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {[
+                  'Todo lo del plan Base',
+                  'Usuarios ilimitados',
+                  'Auto-respuesta automática',
+                  'Reglas de exclusión avanzadas',
+                  'CRM de clientes y órdenes',
+                  'Base de conocimiento global',
+                  'Asignación y SLA por equipo',
+                  'Soporte prioritario',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Check className="w-4 h-4 text-muted-foreground/50 mt-0.5 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Button size="lg" variant="outline" className="w-full gap-2" onClick={() => scrollTo('contact')}>
+                <Calendar className="w-4 h-4" />
+                Reservar demo
+              </Button>
+            </motion.div>
+          </div>
+
+          {/* Demo CTA */}
+          <motion.div variants={fadeUp} className="mt-12 text-center">
+            <p className="text-sm text-muted-foreground mb-3">
+              ¿Querés ver cómo funciona antes de decidir?
+            </p>
+            <Button variant="outline" size="lg" className="gap-2" onClick={() => scrollTo('contact')}>
+              <Calendar className="w-4 h-4" />
+              Agendar una demo gratuita
+            </Button>
+          </motion.div>
         </motion.div>
       </section>
 
