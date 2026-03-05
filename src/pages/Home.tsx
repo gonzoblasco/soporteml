@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { KpiSkeleton, ChartCardSkeleton } from '@/components/SkeletonCards';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { computeHealth, getHealthUI, type MeliHealthStatus } from '@/lib/meliTokenHealth';
 import { es } from 'date-fns/locale';
@@ -185,8 +187,16 @@ const Home = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="p-6 overflow-y-auto h-full space-y-6 animate-fade-in">
+        <div>
+          <Skeleton className="h-6 w-32 rounded mb-1" />
+          <Skeleton className="h-4 w-56 rounded" />
+        </div>
+        <KpiSkeleton />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartCardSkeleton />
+          <ChartCardSkeleton />
+        </div>
       </div>
     );
   }

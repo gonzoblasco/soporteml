@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { QuestionRow } from '@/types/question';
 import CategoryBadge from './CategoryBadge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [crmDrawerTab, setCrmDrawerTab] = useState<string | undefined>();
   const { userRole, companyId } = useAuth();
   const isAdmin = userRole === 'admin';
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (question) {
@@ -143,7 +145,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         className="flex-1 flex overflow-hidden"
       >
         {/* Main content */}
-        <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-4">
+        <div className={`flex-1 flex flex-col p-6 ${isMobile ? 'pb-24' : ''} overflow-y-auto space-y-4`}>
           {/* Question Block — muted background */}
           <div className="rounded-lg bg-muted/50 p-4 border border-border/30">
             <div className="flex items-center gap-2 mb-2">
@@ -208,84 +210,100 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {question.status === 'archived' ? (
-              <>
-                <Button onClick={handleRestore} className="gap-2">
-                  <RotateCcw className="w-4 h-4" />
-                  Restaurar a Pendientes
-                </Button>
-                {isAdmin && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                        Eliminar
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          La pregunta será movida a la papelera.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Sí, eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </>
-            ) : question.status === 'published' ? null : (
-              <>
-                <TemplatePicker onSelect={(text) => setAnswer(text)} variables={templateVars} />
-                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2 flex-1 sm:flex-none">
-                  <Send className="w-4 h-4" />
-                  Publicar respuesta
-                </Button>
-                {isAdmin && answer.trim() && (
-                  <Button variant="outline" size="sm" onClick={handleSaveAsTemplate} disabled={savingTemplate} className="gap-1.5 text-xs">
-                    <Save className="w-3.5 h-3.5" />
-                    Guardar como plantilla
+          {/* Actions - Desktop */}
+          {!isMobile && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {question.status === 'archived' ? (
+                <>
+                  <Button onClick={handleRestore} className="gap-2">
+                    <RotateCcw className="w-4 h-4" />
+                    Restaurar a Pendientes
                   </Button>
-                )}
-                <Button variant="outline" onClick={handleDiscard} className="gap-2">
-                  <X className="w-4 h-4" />
-                  Archivar
+                  {isAdmin && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                          Eliminar
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+                          <AlertDialogDescription>La pregunta será movida a la papelera.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Sí, eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </>
+              ) : question.status === 'published' ? null : (
+                <>
+                  <TemplatePicker onSelect={(text) => setAnswer(text)} variables={templateVars} />
+                  <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2 flex-1 sm:flex-none">
+                    <Send className="w-4 h-4" />
+                    Publicar respuesta
+                  </Button>
+                  {isAdmin && answer.trim() && (
+                    <Button variant="outline" size="sm" onClick={handleSaveAsTemplate} disabled={savingTemplate} className="gap-1.5 text-xs">
+                      <Save className="w-3.5 h-3.5" />
+                      Guardar como plantilla
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={handleDiscard} className="gap-2">
+                    <X className="w-4 h-4" />
+                    Archivar
+                  </Button>
+                  {isAdmin && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                          Eliminar
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+                          <AlertDialogDescription>La pregunta será movida a la papelera.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Sí, eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Sticky Bottom Actions */}
+        {isMobile && question.status !== 'published' && (
+          <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border p-3 flex items-center gap-2">
+            {question.status === 'archived' ? (
+              <Button onClick={handleRestore} className="flex-1 gap-2" size="sm">
+                <RotateCcw className="w-4 h-4" />
+                Restaurar
+              </Button>
+            ) : (
+              <>
+                <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="flex-1 gap-2" size="sm">
+                  <Send className="w-4 h-4" />
+                  Publicar
                 </Button>
-                {isAdmin && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                        Eliminar
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          La pregunta será movida a la papelera.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Sí, eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
+                <Button variant="outline" onClick={handleDiscard} size="sm" className="gap-1.5">
+                  <X className="w-4 h-4" />
+                </Button>
               </>
             )}
           </div>
-        </div>
+        )}
 
         {/* Product Side Card */}
         <ProductSideCard

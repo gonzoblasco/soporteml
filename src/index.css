@@ -144,3 +144,16 @@
     opacity: 1;
   }
 }
+
+@keyframes slideFromLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-from-left {
+  animation: slideFromLeft 0.25s ease-out;
+}
