@@ -641,5 +641,29 @@ async function processQuestion(
     return false;
   }
 
+  // Send notification for priority questions
+  if (requires_human) {
+    try {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      await fetch(`${SUPABASE_URL}/functions/v1/notify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          type: "priority_question",
+          company_id: companyId,
+          title: "Pregunta prioritaria",
+          message: q.text?.slice(0, 100) || "Nueva pregunta requiere atención",
+          link: "/priority",
+        }),
+      });
+    } catch (e) {
+      console.error("Error sending priority notification:", e);
+    }
+  }
+
   return true;
 }
