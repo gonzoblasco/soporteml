@@ -40,17 +40,32 @@ serve(async (req) => {
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
 
+    // Fetch caller's company_id for tenant isolation
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: callerProfile } = await serviceClient
+      .from("profiles")
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!callerProfile?.company_id) {
+      return new Response(JSON.stringify({ error: "Usuario sin empresa asignada" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerCompanyId = callerProfile.company_id;
+
     // Fetch CRM product knowledge if product_id is provided
     let productKnowledge = "";
     if (product_id) {
-      const serviceClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
       const { data: crmProduct } = await serviceClient
         .from("products")
         .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say")
         .eq("id", product_id)
+        .eq("company_id", callerCompanyId)
         .maybeSingle();
 
       if (crmProduct?.support_summary) {
@@ -98,14 +113,11 @@ Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${pro
     // Deterministic CRM suggestions based on field completeness
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
     if (product_id) {
-      const serviceClient2 = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
-      const { data: crmCheck } = await serviceClient2
+      const { data: crmCheck } = await serviceClient
         .from("products")
         .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets")
         .eq("id", product_id)
+        .eq("company_id", callerCompanyId)
         .maybeSingle();
 
       if (crmCheck) {
