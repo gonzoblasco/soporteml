@@ -1,35 +1,74 @@
 
 
-## Plan: Auto-trigger AI Copilot on Question Load
+## Epic 4: Hardening & Confiabilidad
 
-**Goal**: When a question is selected, automatically invoke the AI Copilot so the answer textarea starts with the copilot-generated draft (not the simple `ai_suggested_answer` from sync).
+### Alcance
 
-### Current Flow
-1. `QuestionDetail` loads → sets `answer` to `question.ai_suggested_answer` (basic sync value)
-2. `AICopilotPanel` shows a manual "Sugerir respuesta con IA" button
-3. User clicks → copilot runs → user clicks "Usar este borrador" → answer updates
+Tres pilares: (1) Error Boundaries para evitar pantallas blancas, (2) corregir todos los hallazgos del escaneo de seguridad RLS, (3) mejorar manejo de errores en la app.
 
-### New Flow
-1. `QuestionDetail` loads → sets `answer` to empty or `ai_suggested_answer` as fallback
-2. `AICopilotPanel` auto-triggers `fetchCopilot()` on mount (for pending questions only)
-3. Once the copilot returns, it auto-applies the draft to the answer textarea via `onUseDraft`
-4. User sees the copilot result (summary, missing data, tone options) and can regenerate or edit
+---
 
-### Changes
+### 1. Error Boundary global + por sección
 
-**`src/components/AICopilotPanel.tsx`**:
-- Add a `useEffect` that calls `fetchCopilot()` automatically on mount (when `question.id` changes)
-- Add an `autoApply` flag: when the copilot result comes back from auto-trigger, call `onUseDraft(draft)` automatically instead of requiring a button click
-- Keep the "Usar este borrador" button for subsequent regenerations (tone changes, manual retriggers)
-- Skip auto-trigger if question status is `published` or `archived`
+No existe ningún ErrorBoundary en el proyecto. Se creará:
 
-**`src/components/QuestionDetail.tsx`**:
-- Keep `answer` initialized to `ai_suggested_answer` as immediate fallback (shown while copilot loads)
-- No other changes needed since `onUseDraft` already calls `setAnswer`
+- **`src/components/ErrorBoundary.tsx`**: Componente class-based que captura errores de render. Muestra una UI amigable con botón "Reintentar" y opción de volver al dashboard.
+- **Integración en `App.tsx`**: Wrappear `<AppRoutes />` con el ErrorBoundary global.
+- **ErrorBoundary por sección**: Wrappear cada ruta del dashboard (Home, Inbox, Catalog, Settings, etc.) con un boundary individual para que un crash en una sección no tire toda la app.
 
-### UX Behavior
-- On question select: answer textarea shows `ai_suggested_answer` immediately, copilot starts loading
-- When copilot finishes: answer textarea updates to the richer AI draft, toast confirms
-- User can change tone, regenerate, or manually edit the text at any time
-- Published/archived questions skip auto-trigger (current guard already handles this)
+---
+
+### 2. Corrección de hallazgos de seguridad RLS (8 findings)
+
+Migraciones SQL para resolver:
+
+| Finding | Nivel | Acción |
+|---|---|---|
+| `contact_inquiries` INSERT `WITH CHECK (true)` | warn | Reemplazar por política anon-only o mantener (es un form público, aceptable) |
+| `contact_inquiries` SELECT expuesto | error | Ya tiene `is_super_admin()` — el scan parece falso positivo, verificar |
+| `meli_tokens` sin SELECT para company | error | **No agregar** SELECT para usuarios normales — los tokens se acceden vía Edge Functions con service role. Esto es by design. |
+| `meli_connection_status` sin policies | warn | Agregar SELECT policy: `company_id = get_user_company_id(auth.uid())` |
+| `meli_tokens` sin INSERT/UPDATE | warn | No cambiar — tokens se manejan desde Edge Functions con service role |
+| `audit_logs` sin INSERT | warn | No cambiar — inserts via Edge Function `audit-log` con service role |
+| `products` sin DELETE | info | Agregar DELETE policy para admins |
+| Leaked password protection | warn | Habilitar via auth config |
+
+**Migraciones concretas:**
+```sql
+-- meli_connection_status: allow company members to SELECT
+CREATE POLICY "Company members can view connection status"
+ON public.meli_connection_status FOR SELECT
+TO authenticated
+USING (company_id = get_user_company_id(auth.uid()));
+
+-- products: allow admin DELETE
+CREATE POLICY "Admins can delete products"
+ON public.products FOR DELETE
+TO authenticated
+USING (
+  company_id = get_user_company_id(auth.uid())
+  AND has_role(auth.uid(), 'admin'::app_role)
+);
+```
+
+Se marcarán como "aceptados" los findings que son by-design (tokens via service role, audit via edge function).
+
+---
+
+### 3. Mejorar manejo de errores en la app
+
+- **Wrappear llamadas a `supabase.functions.invoke()`** con try/catch consistente y toasts de error en las páginas principales (Home, Inbox, Catalog, Settings).
+- **Agregar estados de error** en los componentes que hacen fetch (mostrar mensaje en lugar de spinner infinito si falla).
+- **Habilitar leaked password protection** via auth configuration.
+
+---
+
+### Archivos a crear/modificar
+
+| Archivo | Cambio |
+|---|---|
+| `src/components/ErrorBoundary.tsx` | Nuevo — componente ErrorBoundary |
+| `src/App.tsx` | Wrappear rutas con ErrorBoundary |
+| Migration SQL | RLS fixes (2 policies nuevas) |
+| Security findings | Marcar 4 findings como aceptados (by design) |
 
