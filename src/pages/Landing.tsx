@@ -85,11 +85,14 @@ const Landing = () => {
           </motion.p>
           <motion.div variants={fadeUp} className="mt-8 flex flex-wrap justify-center gap-3">
             <Button size="lg" className="glow-primary" asChild>
-              <Link to="/login">
-                Acceder al panel <ArrowRight className="ml-1 w-4 h-4" />
+              <Link to="/signup">
+                Empezar gratis <ArrowRight className="ml-1 w-4 h-4" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" onClick={() => scrollTo('contact')}>
+            <Button size="lg" variant="outline" asChild>
+              <Link to="/login">Iniciar Sesión</Link>
+            </Button>
+            <Button size="lg" variant="ghost" onClick={() => scrollTo('contact')}>
               Solicitar información
             </Button>
           </motion.div>

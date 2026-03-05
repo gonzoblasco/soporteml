@@ -17,18 +17,41 @@ import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
 import AdminPanel from "./pages/AdminPanel";
 import CatalogPage from "./pages/CatalogPage";
+import OnboardingWizard from "@/components/OnboardingWizard";
 import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
-  if (isLoading) return (
+  const { user, isLoading, companyId } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      const done = localStorage.getItem('onboarding_complete');
+      // Show onboarding if user has no company yet OR hasn't completed it
+      if (!done && !companyId) {
+        setShowOnboarding(true);
+      }
+      setChecked(true);
+    } else if (!isLoading) {
+      setChecked(true);
+    }
+  }, [isLoading, user, companyId]);
+
+  if (isLoading || !checked) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
+
+  if (showOnboarding) {
+    return <OnboardingWizard onComplete={() => setShowOnboarding(false)} />;
+  }
+
   return <>{children}</>;
 };
 
