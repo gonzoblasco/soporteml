@@ -25,3 +25,5 @@ project_id = "ropbkdqhqdeiwrenrmjt"
     verify_jwt = false
   [functions.customer-portal]
     verify_jwt = false
+  [functions.notify]
+    verify_jwt = false

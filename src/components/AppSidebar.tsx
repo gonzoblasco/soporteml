@@ -7,6 +7,7 @@ import { useState, useEffect, createContext, useContext, useCallback } from 'rea
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const navItems = [
   { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
@@ -218,9 +219,13 @@ const AppSidebar = () => {
         </nav>
       </TooltipProvider>
 
-      {/* Collapse Toggle (desktop only) */}
-      {!isMobile && (
-        <div className="px-3 pb-1">
+      {/* Notification Bell + Collapse Toggle */}
+      <div className={`px-3 pb-1 space-y-1 ${collapsed && !isMobile ? 'flex flex-col items-center' : ''}`}>
+        <div className={`flex items-center ${collapsed && !isMobile ? 'justify-center' : 'gap-2 px-1'}`}>
+          <NotificationBell collapsed={collapsed && !isMobile} />
+          {(!collapsed || isMobile) && <span className="text-xs text-muted-foreground">Notificaciones</span>}
+        </div>
+        {!isMobile && (
           <Button
             variant="ghost"
             size="sm"
@@ -230,8 +235,8 @@ const AppSidebar = () => {
             {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
             {!collapsed && <span className="text-xs">Colapsar</span>}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Footer */}
       <div className={`p-3 border-t border-sidebar-border space-y-1 ${collapsed && !isMobile ? 'items-center' : ''}`}>

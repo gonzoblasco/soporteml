@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +98,20 @@ const Home = () => {
     };
     fetchData();
   }, []);
+
+  // Welcome toast for priority questions
+  const toastShown = useRef(false);
+  useEffect(() => {
+    if (!loading && !toastShown.current) {
+      toastShown.current = true;
+      const priorityCount = questions.filter((q) => q.status === 'pending' && q.requires_human).length;
+      if (priorityCount > 0) {
+        toast.warning(`Tenés ${priorityCount} pregunta${priorityCount > 1 ? 's' : ''} urgente${priorityCount > 1 ? 's' : ''} esperando`, {
+          action: { label: 'Ver', onClick: () => navigate('/priority') },
+        });
+      }
+    }
+  }, [loading, questions, navigate]);
 
   // --- Derived data ---
   const today = new Date().toISOString().slice(0, 10);
