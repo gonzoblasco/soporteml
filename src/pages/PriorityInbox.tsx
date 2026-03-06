@@ -25,7 +25,7 @@ const PriorityInbox = () => {
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
       .eq('requires_human', true)
-      .in('status', ['pending'])
+      .in('status', ['pending', 'needs_human'])
       .order('created_at', { ascending: false });
 
     if (!error && data) {

@@ -87,9 +87,13 @@ export type Database = {
           auto_reply_enabled: boolean
           auto_reply_exclusion_rules: string | null
           auto_reply_mode: string
+          autopilot_confidence_threshold: number | null
           business_hours: Json
           company_id: string
           created_at: string
+          features_ai_suggestions: boolean | null
+          features_autopilot_after_hours: boolean | null
+          features_autopilot_in_hours: boolean | null
           last_synced_at: string | null
           sync_interval_minutes: number
           updated_at: string
@@ -101,9 +105,13 @@ export type Database = {
           auto_reply_enabled?: boolean
           auto_reply_exclusion_rules?: string | null
           auto_reply_mode?: string
+          autopilot_confidence_threshold?: number | null
           business_hours?: Json
           company_id: string
           created_at?: string
+          features_ai_suggestions?: boolean | null
+          features_autopilot_after_hours?: boolean | null
+          features_autopilot_in_hours?: boolean | null
           last_synced_at?: string | null
           sync_interval_minutes?: number
           updated_at?: string
@@ -115,9 +123,13 @@ export type Database = {
           auto_reply_enabled?: boolean
           auto_reply_exclusion_rules?: string | null
           auto_reply_mode?: string
+          autopilot_confidence_threshold?: number | null
           business_hours?: Json
           company_id?: string
           created_at?: string
+          features_ai_suggestions?: boolean | null
+          features_autopilot_after_hours?: boolean | null
+          features_autopilot_in_hours?: boolean | null
           last_synced_at?: string | null
           sync_interval_minutes?: number
           updated_at?: string
@@ -176,6 +188,44 @@ export type Database = {
           meli_question_id?: string
         }
         Relationships: []
+      }
+      events: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          payload: Json | null
+          type: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          payload?: Json | null
+          type: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          payload?: Json | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meli_tokens: {
         Row: {
@@ -443,16 +493,22 @@ export type Database = {
       questions: {
         Row: {
           ai_category: string | null
+          ai_confidence: number | null
+          ai_decision_reason: string | null
           ai_suggested_answer: string | null
           answered_at: string | null
           answered_by: string | null
+          answered_by_ai: boolean | null
+          auto_action: string | null
           buyer_id: string | null
           buyer_nickname: string | null
           company_id: string
           created_at: string
           final_answer: string | null
           id: string
+          meli_permalink: string | null
           meli_question_id: string
+          meli_status: string | null
           product_id: string | null
           product_meli_id: string | null
           question_text: string
@@ -462,16 +518,22 @@ export type Database = {
         }
         Insert: {
           ai_category?: string | null
+          ai_confidence?: number | null
+          ai_decision_reason?: string | null
           ai_suggested_answer?: string | null
           answered_at?: string | null
           answered_by?: string | null
+          answered_by_ai?: boolean | null
+          auto_action?: string | null
           buyer_id?: string | null
           buyer_nickname?: string | null
           company_id: string
           created_at?: string
           final_answer?: string | null
           id?: string
+          meli_permalink?: string | null
           meli_question_id: string
+          meli_status?: string | null
           product_id?: string | null
           product_meli_id?: string | null
           question_text: string
@@ -481,16 +543,22 @@ export type Database = {
         }
         Update: {
           ai_category?: string | null
+          ai_confidence?: number | null
+          ai_decision_reason?: string | null
           ai_suggested_answer?: string | null
           answered_at?: string | null
           answered_by?: string | null
+          answered_by_ai?: boolean | null
+          auto_action?: string | null
           buyer_id?: string | null
           buyer_nickname?: string | null
           company_id?: string
           created_at?: string
           final_answer?: string | null
           id?: string
+          meli_permalink?: string | null
           meli_question_id?: string
+          meli_status?: string | null
           product_id?: string | null
           product_meli_id?: string | null
           question_text?: string
