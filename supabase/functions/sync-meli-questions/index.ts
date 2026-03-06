@@ -7,16 +7,61 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ─── Event Logger ───
+async function logEvent(
+  supabase: any,
+  companyId: string,
+  type: string,
+  entityType?: string,
+  entityId?: string,
+  payload: Record<string, unknown> = {}
+) {
+  try {
+    await supabase.from("events").insert({
+      company_id: companyId,
+      type,
+      entity_type: entityType ?? null,
+      entity_id: entityId ?? null,
+      payload,
+    });
+  } catch (e) {
+    console.error("Event log error:", e);
+  }
+}
+
+// ─── Business Hours Evaluator ───
+function isOutsideBusinessHours(businessHours: { days: string[]; start_time: string; end_time: string }): boolean {
+  // Use Argentina timezone (UTC-3)
+  const now = new Date();
+  const argentinaOffset = -3 * 60; // minutes
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const argNow = new Date(utcMs + argentinaOffset * 60000);
+
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const currentDay = dayNames[argNow.getDay()];
+
+  // If today is not a business day, we're outside hours
+  if (!businessHours.days.includes(currentDay)) return true;
+
+  const currentMinutes = argNow.getHours() * 60 + argNow.getMinutes();
+  const [startH, startM] = businessHours.start_time.split(':').map(Number);
+  const [endH, endM] = businessHours.end_time.split(':').map(Number);
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+
+  return currentMinutes < startMinutes || currentMinutes >= endMinutes;
+}
+
 async function generateAiAnswer(
   questionText: string,
   productContext: string,
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null,
   exclusionRules: string | null = null
-): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string }> {
+): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
-    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "" };
+    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
   }
 
   const toneMap: Record<string, string> = {
@@ -43,13 +88,20 @@ Determiná si esta pregunta requiere intervención humana. Marcá requires_human
 - Involucre compra/venta/trueque de vehículos, motos, o bienes de alto valor
 - El comprador pida contacto directo, teléfono o comunicación fuera de MeLi
 - Sea una queja seria o conflicto que necesite atención personal
-- Involucre temas legales, financiamiento, o condiciones especiales de pago`;
+- Involucre temas legales, financiamiento, o condiciones especiales de pago
+
+CONFIDENCE SCORE:
+Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
+- 0.9-1.0: La respuesta está directamente en los datos del producto, es factual y segura
+- 0.7-0.89: La respuesta es razonable pero requiere algo de inferencia
+- 0.5-0.69: Hay incertidumbre significativa
+- 0.0-0.49: No tenés suficiente información para responder con confianza`;
 
   if (exclusionRules) {
     systemPrompt += `\n\nREGLAS ADICIONALES DE EXCLUSIÓN (marcá requires_human = true si aplican):\n${exclusionRules}`;
   }
 
-  systemPrompt += `\n\nRespondé en JSON con este formato: {"answer": "tu respuesta", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica"}`;
+  systemPrompt += `\n\nRespondé en JSON con este formato: {"answer": "tu respuesta", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
 
   if (aiCustomInstructions) {
     systemPrompt += `\n\nInstrucciones adicionales del vendedor:\n${aiCustomInstructions}`;
@@ -77,7 +129,7 @@ Determiná si esta pregunta requiere intervención humana. Marcá requires_human
 
     if (!res.ok) {
       console.error("AI gateway error:", await res.text());
-      return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "" };
+      return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
     }
 
     const data = await res.json();
@@ -91,12 +143,13 @@ Determiná si esta pregunta requiere intervención humana. Marcá requires_human
         category: parsed.category || "Otro",
         requires_human: parsed.requires_human ?? false,
         requires_human_reason: parsed.requires_human_reason || "",
+        confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5,
       };
     }
-    return { answer: content.slice(0, 350), category: "Otro", requires_human: false, requires_human_reason: "" };
+    return { answer: content.slice(0, 350), category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0.5 };
   } catch (e) {
     console.error("AI generation error:", e);
-    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "" };
+    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
   }
 }
 
@@ -213,21 +266,33 @@ Deno.serve(async (req) => {
 
     for (const tokenRow of tokenRows) {
       try {
+        await logEvent(supabase, tokenRow.company_id, "SYNC_STARTED", "token", tokenRow.id);
+
         const accessToken = await refreshTokenIfNeeded(
           supabase, tokenRow, MELI_APP_ID, MELI_SECRET_KEY
         );
 
-        // Fetch AI + auto-reply settings for this company
+        // Fetch AI + auto-reply + autopilot settings for this company
         const { data: settings } = await supabase
           .from("company_settings")
-          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_exclusion_rules, sync_interval_minutes, last_synced_at")
+          .select("ai_tone, ai_custom_instructions, auto_reply_enabled, auto_reply_exclusion_rules, auto_reply_mode, business_hours, sync_interval_minutes, last_synced_at, features_ai_suggestions, features_autopilot_after_hours, features_autopilot_in_hours, autopilot_confidence_threshold")
           .eq("company_id", tokenRow.company_id)
           .maybeSingle();
 
         const aiTone = settings?.ai_tone || "profesional";
         const aiCustomInstructions = settings?.ai_custom_instructions || null;
-        const autoReplyEnabled = settings?.auto_reply_enabled ?? false;
         const exclusionRules = settings?.auto_reply_exclusion_rules || null;
+        const businessHours = settings?.business_hours as any || { days: ['lunes','martes','miércoles','jueves','viernes'], start_time: '09:00', end_time: '18:00' };
+
+        // Autopilot feature flags
+        const autopilotAfterHours = settings?.features_autopilot_after_hours ?? false;
+        const autopilotInHours = settings?.features_autopilot_in_hours ?? false;
+        const confidenceThreshold = settings?.autopilot_confidence_threshold ?? 0.85;
+        const aiSuggestionsEnabled = settings?.features_ai_suggestions ?? true;
+
+        // Legacy compat: auto_reply_enabled / auto_reply_mode still respected
+        const legacyAutoReplyEnabled = settings?.auto_reply_enabled ?? false;
+        const legacyAutoReplyMode = settings?.auto_reply_mode ?? 'off';
 
         // For cron-triggered calls, respect per-company sync interval
         const isCron = body.source === "cron";
@@ -247,7 +312,7 @@ Deno.serve(async (req) => {
 
           if (qRes.ok) {
             const q = await qRes.json();
-            const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
+            const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, exclusionRules, aiSuggestionsEnabled, autopilotAfterHours, autopilotInHours, confidenceThreshold, businessHours, legacyAutoReplyEnabled, legacyAutoReplyMode);
             if (synced) totalSynced++;
           }
           continue;
@@ -260,6 +325,7 @@ Deno.serve(async (req) => {
 
         if (!questionsRes.ok) {
           console.error("Failed to fetch questions:", await questionsRes.text());
+          await logEvent(supabase, tokenRow.company_id, "ERROR", "sync", undefined, { error: "Failed to fetch questions from MeLi" });
           continue;
         }
 
@@ -267,7 +333,7 @@ Deno.serve(async (req) => {
         const questions = questionsData.questions || [];
 
         for (const q of questions) {
-          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, autoReplyEnabled, exclusionRules);
+          const synced = await processQuestion(supabase, q, tokenRow.company_id, accessToken, aiTone, aiCustomInstructions, exclusionRules, aiSuggestionsEnabled, autopilotAfterHours, autopilotInHours, confidenceThreshold, businessHours, legacyAutoReplyEnabled, legacyAutoReplyMode);
           if (synced) totalSynced++;
         }
 
@@ -278,8 +344,11 @@ Deno.serve(async (req) => {
             { company_id: tokenRow.company_id, last_synced_at: new Date().toISOString() },
             { onConflict: "company_id" }
           );
+
+        await logEvent(supabase, tokenRow.company_id, "SYNC_DONE", "sync", undefined, { questions_synced: totalSynced });
       } catch (companyErr) {
         console.error(`Error syncing for company ${tokenRow.company_id}:`, companyErr);
+        await logEvent(supabase, tokenRow.company_id, "ERROR", "sync", undefined, { error: String(companyErr) });
       }
     }
 
@@ -410,8 +479,14 @@ async function processQuestion(
   accessToken: string,
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null,
-  autoReplyEnabled: boolean = false,
-  exclusionRules: string | null = null
+  exclusionRules: string | null = null,
+  aiSuggestionsEnabled: boolean = true,
+  autopilotAfterHours: boolean = false,
+  autopilotInHours: boolean = false,
+  confidenceThreshold: number = 0.85,
+  businessHours: any = { days: ['lunes','martes','miércoles','jueves','viernes'], start_time: '09:00', end_time: '18:00' },
+  legacyAutoReplyEnabled: boolean = false,
+  legacyAutoReplyMode: string = 'off',
 ): Promise<boolean> {
   const meliQuestionId = String(q.id);
 
@@ -460,20 +535,22 @@ async function processQuestion(
   let productId: string | null = null;
   let productContext = `Título: ${productTitle}`;
   let productCategoryId: string | null = null;
+  let product: any = null;
 
   console.log(`Question ${meliQuestionId} has item_id: ${q.item_id}, from: ${JSON.stringify(q.from)}`);
   if (q.item_id) {
-    const { data: product } = await supabase
+    const { data: existingProd } = await supabase
       .from("products")
       .select("id, title, price, permalink, meli_category_id")
       .eq("meli_item_id", q.item_id)
       .eq("company_id", companyId)
       .maybeSingle();
 
-    if (product) {
-      productId = product.id;
-      productTitle = product.title;
-      productCategoryId = product.meli_category_id;
+    if (existingProd) {
+      product = existingProd;
+      productId = existingProd.id;
+      productTitle = existingProd.title;
+      productCategoryId = existingProd.meli_category_id;
     }
 
     // Fetch item data using shared helper
@@ -591,48 +668,119 @@ async function processQuestion(
 
   console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`);
 
-  // Generate AI answer
-  const { answer, category, requires_human, requires_human_reason } = await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules);
+  // Generate AI answer (with confidence)
+  const { answer, category, requires_human, requires_human_reason, confidence } = aiSuggestionsEnabled
+    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules)
+    : { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
 
-  // Determine if auto-reply should fire
-  const shouldAutoReply = autoReplyEnabled && answer && !requires_human;
+  // ─── Autopilot Decision Engine ───
+  const outsideHours = isOutsideBusinessHours(businessHours);
+  let autoAction: 'none' | 'suggest' | 'auto_reply' = 'suggest';
+  let decisionReason = '';
+  let finalStatus = 'pending';
+
+  if (requires_human) {
+    autoAction = 'suggest';
+    finalStatus = 'needs_human';
+    decisionReason = `requires_human: ${requires_human_reason}`;
+  } else if (autopilotAfterHours && outsideHours && confidence >= confidenceThreshold && answer) {
+    autoAction = 'auto_reply';
+    finalStatus = 'queued_auto';
+    decisionReason = `autopilot_after_hours: confidence=${confidence.toFixed(2)} >= ${confidenceThreshold}, outside_hours=true`;
+  } else if (autopilotInHours && !outsideHours && confidence >= confidenceThreshold && answer) {
+    autoAction = 'auto_reply';
+    finalStatus = 'queued_auto';
+    decisionReason = `autopilot_in_hours: confidence=${confidence.toFixed(2)} >= ${confidenceThreshold}, outside_hours=false`;
+  } else if (legacyAutoReplyEnabled && legacyAutoReplyMode === 'always' && answer && !requires_human) {
+    // Legacy compat: old "always" mode
+    autoAction = 'auto_reply';
+    finalStatus = 'queued_auto';
+    decisionReason = `legacy_always: auto_reply_mode=always`;
+  } else if (legacyAutoReplyEnabled && legacyAutoReplyMode === 'outside_business_hours' && outsideHours && answer && !requires_human) {
+    // Legacy compat: old "outside_business_hours" mode
+    autoAction = 'auto_reply';
+    finalStatus = 'queued_auto';
+    decisionReason = `legacy_outside_hours: auto_reply_mode=outside_business_hours, outside_hours=true`;
+  } else {
+    autoAction = answer ? 'suggest' : 'none';
+    finalStatus = 'pending';
+    decisionReason = `manual: confidence=${confidence.toFixed(2)}, threshold=${confidenceThreshold}, outside_hours=${outsideHours}`;
+  }
+
+  // Log AI_DECISION event
+  await logEvent(supabase, companyId, "AI_DECISION", "question", meliQuestionId, {
+    confidence,
+    action: autoAction,
+    reason: decisionReason,
+    category,
+    requires_human,
+    outside_hours: outsideHours,
+  });
 
   const baseInsert = {
     meli_question_id: meliQuestionId,
     company_id: companyId,
     product_id: productId,
+    product_meli_id: q.item_id || null,
     question_text: q.text,
     buyer_id: q.from ? String(q.from.id) : null,
     buyer_nickname: buyerNickname,
     ai_suggested_answer: answer || null,
     ai_category: category || null,
+    ai_confidence: confidence,
+    ai_decision_reason: decisionReason,
+    auto_action: autoAction,
+    answered_by_ai: false,
+    meli_status: q.status || null,
+    meli_permalink: null as string | null,
     created_at: q.date_created || new Date().toISOString(),
   };
 
-  if (shouldAutoReply) {
+  if (autoAction === 'auto_reply' && answer) {
     const published = await autoPublishAnswer(accessToken, meliQuestionId, answer);
 
-    const { error: insertErr } = await supabase.from("questions").insert({
-      ...baseInsert,
-      status: published ? "published" : "pending",
-      final_answer: published ? answer : null,
-      answered_at: published ? new Date().toISOString() : null,
-      requires_human: false,
-      requires_human_reason: null,
-    });
+    if (published) {
+      await logEvent(supabase, companyId, "AUTO_REPLY_SENT", "question", meliQuestionId, { answer_length: answer.length, confidence });
 
-    if (insertErr) {
-      console.error("Error inserting question:", insertErr);
-      return false;
+      const { error: insertErr } = await supabase.from("questions").insert({
+        ...baseInsert,
+        status: "auto_published",
+        final_answer: answer,
+        answered_at: new Date().toISOString(),
+        answered_by_ai: true,
+        requires_human: false,
+        requires_human_reason: null,
+      });
+
+      if (insertErr) {
+        console.error("Error inserting question:", insertErr);
+        return false;
+      }
+      return true;
+    } else {
+      // Failsafe: publish failed → needs_human
+      await logEvent(supabase, companyId, "ERROR", "question", meliQuestionId, { error: "auto_publish_failed", fallback: "needs_human" });
+
+      const { error: insertErr } = await supabase.from("questions").insert({
+        ...baseInsert,
+        status: "needs_human",
+        requires_human: true,
+        requires_human_reason: "Auto-publicación falló, requiere revisión manual",
+      });
+
+      if (insertErr) {
+        console.error("Error inserting question:", insertErr);
+        return false;
+      }
+      return true;
     }
-    return true;
   }
 
-  // Default: insert as pending
+  // Default: insert with determined status
   const { error: insertErr } = await supabase.from("questions").insert({
     ...baseInsert,
-    status: "pending",
-    requires_human,
+    status: finalStatus,
+    requires_human: requires_human || finalStatus === 'needs_human',
     requires_human_reason: requires_human_reason || null,
   });
 
@@ -642,7 +790,7 @@ async function processQuestion(
   }
 
   // Send notification for priority questions
-  if (requires_human) {
+  if (requires_human || finalStatus === 'needs_human') {
     try {
       const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

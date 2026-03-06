@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle, CreditCard, Crown } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -725,6 +726,9 @@ const AutoReplySection = () => {
   const [mode, setMode] = useState<AutoReplyMode>('off');
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
   const [exclusionRules, setExclusionRules] = useState('');
+  const [autopilotAfterHours, setAutopilotAfterHours] = useState(false);
+  const [autopilotInHours, setAutopilotInHours] = useState(false);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.85);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -733,13 +737,12 @@ const AutoReplySection = () => {
     (async () => {
       const { data } = await supabase
         .from('company_settings')
-        .select('auto_reply_enabled, auto_reply_exclusion_rules, auto_reply_mode, business_hours')
+        .select('auto_reply_enabled, auto_reply_exclusion_rules, auto_reply_mode, business_hours, features_autopilot_after_hours, features_autopilot_in_hours, autopilot_confidence_threshold')
         .eq('company_id', companyId)
         .maybeSingle();
 
       if (data) {
         const d = data as any;
-        // Migration compat: if auto_reply_mode exists use it, else derive from enabled flag
         if (d.auto_reply_mode && d.auto_reply_mode !== 'off') {
           setMode(d.auto_reply_mode as AutoReplyMode);
         } else if (d.auto_reply_enabled) {
@@ -749,6 +752,9 @@ const AutoReplySection = () => {
           setBusinessHours({ ...DEFAULT_BUSINESS_HOURS, ...d.business_hours });
         }
         setExclusionRules(d.auto_reply_exclusion_rules ?? '');
+        setAutopilotAfterHours(d.features_autopilot_after_hours ?? false);
+        setAutopilotInHours(d.features_autopilot_in_hours ?? false);
+        setConfidenceThreshold(d.autopilot_confidence_threshold ?? 0.85);
       }
       setLoading(false);
     })();
@@ -766,6 +772,9 @@ const AutoReplySection = () => {
         auto_reply_mode: mode,
         business_hours: businessHours,
         auto_reply_exclusion_rules: exclusionRules || null,
+        features_autopilot_after_hours: autopilotAfterHours,
+        features_autopilot_in_hours: autopilotInHours,
+        autopilot_confidence_threshold: confidenceThreshold,
       } as any, { onConflict: 'company_id' });
 
     toast(error
@@ -786,21 +795,82 @@ const AutoReplySection = () => {
 
   const isActive = mode !== 'off';
 
+  // Determine active mode chip
+  const getActiveChip = () => {
+    if (autopilotInHours && autopilotAfterHours) return { label: 'Auto siempre', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' };
+    if (autopilotAfterHours) return { label: 'Auto fuera de horario', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' };
+    if (isActive) return { label: 'Solo sugiere', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' };
+    return null;
+  };
+  const chip = getActiveChip();
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-muted-foreground" />
-          <div>
-            <CardTitle className="text-sm">Auto-Respuesta</CardTitle>
-            <CardDescription>Publicá respuestas de IA automáticamente en MercadoLibre</CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-sm">Autopilot & Auto-Respuesta</CardTitle>
+              <CardDescription>Configurá cómo responde la IA automáticamente</CardDescription>
+            </div>
           </div>
+          {chip && (
+            <Badge variant="outline" className={`text-xs ${chip.color}`}>
+              {chip.label}
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Mode selector */}
+        {/* Autopilot toggles */}
+        <div className="space-y-3 rounded-lg border border-border p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Bot className="w-4 h-4" />
+            Autopilot
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="ap-after" className="text-sm">Fuera de horario comercial</Label>
+              <p className="text-xs text-muted-foreground">La IA responde automáticamente cuando estás cerrado.</p>
+            </div>
+            <Switch id="ap-after" checked={autopilotAfterHours} onCheckedChange={setAutopilotAfterHours} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="ap-in" className="text-sm">En horario comercial</Label>
+              <p className="text-xs text-muted-foreground">La IA responde automáticamente incluso cuando estás abierto (solo si confidence es alta).</p>
+            </div>
+            <Switch id="ap-in" checked={autopilotInHours} onCheckedChange={setAutopilotInHours} />
+          </div>
+          
+          {/* Confidence threshold slider */}
+          {(autopilotAfterHours || autopilotInHours) && (
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Umbral de confianza</Label>
+                <span className="text-sm font-mono text-foreground">{confidenceThreshold.toFixed(2)}</span>
+              </div>
+              <Slider
+                value={[confidenceThreshold]}
+                onValueChange={([v]) => setConfidenceThreshold(v)}
+                min={0.5}
+                max={1}
+                step={0.05}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Solo se publican automáticamente respuestas con confidence ≥ {confidenceThreshold.toFixed(2)}. Valores más altos = más conservador.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Legacy mode selector */}
         <div className="space-y-2">
-          <Label className="text-sm">Modo de funcionamiento</Label>
+          <Label className="text-sm">Modo legacy (compatibilidad)</Label>
           <Select value={mode} onValueChange={(v) => setMode(v as AutoReplyMode)}>
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -812,20 +882,20 @@ const AutoReplySection = () => {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {mode === 'off' && 'Las respuestas nunca se publican automáticamente.'}
-            {mode === 'always' && 'La IA responde automáticamente a todas las preguntas, las 24 horas.'}
-            {mode === 'outside_business_hours' && 'La IA responde solo cuando estás fuera del horario comercial definido.'}
+            {mode === 'off' && 'Las respuestas nunca se publican automáticamente por modo legacy.'}
+            {mode === 'always' && 'La IA responde automáticamente a todas las preguntas (sin evaluación de confidence).'}
+            {mode === 'outside_business_hours' && 'La IA responde solo fuera del horario (sin evaluación de confidence).'}
           </p>
         </div>
 
         {/* Business hours panel */}
-        {mode === 'outside_business_hours' && (
+        {(mode === 'outside_business_hours' || autopilotAfterHours) && (
           <>
             <Separator />
             <div className="space-y-3">
               <Label className="text-sm">Horario comercial</Label>
               <p className="text-xs text-muted-foreground">
-                Definí tu horario de atención. La auto-respuesta funcionará FUERA de este horario.
+                Definí tu horario de atención. El autopilot fuera de horario funciona FUERA de este horario.
               </p>
 
               {/* Days checkboxes */}
@@ -872,19 +942,19 @@ const AutoReplySection = () => {
           </>
         )}
 
-        {/* Exclusion rules - shown when active */}
-        {isActive && (
+        {/* Exclusion rules */}
+        {(isActive || autopilotAfterHours || autopilotInHours) && (
           <>
             <Separator />
             <div className="space-y-3">
               <Label className="text-sm">Reglas de exclusión</Label>
               <p className="text-xs text-muted-foreground">
-                Describí en texto libre qué tipo de consultas NO deben responderse automáticamente. La IA evaluará cada pregunta y derivará las que coincidan al Priority Inbox para revisión humana.
+                Describí en texto libre qué tipo de consultas NO deben responderse automáticamente.
               </p>
               <Textarea
                 value={exclusionRules}
                 onChange={(e) => setExclusionRules(e.target.value)}
-                placeholder="Ej: Toda consulta sobre compra, venta, negociación o trueque de vehículos y motos debe ser revisada por un humano. También excluir regateos de precio y solicitudes de financiamiento."
+                placeholder="Ej: Toda consulta sobre compra, venta, negociación o trueque de vehículos y motos debe ser revisada por un humano."
                 rows={4}
                 className="text-sm"
               />
@@ -893,7 +963,7 @@ const AutoReplySection = () => {
             <div className="rounded-lg bg-muted/50 border border-border p-3 flex gap-2">
               <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                La IA analizará cada pregunta y decidirá si requiere intervención humana. Las que coincidan con estas reglas aparecerán en el <strong>Priority Inbox</strong> para que un agente las revise.
+                La IA analizará cada pregunta y decidirá si requiere intervención humana. Las que coincidan con estas reglas o no superen el umbral de confianza aparecerán en el <strong>Priority Inbox</strong>.
               </p>
             </div>
           </>

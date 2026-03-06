@@ -13,11 +13,14 @@ import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
 
-type StatusFilter = 'pending' | 'published' | 'archived';
+import { Badge } from '@/components/ui/badge';
+
+type StatusFilter = 'pending' | 'published' | 'archived' | 'auto_published' | 'needs_human';
 
 const TABS: { label: string; value: StatusFilter }[] = [
   { label: 'Pendientes', value: 'pending' },
   { label: 'Publicadas', value: 'published' },
+  { label: 'Auto IA', value: 'auto_published' },
   { label: 'Archivadas', value: 'archived' },
 ];
 

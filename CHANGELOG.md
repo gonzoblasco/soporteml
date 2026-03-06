@@ -6,6 +6,36 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.4.0] — 2026-03-06
+
+### 🤖 Mega-Cambio: Autopilot con Guardrails + Base Firme
+
+#### Añadido
+
+- **Tabla `events`** (append-only audit trail): registra SYNC_STARTED, SYNC_DONE, AI_DECISION, AUTO_REPLY_SENT y ERROR con payload JSONB. RLS por empresa.
+- **Columnas ML en `questions`**: `ai_confidence`, `answered_by_ai`, `ai_decision_reason`, `auto_action` (none/suggest/auto_reply), `meli_status`, `meli_permalink`.
+- **Feature flags en `company_settings`**: `features_ai_suggestions`, `features_autopilot_after_hours`, `features_autopilot_in_hours`, `autopilot_confidence_threshold`.
+- **State machine de preguntas**: nuevos estados `queued_auto`, `auto_published`, `needs_human` en el trigger `validate_question_status`.
+- **Motor de decisión Autopilot** en `sync-meli-questions`: evalúa confidence score + horario comercial + feature flags para decidir auto_reply vs suggest vs needs_human. Failsafe: si publish falla → needs_human.
+- **Evaluación de horario comercial**: función `isOutsideBusinessHours()` reutilizable con timezone Argentina (UTC-3).
+- **Confidence scoring**: el prompt de IA ahora devuelve `confidence` (0-1) junto con la respuesta y categoría.
+- **Event logging**: todas las decisiones de IA y errores se registran en la tabla `events` para trazabilidad completa.
+- **Edge Function `health-check`**: verifica conectividad DB y devuelve status + latencia + timestamp.
+- **Panel Autopilot en Settings**: toggles para autopilot fuera/dentro de horario, slider de umbral de confianza (0.5-1.0), chip visual del modo activo.
+- **Tab "Auto IA" en Inbox**: muestra preguntas auto-publicadas por el autopilot.
+- **Priority Inbox expandido**: ahora incluye preguntas con status `needs_human` además de `pending`.
+
+#### Modificado
+
+- **`sync-meli-questions`**: refactorizado con motor de decisión autopilot, event logging, y soporte para confidence scoring.
+- **`src/types/question.ts`**: nuevos campos para ML metadata.
+- **`src/pages/Inbox.tsx`**: tab adicional para auto_published.
+- **`src/pages/PriorityInbox.tsx`**: incluye status `needs_human`.
+- **`src/pages/SettingsPage.tsx`**: sección Auto-Respuesta expandida con panel Autopilot completo.
+
+---
+
+
 ## [1.3.0] — 2026-03-05
 
 ### 🔔 Epic 5 — Notificaciones & Engagement
