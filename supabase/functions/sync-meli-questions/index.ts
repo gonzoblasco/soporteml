@@ -209,6 +209,7 @@ Deno.serve(async (req) => {
     const MELI_SECRET_KEY = Deno.env.get("MELI_SECRET_KEY")!;
 
     // Authenticate: require valid JWT (user-triggered) or service role key (cron/webhook)
+    let callerUserId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
