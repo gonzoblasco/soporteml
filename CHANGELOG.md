@@ -6,6 +6,24 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.4.1] — 2026-03-07
+
+### 🔒 Auditoría Multi-Tenant & Fix de Seguridad
+
+#### Corregido
+
+- **sync-meli-questions: fix cross-company vulnerability** — Las llamadas de usuario ahora se limitan estrictamente a la empresa del caller via `get_user_company_id()`. Antes, un usuario autenticado podía disparar sync para todas las empresas.
+
+#### Validado
+
+- Auditoría completa del modelo multi-tenant: todas las tablas tienen `company_id` con RLS correcto.
+- `meli_tokens` tiene constraint UNIQUE en `company_id` → impone 1 cuenta ML por empresa (v1).
+- OAuth callback asocia token a compañía (no a usuario).
+- Edge functions (`publish-meli-answer`, `ai-copilot`, `disconnect-meli`, `meli-item-proxy`) operan correctamente con company-scoping.
+- UI (Dashboard, Inbox, Priority, Settings) usa RLS automático + `companyId` del AuthContext.
+
+---
+
 ## [1.4.0] — 2026-03-06
 
 ### 🤖 Mega-Cambio: Autopilot con Guardrails + Base Firme
