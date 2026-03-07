@@ -245,12 +245,24 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // Store caller's user ID for company scoping below
+      callerUserId = user.id;
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Scope meli_tokens query: user-triggered calls are restricted to caller's company
     let query = supabase.from("meli_tokens").select("*");
-    if (body.meli_user_id) {
+    if (callerUserId) {
+      const { data: callerCompanyId } = await supabase.rpc("get_user_company_id", { _user_id: callerUserId });
+      if (!callerCompanyId) {
+        return new Response(JSON.stringify({ error: "No company found for user" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      query = query.eq("company_id", callerCompanyId);
+    } else if (body.meli_user_id) {
       query = query.eq("meli_user_id", body.meli_user_id);
     }
     const { data: tokenRows, error: tokensErr } = await query;
