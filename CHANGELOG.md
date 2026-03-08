@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.4.3] — 2026-03-08
+
+### ✨ Mejoras
+
+- **Admin: creación de empresa con asignación de usuario** — Al crear una empresa desde `/admin` → Companies, ahora se puede asignar un usuario existente (sin empresa) como admin inicial. Si no se asigna, se muestra prominentemente el invite code y link de invitación. Badge "Sin usuarios" en empresas vacías. Botón de copiar link de invitación en cada fila.
+
+---
+
 ## [1.4.2] — 2026-03-08
 
 ### ✨ Mejoras
