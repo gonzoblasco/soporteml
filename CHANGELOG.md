@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.4.2] — 2026-03-08
+
+### ✨ Mejoras
+
+- **Panel Admin: nueva pestaña Métricas** — Dashboard con totales globales (preguntas, respuestas automáticas/humanas, productos) y tabla de uso desglosado por empresa. Usa RPC `get_admin_company_metrics` con `SECURITY DEFINER` y validación de super admin.
+
+---
+
 ## [1.4.1] — 2026-03-07
 
 ### 🔒 Auditoría Multi-Tenant & Fix de Seguridad
