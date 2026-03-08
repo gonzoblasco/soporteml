@@ -6,23 +6,6 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
-## [1.5.0] — 2026-03-08
-
-### 🔧 Base Multi-Company — Hito 1
-
-#### Añadido
-- **Tabla `memberships`** para la base de datos multi-company — introducida con estructura completa para futuro soporte de usuarios pertenecientes a múltiples empresas. Incluye validación de estado (`active`, `invited`, `disabled`), constraint para una sola company default por usuario, y políticas RLS.
-- **Funciones SQL helper** para consultas multi-company: `get_user_active_companies()` (devuelve companies activas de un usuario), `get_user_default_company()` (obtiene company default con fallback), `user_belongs_to_company()` (valida membership activa).
-- **Migración automática de datos** — todos los usuarios existentes con `profiles.company_id` fueron migrados a `memberships` con estado `active` e `is_default = true`.
-
-#### Importante — Compatibilidad Temporal
-- **`profiles.company_id` se mantiene** como fuente de verdad para RLS y frontend (sin cambios).
-- **`user_roles` se mantiene** intacto. Aplicación actual funciona exactamente igual.
-- **Lógica de frontend y Edge Functions** sin cambios — este hito es solo de base de datos.
-- Las nuevas funciones helper coexisten con `get_user_company_id()` para preparar futuras migraciones.
-
----
-
 ## [1.4.4] — 2026-03-08
 
 ### Cambiado
