@@ -6,6 +6,31 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.6.0] — 2026-03-08
+
+### 🏢 Multi-Company — Hito 2: Compañía Activa en Frontend
+
+#### Añadido
+
+- **`memberships` como fuente de companies del usuario** — `AuthContext` ahora carga las memberships activas del usuario desde la tabla `memberships` al iniciar sesión, exponiendo `memberships[]` (lista de `{ company_id, role, is_default }`).
+- **`currentCompanyId`** — nuevo campo en el contexto que representa la compañía sobre la que el usuario está trabajando actualmente.
+- **`setCurrentCompanyId(id)`** — setter con validación: verifica que la company objetivo tenga una membership activa del usuario antes de cambiar. Si el ID es inválido, resetea al default o primera activa.
+- **Persistencia en `localStorage`** (`sml_current_company`) — el `currentCompanyId` sobrevive refrescos de página. Al hacer logout se limpia automáticamente.
+- **Cadena de fallback** para resolución de compañía activa:
+  1. Valor en `localStorage` (si es membership activa válida)
+  2. Membership con `is_default = true`
+  3. Primera membership activa
+  4. `profiles.company_id` (compatibilidad legacy)
+- **Rol desde membership** — `userRole` se resuelve desde la membership de la compañía activa, con fallback a la tabla `user_roles` para usuarios sin memberships.
+
+#### Compatibilidad temporal mantenida
+
+- **`companyId` (legacy alias)** sigue expuesto en el contexto y siempre apunta a `currentCompanyId`. Todo el código existente que consume `companyId` funciona sin cambios.
+- **RLS policies sin cambios** — siguen usando `get_user_company_id()` (lee `profiles.company_id`). No se modificaron Edge Functions ni políticas de base de datos.
+- **Sin cambios visuales** — este hito es exclusivamente de state management. No hay company switcher UI todavía.
+
+---
+
 ## [1.5.0] — 2026-03-08
 
 ### 🔧 Base Multi-Company — Hito 1
