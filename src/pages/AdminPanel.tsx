@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search } from 'lucide-react';
+import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search, BarChart3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import MetricsTab from '@/components/admin/MetricsTab';
 
 const useSearch = <T,>(items: T[], keys: (keyof T)[]) => {
   const [query, setQuery] = useState('');
