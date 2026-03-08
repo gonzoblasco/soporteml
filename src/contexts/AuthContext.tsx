@@ -4,13 +4,25 @@ import type { User, Session } from '@supabase/supabase-js';
 
 type AppRole = 'admin' | 'agent' | null;
 
+const LS_KEY = 'sml_current_company';
+
+export interface Membership {
+  company_id: string;
+  role: AppRole;
+  is_default: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   profileName: string | null;
   userRole: AppRole;
+  /** @legacy alias → siempre apunta a currentCompanyId. Mantiene compatibilidad con código existente. */
   companyId: string | null;
+  memberships: Membership[];
+  currentCompanyId: string | null;
+  setCurrentCompanyId: (id: string) => void;
   login: (email: string, password: string) => Promise<string | null>;
   signup: (email: string, password: string, fullName: string, opts?: { companyName?: string; inviteCode?: string }) => Promise<string | null>;
   logout: () => Promise<void>;
@@ -30,7 +42,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<AppRole>(null);
+  // Legacy alias — kept in sync with currentCompanyId
   const [companyId, setCompanyId] = useState<string | null>(null);
+  // Hito 2: multi-company state
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [currentCompanyId, setCurrentCompanyIdState] = useState<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -40,25 +56,72 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (session?.user) {
         setTimeout(async () => {
+          const uid = session.user.id;
+
+          // 1. Fetch profile (legacy source of truth for RLS)
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, company_id')
-            .eq('id', session.user.id)
+            .eq('id', uid)
             .single();
           setProfileName(profile?.full_name ?? null);
-          setCompanyId(profile?.company_id ?? null);
+          const legacyCompanyId = profile?.company_id ?? null;
 
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-          setUserRole((roleData?.role as AppRole) ?? null);
+          // 2. Fetch active memberships from new memberships table
+          const { data: membershipRows } = await supabase
+            .from('memberships')
+            .select('company_id, role, is_default')
+            .eq('user_id', uid)
+            .eq('status', 'active');
+
+          const activeMemberships: Membership[] = (membershipRows ?? []).map(m => ({
+            company_id: m.company_id,
+            role: m.role as AppRole,
+            is_default: m.is_default,
+          }));
+          setMemberships(activeMemberships);
+
+          // 3. Determine currentCompanyId with fallback chain:
+          //    localStorage → default membership → first active → legacy profiles.company_id
+          const stored = localStorage.getItem(LS_KEY);
+          let resolved: string | null = null;
+
+          if (stored && activeMemberships.some(m => m.company_id === stored)) {
+            // Stored value is a valid active membership
+            resolved = stored;
+          } else if (activeMemberships.length > 0) {
+            // Use default or first active membership
+            resolved =
+              activeMemberships.find(m => m.is_default)?.company_id ??
+              activeMemberships[0].company_id;
+          } else {
+            // Fallback to legacy profiles.company_id (compatibility)
+            resolved = legacyCompanyId;
+          }
+
+          if (resolved) localStorage.setItem(LS_KEY, resolved);
+          setCurrentCompanyIdState(resolved);
+          setCompanyId(resolved); // keep legacy alias in sync
+
+          // 4. Resolve role: from matched membership, else fallback to user_roles
+          const matchedMembership = activeMemberships.find(m => m.company_id === resolved);
+          if (matchedMembership) {
+            setUserRole(matchedMembership.role);
+          } else {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', uid)
+              .maybeSingle();
+            setUserRole((roleData?.role as AppRole) ?? null);
+          }
         }, 0);
       } else {
         setProfileName(null);
         setUserRole(null);
         setCompanyId(null);
+        setCurrentCompanyIdState(null);
+        setMemberships([]);
       }
     });
 
@@ -70,6 +133,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  /**
+   * Switch active company. Validates that the target belongs to the user
+   * with an active membership. Resets to default if invalid.
+   */
+  const setCurrentCompanyId = useCallback((newId: string) => {
+    const membership = memberships.find(m => m.company_id === newId);
+
+    if (!membership) {
+      // Invalid target → reset to default
+      const fallback =
+        memberships.find(m => m.is_default)?.company_id ??
+        memberships[0]?.company_id ??
+        null;
+      if (fallback) {
+        localStorage.setItem(LS_KEY, fallback);
+        setCurrentCompanyIdState(fallback);
+        setCompanyId(fallback);
+        const fallbackRole = memberships.find(m => m.company_id === fallback)?.role ?? null;
+        setUserRole(fallbackRole);
+      }
+      return;
+    }
+
+    localStorage.setItem(LS_KEY, newId);
+    setCurrentCompanyIdState(newId);
+    setCompanyId(newId); // keep legacy alias
+    setUserRole(membership.role);
+  }, [memberships]);
 
   const login = useCallback(async (email: string, password: string): Promise<string | null> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -93,11 +185,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const logout = useCallback(async () => {
+    localStorage.removeItem(LS_KEY);
     await supabase.auth.signOut();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, profileName, userRole, companyId, login, signup, logout }}>
+    <AuthContext.Provider value={{
+      user, session, isLoading, profileName, userRole,
+      companyId,
+      memberships, currentCompanyId, setCurrentCompanyId,
+      login, signup, logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );
