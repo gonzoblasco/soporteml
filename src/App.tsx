@@ -25,22 +25,23 @@ import { useState, useEffect } from "react";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, companyId } = useAuth();
+  const { user, isLoading, companyId, userRole } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     if (!isLoading && user) {
       const done = localStorage.getItem('onboarding_complete');
-      // Show onboarding if user has no company yet OR hasn't completed it
-      if (!done && !companyId) {
+      const isSuperAdmin = user.email === 'gonzoblasco@icloud.com';
+      // Show onboarding only for new admin users in a company, never for super admin
+      if (!done && !isSuperAdmin && companyId && userRole === 'admin') {
         setShowOnboarding(true);
       }
       setChecked(true);
     } else if (!isLoading) {
       setChecked(true);
     }
-  }, [isLoading, user, companyId]);
+  }, [isLoading, user, companyId, userRole]);
 
   if (isLoading || !checked) return (
     <div className="min-h-screen flex items-center justify-center bg-background">

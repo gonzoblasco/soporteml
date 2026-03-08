@@ -6,6 +6,11 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.4.4] — 2026-03-08
+
+### Cambiado
+- Onboarding solo se muestra para admins nuevos en su empresa (primera vez). Super Admin lo saltea automáticamente.
+
 ## [1.4.3] — 2026-03-08
 
 ### ✨ Mejoras
