@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search, BarChart3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import MetricsTab from '@/components/admin/MetricsTab';
+import CompaniesTab from '@/components/admin/CompaniesTab';
 
 const useSearch = <T,>(items: T[], keys: (keyof T)[]) => {
   const [query, setQuery] = useState('');
