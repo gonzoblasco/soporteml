@@ -246,9 +246,14 @@ const CompaniesTab = () => {
                     Admin asignado: <span className="font-medium text-foreground">{createdCompany.assigned_user_email}</span>
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No se asignó un usuario. Compartí el link de invitación para que el primer admin se registre.
-                  </p>
+                  <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-3 py-2">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                      ⚠️ Esta empresa no tiene ningún usuario asignado todavía.
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                      Compartí el link de invitación para que el primer admin se registre. Sin al menos un admin, la empresa no podrá operar.
+                    </p>
+                  </div>
                 )}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => copyCode(createdCompany.invite_code)}>
