@@ -705,6 +705,21 @@ export type Database = {
           title: string
         }[]
       }
+      get_admin_company_metrics: {
+        Args: never
+        Returns: {
+          auto_answered: number
+          company_id: string
+          company_name: string
+          has_meli: boolean
+          human_answered: number
+          last_question_at: string
+          member_count: number
+          pending_questions: number
+          total_products: number
+          total_questions: number
+        }[]
+      }
       get_admin_users: {
         Args: never
         Returns: {

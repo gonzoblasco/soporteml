@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search } from 'lucide-react';
+import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search, BarChart3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import MetricsTab from '@/components/admin/MetricsTab';
 
 const useSearch = <T,>(items: T[], keys: (keyof T)[]) => {
   const [query, setQuery] = useState('');
@@ -78,13 +79,15 @@ const AdminPanel = () => {
         <h1 className="text-2xl font-bold text-foreground">Panel de Administración</h1>
       </div>
 
-      <Tabs defaultValue="inquiries">
+      <Tabs defaultValue="metrics">
         <TabsList className="mb-4">
+          <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="w-4 h-4" />Métricas</TabsTrigger>
           <TabsTrigger value="inquiries" className="gap-2"><Mail className="w-4 h-4" />Consultas</TabsTrigger>
           <TabsTrigger value="companies" className="gap-2"><Building2 className="w-4 h-4" />Companies</TabsTrigger>
           <TabsTrigger value="users" className="gap-2"><UserCircle className="w-4 h-4" />Usuarios</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="metrics"><MetricsTab /></TabsContent>
         <TabsContent value="inquiries"><InquiriesTab /></TabsContent>
         <TabsContent value="companies"><CompaniesTab /></TabsContent>
         <TabsContent value="users"><UsersTab /></TabsContent>
