@@ -195,13 +195,13 @@ const CompanySection = () => {
   };
 
   const handleRegenerate = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setRegenerating(true);
     const arr = new Uint8Array(6);
     crypto.getRandomValues(arr);
     const newCode = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const { error } = await supabase.from('companies').update({ invite_code: newCode } as any).eq('id', companyId);
+    const { error } = await supabase.from('companies').update({ invite_code: newCode } as any).eq('id', currentCompanyId);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {

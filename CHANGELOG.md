@@ -6,46 +6,37 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
-## [1.9.0] — 2026-03-09
+## [2.0.0] — 2026-03-09
 
-### 🏢 Multi-Company — Hito 5: Administración & Invites Adaptados a Memberships
-
-#### Añadido
-
-- **5 funciones SQL `SECURITY DEFINER`** para gestión de memberships:
-  - `get_company_members(_company_id)` — retorna miembros activos de una empresa con nombre y rol (admin de company o super admin).
-  - `join_company_by_invite(_invite_code)` — permite a usuarios existentes autenticados unirse a una nueva empresa via código de invitación sin perder memberships previas.
-  - `add_company_membership(_user_id, _company_id, _role)` — super admin agrega usuarios a empresas con upsert inteligente.
-  - `remove_company_membership(_user_id, _company_id)` — admin de company o super admin remueve memberships.
-  - `update_membership_role(_user_id, _company_id, _new_role)` — admin de company o super admin cambia rol por membership.
-- **`JoinCompanySection`** en Settings — cualquier usuario autenticado puede unirse a otra empresa ingresando un código de invitación. Llama a `join_company_by_invite` y refresca memberships via `refreshMemberships()`.
-- **`refreshMemberships()`** en AuthContext — permite refrescar la lista de memberships sin re-login. Usado después de unirse a una nueva empresa.
-- **Badge "Multi-company"** en Admin Panel para usuarios con más de una empresa.
+### 🏢 Multi-Company — Hito 6: Memberships como Fuente Principal de Verdad
 
 #### Cambiado
 
-- **Admin Panel → Usuarios**: vista completamente rediseñada basada en memberships.
-  - Cada usuario muestra todas sus memberships como chips coloreados (Admin = primary, Agente = muted).
-  - Click en un chip abre dropdown para cambiar rol o quitar de la empresa.
-  - Botón "+" por usuario permite agregar a una nueva empresa con selector de company + rol.
-  - Usa RPCs `update_membership_role`, `remove_company_membership`, `add_company_membership`.
-- **Admin Panel → Companies**: conteo de miembros ahora lee de `memberships` (no profiles). Asignación de admin inicial usa `add_company_membership` RPC en lugar de actualizar `profiles.company_id` + `user_roles` directamente.
-- **Settings → Equipo**: lee miembros desde `get_company_members()` (membership-based, no profile-based). Roles se muestran y editan por membership de la empresa activa. Botón para remover miembros de la empresa activa.
-- **Roles ahora son por empresa** — al cambiar rol de un miembro, se actualiza la membership específica de esa company, no un rol global.
+- **Frontend completamente migrado a `currentCompanyId`** — CatalogPage, TemplatesPage y todas las secciones de Settings ahora usan `currentCompanyId` del contexto de autenticación (fuente: memberships) en lugar del alias legacy `companyId`.
+- **`companyId` marcado como deprecated** — alias legacy en `AuthContext` ahora documenta claramente su estado deprecated y próxima eliminación.
 
-#### Compatibilidad mantenida
+#### Seguridad y consistencia validada
 
-- `profiles.company_id` no se elimina. `join_company_by_invite` y `add_company_membership` actualizan `profiles.company_id` si es la primera membership del usuario (backward compat con RLS legacy).
-- `user_roles` tabla se mantiene intacta pero ya no es la fuente de verdad para roles en el frontend. Memberships prevalecen.
-- `has_role()` sigue disponible para código que la use.
+- **Un usuario con 1 company**: comportamiento idéntico al anterior.
+- **Un usuario con 2+ companies**: puede cambiar de tenant sin mezcla de datos.
+- **Isolation tenant**: todas las pantallas principales (Home, Inbox, Priority, Settings, Catálogo, Plantillas) garantizan aislamiento completo por `currentCompanyId`.
+- **Company switcher reactivo**: cambios de compañía activa disparan refresh completo de datos scopeados.
+- **1 cuenta ML por company**: constraint UNIQUE en `meli_tokens.company_id` sigue intacto.
 
-#### Seguridad
+#### Compatibilidad mantenida temporalmente
 
-- Todas las funciones nuevas usan `SECURITY DEFINER` con `search_path = public`.
-- `get_company_members` y `update_membership_role` validan que el caller sea admin de la empresa o super admin.
-- `join_company_by_invite` valida código, previene duplicados, y solo crea membership para el usuario autenticado.
+- **`profiles.company_id`** se preserva como campo legacy. Las funciones `join_company_by_invite` y `add_company_membership` lo actualizan para primera membership (backward compatibility).
+- **`user_roles` tabla** no se modifica. Sigue coexistiendo con memberships.
+- **Edge Functions y RLS** sin cambios. Siguen operando sobre `get_user_company_id()` que ya lee de memberships con fallback.
+
+#### Documentación técnica
+
+- **Epic Multi-Company COMPLETADO** — Sistema consistente basado en memberships como fuente principal de verdad.
+- **Deprecation notice**: `companyId` será removido en versión 2.1.0. Usar `currentCompanyId`.
 
 ---
+
+## [1.9.0] — 2026-03-09
 
 ## [1.8.0] — 2026-03-09
 
