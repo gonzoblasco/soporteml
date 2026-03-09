@@ -1,233 +1,240 @@
 # SoporteML v1.0 — Gestión de Consultas con IA para Mercado Libre
 
-SoporteML es una plataforma diseñada para automatizar y optimizar la gestión de consultas en Mercado Libre utilizando IA. Permite responder más rápido, categorizar preguntas automáticamente y operar con un “centro de control” claro y confiable.
+SoporteML es una plataforma especializada para vendedores y equipos de atención en Mercado Libre. Centraliza preguntas, sugiere respuestas con IA, automatiza publicaciones con guardrails y permite operar múltiples empresas desde una sola cuenta.
 
-> **Stack principal:** Lovable (frontend) + **Lovable Cloud** (backend/DB/Auth/Edge Functions) + Lovable AI (LLM).
+> **Stack:** Lovable (frontend) · Lovable Cloud (PostgreSQL, Auth, Edge Functions) · Lovable AI (LLM)
 
 ---
 
-## 🚀 Características Principales
+## 🚀 Funcionalidades
 
 ### 📥 Inbox Inteligente
 
-- **Bandeja unificada** con tabs de estado: Pendientes, Publicadas y Archivadas.
-- **Agrupación automática** de preguntas del mismo comprador sobre el mismo producto en filas colapsables con badge de conteo (ej. “3 mensajes pendientes”).
-- **Búsqueda en tiempo real** por texto de pregunta, producto, comprador o categoría IA.
-- **Vista responsive** optimizada para escritorio y móvil con navegación adaptativa.
+- Bandeja unificada con tabs: **Pendientes**, **Publicadas**, **Auto IA**, **Archivadas**.
+- Agrupación automática por comprador + producto con badge de conteo.
+- Búsqueda en tiempo real por texto, producto, comprador o categoría IA.
+- Navegación por teclado (↑↓) para triage rápido.
 
-### 🚨 Bandeja Prioritaria (Priority Inbox)
+### 🚨 Bandeja Prioritaria
 
-- **Escalado automático** de consultas que requieren atención humana inmediata.
-- Separación clara del flujo normal para no perder preguntas críticas.
-- Misma agrupación inteligente por comprador + producto.
+- Escalado automático de consultas que requieren atención humana (`needs_human`).
+- Separada del inbox general para que nada crítico se pierda.
 
-### 🤖 Respuestas con IA (Copiloto)
+### 🤖 IA con Contexto de Producto
 
-- Generación de **sugerencias** basadas en contexto de la consulta + contexto del producto (si existe).
-- **Categorización automática** (Precio, Stock, Técnico, Envío, Garantía, Especificaciones, Características).
-- Explica el motivo cuando detecta que requiere intervención humana.
+- **Copiloto**: genera sugerencias basadas en la pregunta + datos del catálogo (si existe).
+- **Categorización automática**: Precio, Stock, Técnico, Envío, Garantía.
+- **Confidence scoring**: cada respuesta incluye un nivel de confianza (0-1).
 - Human-in-the-loop: la IA sugiere, el humano decide.
 
-### 📚 Catálogo CRM de Productos (para potenciar la IA)
+### ⚡ Autopilot con Guardrails
 
-Catálogo interno estilo CRM para que la IA responda con información confiable sin depender de PDFs/Excels.
+- Publicación automática de respuestas cuando la confianza supera el umbral configurado.
+- Modos independientes: **dentro de horario** y **fuera de horario**.
+- Umbral de confianza ajustable por empresa (0.5 – 1.0).
+- Failsafe: si la publicación falla, la pregunta pasa a `needs_human`.
+- Trazabilidad completa: cada decisión queda registrada en `events`.
 
-- Sección en sidebar: **Catálogo** (`/catalog`)
-- UI tipo CRM con **split-view**: lista (búsqueda + filtros) + ficha de producto (tabs).
-- Ficha del producto con tabs:
-  1. **Resumen** (identidad: título, SKU, IDs, enlaces)
-  2. **Conocimiento IA** (support_summary, puntos clave, FAQ, do_not_say)
-  3. **Variantes** (atributos + notas por variación)
-  4. **Políticas** (envíos / devoluciones / garantía “cómo responder”)
-  5. **Actividad** (auditoría / historial de cambios)
+### 🏢 Multi-Company & Equipos
 
-- **Asociación automática por `meli_item_id`**:
-  - Si una consulta trae `meli_item_id` y existe el producto en catálogo, se vincula.
-  - Si no existe, se habilita CTA para crear el producto desde el contexto de la consulta.
+- **Múltiples empresas por usuario** con memberships (`active`, `invited`, `disabled`).
+- **Company Switcher** en el sidebar para cambiar de tenant al instante.
+- **Roles**: admin y agente por empresa, con RLS estricto.
+- **Invite flow**: código de invitación por empresa, join desde Settings.
+- **1 cuenta de Mercado Libre por empresa** en esta versión.
+- Aislamiento total de datos entre empresas (RLS + `company_id` en todas las tablas).
 
-- **Audit log obligatorio** para cambios (create/update/archive/restore).
-- **Preparado para múltiples fuentes** (CRM-ready): `source`, `external_id`, `external_url` (futuro Tiendanube u otras).
-- “Shell CRM” listo para expandirse (Clientes / Órdenes / Conocimiento) como **próximamente**.
+### 📚 Catálogo de Productos
 
-### 🔔 Centro de Notificaciones
+- Split-view CRM: lista con búsqueda/filtros + ficha con tabs (Resumen, Conocimiento IA, Variantes, Políticas, Actividad).
+- Asociación automática pregunta ↔ producto por `meli_item_id`.
+- Enriquecimiento on-demand desde la API de MeLi con cache.
+- Detección de duplicados por título similar, SKU o `meli_item_id`.
+- Audit log obligatorio (create / update / archive / restore).
 
-- **Centro de notificaciones in-app** con campana en el sidebar, badge de no leídas en tiempo real y popover con las últimas 20 notificaciones.
-- **Generación automática**: Edge Function `notify` crea notificaciones por empresa al detectar preguntas priority o publicar respuestas.
-- **Tipos soportados**: `new_question`, `priority_question`, `token_expiring`, `answer_published`.
-- **Toast de bienvenida** en el Dashboard con conteo de preguntas urgentes pendientes.
-- **Notificaciones push del navegador** (Notification API) y vibración en móviles.
-- Toggle configurable en Settings por usuario.
+### 🔔 Notificaciones
 
-### 📱 UX Mobile & Micro-interacciones
+- Campana in-app con badge de no leídas en tiempo real (Realtime).
+- Tipos: `new_question`, `priority_question`, `token_expiring`, `answer_published`.
+- Push del navegador (Notification API) + vibración en móviles.
+- Toast de bienvenida con conteo de pendientes urgentes.
 
-- **Skeleton loaders** en Dashboard, Inbox, Priority Inbox y Catálogo para carga progresiva.
-- **Barra de acciones sticky** en detalle de pregunta para mobile (Publicar/Archivar).
-- **Swipe gestures** en sidebar mobile (derecha para abrir, izquierda para cerrar).
-- **Transiciones de página** con framer-motion entre rutas del dashboard.
-- **Keyboard navigation** (↑↓) en listas de preguntas para triage rápido.
-- **Empty states mejorados** con animaciones de éxito.
+### 📊 Dashboard & Analytics
 
-### 📊 Analítica en Tiempo Real
+- KPIs: respondidas hoy, tiempo promedio de respuesta, pendientes.
+- Distribución por categoría IA (pie chart + barras de progreso).
+- Ranking Top 5 productos / compradores más consultados.
+- Alerta visual de estado del token MeLi (3 niveles de severidad).
 
-- Dashboards con métricas clave: tiempo de respuesta, categorías más frecuentes, volumen de preguntas.
+### ⚙️ Configuración
 
-### ⚙️ Configuración (Settings)
+- **Perfil**: nombre, contraseña.
+- **Mercado Libre**: OAuth connect/disconnect, estado de token, renovación automática.
+- **Empresa**: nombre, invite code, miembros del equipo, unirse a otra empresa.
+- **IA**: modo (manual / asistido / automático), tono, categorías, instrucciones custom, exclusiones.
+- **Autopilot**: toggles dentro/fuera de horario, slider de umbral de confianza.
+- **Horario de atención**: configurable por día.
+- **Notificaciones push**: toggle por usuario.
+- **Plantillas**: biblioteca de respuestas rápidas por empresa y categoría.
 
-- Perfil de usuario: nombre y cambio de contraseña.
-- **Conexión con Mercado Libre**: OAuth, estado de conexión, desconexión.
-- Gestión de empresa: nombre, código de invitación, miembros del equipo.
-- Auto-respuesta IA: modo (manual/asistido/automático), tono, categorías habilitadas, instrucciones personalizadas, reglas de exclusión.
-- Horario de atención configurable por día.
-- Notificaciones push: toggle por usuario con feedback de permisos del navegador.
+### 👑 Panel de Administración (Super Admin)
 
-### 👑 Panel de Administración
+- **Usuarios**: listado global con memberships múltiples, roles y empresa(s).
+- **Empresas**: crear empresa, asignar admin, copiar invite link.
+- **Métricas**: totales globales + desglose por empresa (preguntas, respuestas auto/humanas, productos, miembros).
 
-- Gestión de usuarios y roles (admin/agente) a nivel multi-tenant.
+### 🔗 Integración con Mercado Libre
 
-### 🔗 Integración Nativa con Mercado Libre
-
-- Sincronización mediante Webhooks y Edge Functions.
-- OAuth flow para conectar cuentas de vendedor.
-- Obtención de datos de productos (cuando aplica).
+- OAuth flow completo con refresh automático de tokens.
+- Sincronización de preguntas via Edge Functions.
 - Publicación de respuestas directamente en MeLi.
+- Proxy de datos de items para enriquecimiento de catálogo.
+- Refresh token protegido contra sobreescritura y race conditions.
 
----
+### 🌐 Landing Page
 
-## 🌐 Landing Page
+- Hero con propuesta de valor, trust badges y stats animados.
+- Segmentación por perfil: vendedores de alto volumen, equipos, agencias.
+- Mockups interactivos con tabs (Inbox, Analytics, Equipo).
+- Sección Autopilot, diferenciadores, FAQ y pricing (Base / Pro).
+- Formulario de contacto.
 
-- Página pública con presentación del producto, mockups y formulario de contacto.
+### 🔒 Seguridad & Trazabilidad
+
+- RLS en todas las tablas con aislamiento por `company_id`.
+- Memberships como fuente de verdad (funciones SQL `user_belongs_to_company`, `has_membership_role`).
+- Tabla `events` (append-only) para audit trail de decisiones de IA, syncs y errores.
+- Tabla `audit_logs` para cambios en catálogo de productos.
+- Edge Functions autenticadas con validación de permisos.
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
-| Capa               | Tecnologías                                          |
-| ------------------ | ---------------------------------------------------- |
-| **Frontend**       | Vite, React 18, TypeScript                           |
-| **UI/UX**          | shadcn/ui, Tailwind CSS, Framer Motion, Lucide React |
-| **Backend & DB**   | **Lovable Cloud** (PostgreSQL, Auth, Edge Functions) |
-| **Estado & Datos** | TanStack Query (React Query)                         |
-| **Tiempo Real**    | Supabase Realtime (postgres_changes)                 |
-| **Routing**        | React Router v6                                      |
-| **Theming**        | next-themes (dark/light mode)                        |
+| Capa | Tecnologías |
+|------|-------------|
+| **Frontend** | Vite · React 18 · TypeScript |
+| **UI/UX** | shadcn/ui · Tailwind CSS · Framer Motion · Lucide React |
+| **Backend & DB** | Lovable Cloud (PostgreSQL · Auth · Edge Functions) |
+| **Estado** | TanStack Query (React Query) |
+| **Realtime** | Supabase Realtime (postgres_changes) |
+| **Routing** | React Router v6 |
+| **Theming** | next-themes (dark / light) |
+| **Pagos** | Stripe (checkout, portal, subscriptions) |
 
 ---
 
-## 🗃️ Base de datos (Lovable Cloud)
+## 🗃️ Base de datos
 
-Tablas relevantes (multi-tenant por `company_id`):
+Modelo multi-tenant con `company_id` en todas las tablas operativas:
 
-- `products` (campos CRM + multi-fuente: `source`, `external_id`, `external_url`, knowledge fields)
-- `product_variants` (variantes/atributos/notas por producto)
-- `audit_logs` (historial de cambios: actor, acción, before/after)
-- (existentes) `questions`, `answers`, `companies`, `memberships`, etc.
+| Tabla | Propósito |
+|-------|-----------|
+| `companies` | Empresas registradas (nombre, invite code) |
+| `memberships` | Relación usuario ↔ empresa (rol, estado, default) |
+| `profiles` | Datos de usuario (nombre, company_id legacy) |
+| `user_roles` | Roles globales (legacy, mantenido por compatibilidad) |
+| `questions` | Preguntas de MeLi con metadata de IA |
+| `products` | Catálogo CRM con knowledge fields |
+| `product_variants` | Variantes, atributos y notas por producto |
+| `templates` | Plantillas de respuesta por empresa y categoría |
+| `company_settings` | Config de IA, autopilot, horarios, feature flags |
+| `meli_tokens` | Tokens OAuth de MeLi (1 por empresa) |
+| `notifications` | Notificaciones in-app por usuario |
+| `events` | Audit trail de decisiones de IA y errores |
+| `audit_logs` | Historial de cambios en catálogo |
+| `dismissed_meli_questions` | Preguntas descartadas |
+| `contact_inquiries` | Formulario de contacto de la landing |
 
-Incluye RLS + políticas/controles para mantener los datos aislados por empresa.
+RLS + funciones helper (`get_user_company_id`, `user_belongs_to_company`, `has_membership_role`, `is_super_admin`) para control de acceso.
 
 ---
 
-## 📁 Estructura del Proyecto (alto nivel)
+## 📁 Estructura del Proyecto
 
 ```text
-├── src/
-│   ├── components/
-│   │   ├── ui/                 # Primitivos shadcn/ui
-│   │   ├── landing/            # Componentes de landing
-│   │   ├── catalog/            # CRM catálogo (lista, ficha, tabs, audit timeline)
-│   │   ├── AppSidebar.tsx
-│   │   ├── DashboardLayout.tsx
-│   │   ├── GroupedQuestionCard.tsx
-│   │   ├── QuestionDetail.tsx
-│   │   └── ProductSideCard.tsx # puede mostrar knowledge CRM si existe
-│   ├── pages/
-│   │   ├── Inbox.tsx
-│   │   ├── PriorityInbox.tsx
-│   │   ├── Analytics.tsx
-│   │   ├── SettingsPage.tsx
-│   │   ├── AdminPanel.tsx
-│   │   ├── Catalog.tsx         # /catalog
-│   │   └── Landing.tsx
-│   ├── integrations/supabase/
-│   ├── hooks/
-│   ├── lib/
-│   └── types/
-├── supabase/
-│   ├── functions/              # Edge Functions (copiloto, sync, publish answer, oauth callback, etc.)
-│   └── migrations/             # Migraciones: products extendida, product_variants, audit_logs, RLS/triggers
-└── CHANGELOG.md
+src/
+├── components/
+│   ├── ui/                  # Primitivos shadcn/ui
+│   ├── landing/             # Hero, MockupTabs, ContactForm, AnimatedCounter
+│   ├── catalog/             # ProductList, ProductForm, VariantsTable, AuditTimeline, etc.
+│   ├── admin/               # CompaniesTab, MetricsTab
+│   ├── CompanySwitcher.tsx  # Selector de empresa activa
+│   ├── AICopilotPanel.tsx   # Panel de copiloto IA
+│   ├── NotificationBell.tsx # Campana de notificaciones
+│   ├── QuestionDetail.tsx   # Detalle de pregunta + respuesta IA
+│   └── ...
+├── pages/
+│   ├── Landing.tsx          # Página pública
+│   ├── Login.tsx            # Auth
+│   ├── Home.tsx             # Dashboard
+│   ├── Inbox.tsx            # Bandeja de preguntas
+│   ├── PriorityInbox.tsx    # Bandeja prioritaria
+│   ├── CatalogPage.tsx      # Catálogo de productos
+│   ├── TemplatesPage.tsx    # Plantillas de respuesta
+│   ├── SettingsPage.tsx     # Configuración completa
+│   └── AdminPanel.tsx       # Super admin
+├── contexts/AuthContext.tsx  # Auth + memberships + currentCompanyId
+├── lib/                     # Utilidades (audit, grouping, token health, priority)
+└── types/                   # Tipos compartidos
+
+supabase/
+├── functions/
+│   ├── ai-copilot/          # Sugerencias IA con confidence scoring
+│   ├── sync-meli-questions/ # Sync + motor de decisión autopilot
+│   ├── publish-meli-answer/ # Publicar respuesta en MeLi
+│   ├── meli-oauth-callback/ # OAuth flow
+│   ├── meli-item-proxy/     # Proxy de datos de items
+│   ├── enrich-product/      # Enriquecimiento de catálogo
+│   ├── detect-duplicates/   # Detección de duplicados
+│   ├── notify/              # Generación de notificaciones
+│   ├── health-check/        # Health check de conectividad
+│   ├── create-checkout/     # Stripe checkout
+│   ├── customer-portal/     # Stripe portal
+│   ├── check-subscription/  # Validación de suscripción
+│   └── ...
+└── migrations/              # Migraciones SQL
 ```
 
 ---
 
-## ✅ Estado del release
+## ✅ Estado actual — v1.0.1
 
-- v1.0 es la primera versión comercial de SoporteML: multi-company, autopilot con guardrails, catálogo CRM, panel admin y landing page comercial.
-- Próximos pasos típicos: QA end-to-end, re-scan de seguridad y mejoras de UX/estabilidad.
+Primera versión comercial de SoporteML. El producto está operativo con:
+
+- ✅ Multi-company con memberships, switcher y roles
+- ✅ Autopilot con guardrails y trazabilidad completa
+- ✅ Catálogo de productos con knowledge para IA
+- ✅ Panel admin con métricas por empresa
+- ✅ Landing page comercial con pricing
+- ✅ Integración Stripe (checkout, portal, suscripciones)
+- ✅ Notificaciones en tiempo real
+- ✅ UX mobile-first con skeleton loaders y transiciones
 
 ---
 
-## 🗺️ Roadmap (por versiones)
+## 🗺️ Roadmap
 
-### v1.0.x — Hardening + Release Quality
+### v1.1 — Hardening & Estabilidad
 
-- **QA end-to-end** (Inbox → Conversación → Copiloto → Publicación)
-  - Casos críticos: múltiples preguntas, producto sin catálogo, token expirado, reconexión, rate limits.
-  - Smoke tests sobre Edge Functions clave.
+- QA end-to-end de flujos críticos (sync → IA → publicación → autopilot).
+- Re-scan de seguridad RLS y Edge Functions.
+- Estados degradados amables (token expirado, API caída, sync fallido).
+- Instrumentación: logs de refresh, fallas de publicación, reintentos.
 
-- **Seguridad y aislamiento multi-tenant**
-  - Auditoría RLS por tabla (`products`, `questions`, `answers`, `audit_logs`).
-  - Revisión de Edge Functions: auth, validación de inputs, logging de acciones sensibles.
+### v2.0 — CRM de Clientes & Post-venta
 
-- **Confiabilidad operacional**
-  - Estados degradados “amables” (token/sync/producto/IA).
-  - Instrumentación mínima: logs de refresh, fallas de publicación, reintentos.
-  - UX de reconexión: mensajes claros + CTA único (sin confusión).
+Evolucionar SoporteML de "gestor de preguntas" a un **CRM liviano especializado en Mercado Libre**, donde cada interacción tiene contexto completo.
 
-### v1.2 — Catálogo “menos esfuerzo” + Loop de calidad (IA)
+- **Perfil de cliente**: historial de conversaciones, etiquetas internas, notas del equipo. Permite saber quién pregunta recurrentemente, qué compró antes y cómo tratarlo.
+- **Órdenes / Post-venta**: vincular consultas con órdenes para resolver reclamos, seguimiento de envíos y devoluciones sin salir de la plataforma.
+- **Base de conocimiento transversal**: políticas globales, macros y guías internas que la IA puede usar como contexto (no solo por producto, sino a nivel empresa).
+- **Colaboración avanzada**: asignación de preguntas a agentes específicos, comentarios internos, SLAs configurables y permisos más granulares por acción.
 
-- **Auto-fill del Catálogo** desde el contexto de la consulta
-  - Crear producto desde conversación con prefill (título, link, atributos básicos, meli_item_id).
-  - Detección de duplicados (match por `meli_item_id`, `sku`, título similar) + merge asistido.
+### v3.0 — Multi-fuente (más allá de Mercado Libre)
 
-- **Copiloto → Catálogo (feedback loop)**
-  - El copiloto sugiere “qué falta” para responder mejor (envío/garantía/variantes).
-  - Destacar campos incompletos en la ficha + “completar ahora” sin perder contexto.
+Abrir SoporteML a **otras plataformas de e-commerce**, unificando la atención al cliente en un solo lugar independientemente del canal.
 
-- **Métrica interna de completitud**
-  - `completeness_score` y “faltan X campos clave” para guiar adopción tipo CRM.
-
-### v1.3 — Enriquecimiento on-demand por API (cache first)
-
-- **Fetch por primer uso** (cachear y no repetir)
-  - Si entra un `meli_item_id` no registrado: traer datos por API, normalizar y guardar en Lovable Cloud.
-  - TTL / refresh manual para evitar desactualización.
-
-- **Variantes y atributos**
-  - Mapping de variaciones a `product_variants`.
-  - Estrategia de “diff” para no pisar conocimiento humano (merge inteligente).
-
-- **Resiliencia**
-  - Manejo de errores externos (API down/limits) con fallback y reintento.
-
-### v2.0 — CRM real (adopción progresiva)
-
-- **Clientes (CRM)**
-  - Perfil del cliente, historial de conversaciones, etiquetas internas, notas.
-
-- **Órdenes / Post-venta**
-  - Relación consulta ↔ orden ↔ producto ↔ cliente (cuando aplique).
-
-- **Conocimiento transversal**
-  - Base de conocimiento reusable (no solo por producto): políticas globales, macros, guías internas.
-
-- **Colaboración**
-  - Asignación, comentarios internos, SLA, roles más finos (audit + permisos por acción).
-
-### v2.1 — Nuevos sources (multi-fuente)
-
-- **Tiendanube u otras plataformas**
-  - Adaptadores por plataforma (ingesta de consultas + asociación a productos por `source/external_id`).
-  - Unificación de UI y lógica de negocio independientemente del origen.
-
-- **Estrategias de ingesta**
-  - API/webhooks cuando existan; fallback por email/forwarding si el canal no está expuesto por API.
+- **Tiendanube, Shopify u otros**: adaptadores por plataforma para ingestar consultas y asociarlas a productos existentes en el catálogo via `source` / `external_id`.
+- **UI unificada**: el inbox, la IA y las métricas funcionan igual sin importar el origen. Filtro por canal para operadores que manejan múltiples fuentes.
+- **Estrategias de ingesta flexibles**: API/webhooks cuando la plataforma lo permita, fallback por email forwarding cuando no haya API expuesta.
