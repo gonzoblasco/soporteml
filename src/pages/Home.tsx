@@ -107,8 +107,14 @@ const Home = () => {
     fetchData();
   }, [currentCompanyId]);
 
-  // Welcome toast for priority questions
+
+  // Reset toast guard when company changes so the priority warning re-triggers
   const toastShown = useRef(false);
+  useEffect(() => {
+    toastShown.current = false;
+  }, [currentCompanyId]);
+
+  // Welcome toast for priority questions
   useEffect(() => {
     if (!loading && !toastShown.current) {
       toastShown.current = true;
