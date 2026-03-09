@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import MeliConnectionStatus from '@/components/MeliConnectionStatus';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PriorityInbox = () => {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
