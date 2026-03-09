@@ -710,11 +710,11 @@ const AiConfigSection = () => {
   }, [currentCompanyId]);
 
   const handleSave = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setSaving(true);
 
     const payload = {
-      company_id: companyId,
+      company_id: currentCompanyId,
       ai_tone: aiTone,
       ai_custom_instructions: aiInstructions.trim() || null,
     };
