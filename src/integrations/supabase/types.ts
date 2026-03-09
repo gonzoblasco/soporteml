@@ -777,6 +777,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          memberships: Json
           role: string
           user_id: string
         }[]
