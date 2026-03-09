@@ -1,4 +1,4 @@
-# SoporteML v1.1 — Gestión de Consultas con IA para Mercado Libre
+# SoporteML v1.0 — Gestión de Consultas con IA para Mercado Libre
 
 SoporteML es una plataforma diseñada para automatizar y optimizar la gestión de consultas en Mercado Libre utilizando IA. Permite responder más rápido, categorizar preguntas automáticamente y operar con un “centro de control” claro y confiable.
 
