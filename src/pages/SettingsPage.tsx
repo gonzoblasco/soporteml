@@ -106,6 +106,62 @@ const ProfileSection = () => {
   );
 };
 
+// ─── Join Company Section (Hito 5: existing users join via invite code) ───
+const JoinCompanySection = () => {
+  const { refreshMemberships, memberships } = useAuth();
+  const { toast } = useToast();
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleJoin = async () => {
+    if (!code.trim()) return;
+    setLoading(true);
+    const { data, error } = await supabase.rpc('join_company_by_invite' as any, { _invite_code: code.trim() });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else if ((data as any)?.error) {
+      toast({ title: 'Error', description: (data as any).error, variant: 'destructive' });
+    } else {
+      toast({ title: 'Empresa agregada', description: `Te uniste a "${(data as any).company_name}".` });
+      setCode('');
+      await refreshMemberships();
+    }
+    setLoading(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <UserPlus className="w-4 h-4 text-muted-foreground" />
+          <CardTitle className="text-sm">Unirse a otra empresa</CardTitle>
+        </div>
+        <CardDescription>Usá un código de invitación para acceder a otra empresa</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Código de invitación..."
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleJoin()}
+            className="font-mono text-sm"
+          />
+          <Button onClick={handleJoin} disabled={loading || !code.trim()} className="shrink-0">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Unirme
+          </Button>
+        </div>
+        {memberships.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Empresas actuales: {memberships.length}. Un código válido agregará una nueva membresía sin modificar las existentes.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Company Section ───
 const CompanySection = () => {
   const { companyId } = useAuth();
@@ -141,7 +197,6 @@ const CompanySection = () => {
   const handleRegenerate = async () => {
     if (!companyId) return;
     setRegenerating(true);
-    // Generate a new random hex code client-side
     const arr = new Uint8Array(6);
     crypto.getRandomValues(arr);
     const newCode = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -256,7 +311,6 @@ const MeliConnectionSection = () => {
       return;
     }
 
-    // Generate PKCE code_verifier and code_challenge
     const generateCodeVerifier = () => {
       const array = new Uint8Array(32);
       crypto.getRandomValues(array);
@@ -275,7 +329,6 @@ const MeliConnectionSection = () => {
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-    // Encode company_id + code_verifier in state (separated by |)
     const statePayload = `${companyId}|${codeVerifier}`;
 
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meli-oauth-callback`;
@@ -349,7 +402,6 @@ const MeliConnectionSection = () => {
           </div>
         ) : isConnected ? (
           <div className="space-y-3">
-            {/* Unified health alert */}
             {healthUI.color !== 'green' && healthInfo.status !== 'disconnected' && (
               <div className={`flex items-start gap-2 p-2.5 rounded-md border text-sm ${
                 healthUI.color === 'red' 
@@ -453,55 +505,67 @@ const MeliConnectionSection = () => {
   );
 };
 
-// ─── Team Section ───
+// ─── Team Section (Hito 5: membership-based) ───
 const TeamSection = () => {
   const { companyId, user } = useAuth();
   const { toast } = useToast();
-  const [members, setMembers] = useState<Array<{ id: string; full_name: string | null; role: string }>>([]);
+  const [members, setMembers] = useState<Array<{ user_id: string; full_name: string; role: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [inviteCode, setInviteCode] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
     (async () => {
-      const [{ data: profiles }, { data: roles }, { data: company }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').eq('company_id', companyId),
-        supabase.from('user_roles').select('user_id, role'),
+      setLoading(true);
+      const [membersRes, companyRes] = await Promise.all([
+        supabase.rpc('get_company_members' as any, { _company_id: companyId }),
         supabase.from('companies').select('invite_code').eq('id', companyId).single(),
       ]);
 
-      if (company) setInviteCode((company as any).invite_code ?? '');
+      if (companyRes.data) setInviteCode((companyRes.data as any).invite_code ?? '');
 
-      const roleMap = new Map((roles ?? []).map(r => [r.user_id, r.role]));
-      setMembers((profiles ?? []).map(p => ({
-        id: p.id,
-        full_name: p.full_name,
-        role: roleMap.get(p.id) ?? 'agent',
+      setMembers(((membersRes.data ?? []) as any[]).map((m: any) => ({
+        user_id: m.user_id,
+        full_name: m.full_name || 'Sin nombre',
+        role: m.role,
       })));
       setLoading(false);
     })();
   }, [companyId]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
-    const { error } = await supabase
-      .from('user_roles')
-      .update({ role: newRole as 'admin' | 'agent' })
-      .eq('user_id', userId);
-
+    const { error } = await supabase.rpc('update_membership_role' as any, {
+      _user_id: userId,
+      _company_id: companyId,
+      _new_role: newRole,
+    });
     if (error) {
-      const { error: upsertErr } = await supabase
-        .from('user_roles')
-        .upsert({ user_id: userId, role: newRole as 'admin' | 'agent' }, { onConflict: 'user_id' });
-
-      if (upsertErr) {
-        toast({ title: 'Error', description: upsertErr.message, variant: 'destructive' });
-        return;
-      }
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setMembers(prev => prev.map(m => m.user_id === userId ? { ...m, role: newRole } : m));
+      toast({ title: 'Rol actualizado' });
     }
+  };
 
-    setMembers(prev => prev.map(m => m.id === userId ? { ...m, role: newRole } : m));
-    toast({ title: 'Rol actualizado' });
+  const handleRemoveMember = async (userId: string) => {
+    if (userId === user?.id) {
+      toast({ title: 'No podés quitarte a vos mismo', variant: 'destructive' });
+      return;
+    }
+    setRemovingId(userId);
+    const { error } = await supabase.rpc('remove_company_membership' as any, {
+      _user_id: userId,
+      _company_id: companyId,
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setMembers(prev => prev.filter(m => m.user_id !== userId));
+      toast({ title: 'Miembro removido de la empresa' });
+    }
+    setRemovingId(null);
   };
 
   const inviteLink = inviteCode ? `${window.location.origin}/signup?code=${inviteCode}` : '';
@@ -531,7 +595,7 @@ const TeamSection = () => {
           <Users className="w-4 h-4 text-muted-foreground" />
           <CardTitle className="text-sm">Equipo</CardTitle>
         </div>
-        <CardDescription>Miembros de tu empresa y sus roles</CardDescription>
+        <CardDescription>Miembros de la empresa activa y sus roles</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Invite section */}
@@ -575,26 +639,42 @@ const TeamSection = () => {
         {members.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay miembros en esta empresa.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {members.map((m) => (
-              <div key={m.id} className="flex items-center justify-between py-2">
+              <div key={m.user_id} className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-sm font-medium text-foreground">{m.full_name || 'Sin nombre'}</p>
-                  {m.id === user?.id && <span className="text-xs text-muted-foreground">(tú)</span>}
+                  <p className="text-sm font-medium text-foreground">{m.full_name}</p>
+                  {m.user_id === user?.id && <span className="text-xs text-muted-foreground">(tú)</span>}
                 </div>
-                <Select
-                  value={m.role}
-                  onValueChange={(v) => handleRoleChange(m.id, v)}
-                  disabled={m.id === user?.id}
-                >
-                  <SelectTrigger className="w-28 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="agent">Agente</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={m.role}
+                    onValueChange={(v) => handleRoleChange(m.user_id, v)}
+                    disabled={m.user_id === user?.id}
+                  >
+                    <SelectTrigger className="w-28 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="agent">Agente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {m.user_id !== user?.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemoveMember(m.user_id)}
+                      disabled={removingId === m.user_id}
+                    >
+                      {removingId === m.user_id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />
+                      }
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -639,7 +719,6 @@ const AiConfigSection = () => {
       ai_custom_instructions: aiInstructions.trim() || null,
     };
 
-    // Upsert
     const { error } = await supabase
       .from('company_settings')
       .upsert(payload, { onConflict: 'company_id' });
@@ -795,7 +874,6 @@ const AutoReplySection = () => {
 
   const isActive = mode !== 'off';
 
-  // Determine active mode chip
   const getActiveChip = () => {
     if (autopilotInHours && autopilotAfterHours) return { label: 'Auto siempre', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' };
     if (autopilotAfterHours) return { label: 'Auto fuera de horario', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' };
@@ -823,7 +901,6 @@ const AutoReplySection = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Autopilot toggles */}
         <div className="space-y-3 rounded-lg border border-border p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <Bot className="w-4 h-4" />
@@ -844,7 +921,6 @@ const AutoReplySection = () => {
             <Switch id="ap-in" checked={autopilotInHours} onCheckedChange={setAutopilotInHours} />
           </div>
           
-          {/* Confidence threshold slider */}
           {(autopilotAfterHours || autopilotInHours) && (
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between">
@@ -868,7 +944,6 @@ const AutoReplySection = () => {
 
         <Separator />
 
-        {/* Legacy mode selector */}
         <div className="space-y-2">
           <Label className="text-sm">Modo legacy (compatibilidad)</Label>
           <Select value={mode} onValueChange={(v) => setMode(v as AutoReplyMode)}>
@@ -888,7 +963,6 @@ const AutoReplySection = () => {
           </p>
         </div>
 
-        {/* Business hours panel */}
         {(mode === 'outside_business_hours' || autopilotAfterHours) && (
           <>
             <Separator />
@@ -898,7 +972,6 @@ const AutoReplySection = () => {
                 Definí tu horario de atención. El autopilot fuera de horario funciona FUERA de este horario.
               </p>
 
-              {/* Days checkboxes */}
               <div className="flex flex-wrap gap-2">
                 {DAYS_OF_WEEK.map(({ key, label }) => (
                   <button
@@ -916,7 +989,6 @@ const AutoReplySection = () => {
                 ))}
               </div>
 
-              {/* Time range */}
               <div className="flex items-center gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Desde</Label>
@@ -942,7 +1014,6 @@ const AutoReplySection = () => {
           </>
         )}
 
-        {/* Exclusion rules */}
         {(isActive || autopilotAfterHours || autopilotInHours) && (
           <>
             <Separator />
@@ -1035,7 +1106,6 @@ const TrashSection = () => {
 
   const handleEmptyTrash = async () => {
     if (!companyId) return;
-    // Register all meli_question_ids in blacklist before deleting
     const dismissedRows = items.map(i => ({
       meli_question_id: i.meli_question_id,
       company_id: companyId,
@@ -1144,7 +1214,7 @@ const NOTIF_KEY = 'soporteml_push_enabled';
 const NotificationsSection = () => {
   const { toast } = useToast();
   const [enabled, setEnabled] = useState(() => {
-    return localStorage.getItem(NOTIF_KEY) !== 'false'; // default true
+    return localStorage.getItem(NOTIF_KEY) !== 'false';
   });
   const [permissionState, setPermissionState] = useState<NotificationPermission | 'unsupported'>(
     'Notification' in window ? Notification.permission : 'unsupported'
@@ -1254,7 +1324,6 @@ const BillingSection = () => {
 
   useEffect(() => {
     checkSubscription();
-    // Check on URL param after checkout
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success') {
       setTimeout(checkSubscription, 2000);
@@ -1262,7 +1331,6 @@ const BillingSection = () => {
     }
   }, [checkSubscription]);
 
-  // Auto-refresh every 60s
   useEffect(() => {
     const interval = setInterval(checkSubscription, 60000);
     return () => clearInterval(interval);
@@ -1311,7 +1379,6 @@ const BillingSection = () => {
           </div>
         ) : (
           <>
-            {/* Current status */}
             {isSubscribed ? (
               <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
                 <Crown className="w-4 h-4 text-emerald-600" />
@@ -1337,9 +1404,7 @@ const BillingSection = () => {
               </div>
             )}
 
-            {/* Plan cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Base plan */}
               <div className={`rounded-lg border p-4 space-y-3 ${currentPlan === 'base' ? 'border-primary ring-1 ring-primary/20' : 'border-border'}`}>
                 {currentPlan === 'base' && (
                   <Badge variant="default" className="text-xs">Tu plan actual</Badge>
@@ -1363,7 +1428,6 @@ const BillingSection = () => {
                 )}
               </div>
 
-              {/* Pro plan */}
               <div className="rounded-lg border border-border p-4 space-y-3 opacity-60">
                 <Badge variant="secondary" className="text-xs">Próximamente</Badge>
                 <div>
@@ -1380,7 +1444,6 @@ const BillingSection = () => {
               </div>
             </div>
 
-            {/* Refresh */}
             <Button size="sm" variant="ghost" onClick={checkSubscription} className="text-xs">
               <RefreshCw className="w-3 h-3 mr-1" />Verificar estado
             </Button>
@@ -1405,6 +1468,7 @@ const SettingsPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-4">
             <ProfileSection />
+            <JoinCompanySection />
             <BillingSection />
             <NotificationsSection />
             {isAdmin && <CompanySection />}

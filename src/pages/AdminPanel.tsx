@@ -3,17 +3,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Plus, Copy, Loader2, Mail, Building2, Users, Shield, UserCircle, Search, BarChart3 } from 'lucide-react';
+import { Trash2, Plus, Loader2, Mail, Building2, Users, Shield, UserCircle, Search, BarChart3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import MetricsTab from '@/components/admin/MetricsTab';
 import CompaniesTab from '@/components/admin/CompaniesTab';
+
+const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <Input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="pl-9" />
+  </div>
+);
 
 const useSearch = <T,>(items: T[], keys: (keyof T)[]) => {
   const [query, setQuery] = useState('');
@@ -28,33 +36,12 @@ const useSearch = <T,>(items: T[], keys: (keyof T)[]) => {
   return { query, setQuery, filtered };
 };
 
-const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
-  <div className="relative">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-    <Input
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="pl-9"
-    />
-  </div>
-);
-
 interface Inquiry {
   id: string;
   name: string;
   email: string;
   message: string;
   created_at: string;
-}
-
-interface CompanyRow {
-  id: string;
-  name: string;
-  invite_code: string;
-  created_at: string;
-  member_count: number;
-  has_meli: boolean;
 }
 
 const AdminPanel = () => {
@@ -126,7 +113,6 @@ const InquiriesTab = () => {
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
-
   if (inquiries.length === 0) return <p className="text-muted-foreground text-sm py-8 text-center">No hay consultas recibidas aún.</p>;
 
   return (
@@ -177,90 +163,230 @@ const InquiriesTab = () => {
   );
 };
 
-/* CompaniesTab moved to src/components/admin/CompaniesTab.tsx */
-
-/* ─── Users Tab ─── */
+/* ─── Users Tab (Hito 5: memberships-based) ─── */
 interface AdminUser {
   user_id: string;
   email: string;
   full_name: string | null;
-  company_id: string | null;
-  company_name: string | null;
-  role: string | null;
   created_at: string;
 }
+
+interface UserMembership {
+  user_id: string;
+  company_id: string;
+  company_name: string;
+  role: 'admin' | 'agent';
+}
+
+const MembershipChip = ({
+  membership,
+  isUpdating,
+  onRoleChange,
+  onRemove,
+}: {
+  membership: UserMembership;
+  isUpdating: boolean;
+  onRoleChange: (role: 'admin' | 'agent') => void;
+  onRemove: () => void;
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <button
+        disabled={isUpdating}
+        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors hover:bg-accent cursor-pointer ${
+          membership.role === 'admin'
+            ? 'border-primary/30 bg-primary/5 text-primary'
+            : 'border-border bg-muted text-muted-foreground'
+        }`}
+      >
+        {isUpdating && <Loader2 className="w-3 h-3 animate-spin" />}
+        <span className="font-medium">{membership.company_name}</span>
+        <span className="opacity-60">· {membership.role === 'admin' ? 'Admin' : 'Agente'}</span>
+      </button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="start">
+      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{membership.company_name}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => onRoleChange('admin')} disabled={membership.role === 'admin'}>
+        Hacer Admin
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => onRoleChange('agent')} disabled={membership.role === 'agent'}>
+        Hacer Agente
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={onRemove} className="text-destructive focus:text-destructive">
+        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+        Quitar de empresa
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
+
+const AddMembershipPopover = ({
+  userId,
+  availableCompanies,
+  isUpdating,
+  onAdd,
+}: {
+  userId: string;
+  availableCompanies: { id: string; name: string }[];
+  isUpdating: boolean;
+  onAdd: (userId: string, companyId: string, role: 'admin' | 'agent') => Promise<void>;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [addCompany, setAddCompany] = useState('');
+  const [addRole, setAddRole] = useState<'admin' | 'agent'>('agent');
+
+  const handleAdd = async () => {
+    if (!addCompany) return;
+    await onAdd(userId, addCompany, addRole);
+    setAddCompany('');
+    setAddRole('agent');
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+          disabled={availableCompanies.length === 0}
+          title={availableCompanies.length === 0 ? 'Ya pertenece a todas las empresas' : 'Agregar a empresa'}
+        >
+          <Plus className="w-3 h-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 space-y-3">
+        <p className="text-sm font-medium">Agregar a empresa</p>
+        <Select value={addCompany} onValueChange={setAddCompany}>
+          <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+          <SelectContent>
+            {availableCompanies.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={addRole} onValueChange={(v) => setAddRole(v as 'admin' | 'agent')}>
+          <SelectTrigger className="text-xs h-8"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="agent">Agente</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="w-full text-xs" onClick={handleAdd} disabled={!addCompany || isUpdating}>
+          {isUpdating ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+          Agregar
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const UsersTab = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [membershipsByUser, setMembershipsByUser] = useState<Map<string, UserMembership[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
-  const [updatingCompany, setUpdatingCompany] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
 
   const fetchData = async () => {
-    const [usersRes, companiesRes] = await Promise.all([
+    const [usersRes, companiesRes, membershipsRes] = await Promise.all([
       supabase.rpc('get_admin_users'),
       supabase.from('companies').select('id, name').order('name'),
+      supabase.from('memberships').select('user_id, company_id, role').eq('status', 'active'),
     ]);
-    if (usersRes.error) {
-      console.error('Error fetching users:', usersRes.error);
-      toast({ title: 'Error', description: usersRes.error.message, variant: 'destructive' });
-    }
-    setUsers((usersRes.data as AdminUser[]) ?? []);
-    setCompanies(companiesRes.data ?? []);
+
+    const companiesData = companiesRes.data ?? [];
+    setCompanies(companiesData);
+
+    const companyMap = new Map(companiesData.map((c: any) => [c.id, c.name]));
+    const memMap = new Map<string, UserMembership[]>();
+    ((membershipsRes.data ?? []) as any[]).forEach((m: any) => {
+      const list = memMap.get(m.user_id) ?? [];
+      list.push({
+        user_id: m.user_id,
+        company_id: m.company_id,
+        company_name: (companyMap.get(m.company_id) as string) ?? '?',
+        role: m.role,
+      });
+      memMap.set(m.user_id, list);
+    });
+    setMembershipsByUser(memMap);
+
+    setUsers(((usersRes.data ?? []) as any[]).map((u: any) => ({
+      user_id: u.user_id,
+      email: u.email,
+      full_name: u.full_name,
+      created_at: u.created_at,
+    })));
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    setUpdatingRole(userId);
-    if (newRole === 'none') {
-      const { error } = await supabase.from('user_roles').delete().eq('user_id', userId);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      } else {
-        setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: null } : u));
-        toast({ title: 'Rol removido' });
-      }
-    } else {
-      const currentUser = users.find(u => u.user_id === userId);
-      if (currentUser?.role) {
-        const { error } = await supabase.from('user_roles').update({ role: newRole as 'admin' | 'agent' }).eq('user_id', userId);
-        if (error) {
-          toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } else {
-          setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: newRole } : u));
-          toast({ title: 'Rol actualizado' });
-        }
-      } else {
-        const { error } = await supabase.from('user_roles').insert({ user_id: userId, role: newRole as 'admin' | 'agent' });
-        if (error) {
-          toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } else {
-          setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, role: newRole } : u));
-          toast({ title: 'Rol asignado' });
-        }
-      }
-    }
-    setUpdatingRole(null);
-  };
-
-  const handleCompanyChange = async (userId: string, companyId: string) => {
-    setUpdatingCompany(userId);
-    const newCompanyId = companyId === 'none' ? null : companyId;
-    const { error } = await supabase.from('profiles').update({ company_id: newCompanyId }).eq('id', userId);
+  const handleRoleChange = async (userId: string, companyId: string, newRole: 'admin' | 'agent') => {
+    const key = `${userId}-${companyId}`;
+    setUpdating(key);
+    const { error } = await supabase.rpc('update_membership_role' as any, {
+      _user_id: userId, _company_id: companyId, _new_role: newRole,
+    });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      const companyName = companies.find(c => c.id === companyId)?.name ?? null;
-      setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, company_id: newCompanyId, company_name: newCompanyId ? companyName : null } : u));
-      toast({ title: newCompanyId ? 'Company asignada' : 'Company removida' });
+      setMembershipsByUser(prev => {
+        const next = new Map(prev);
+        const mems = next.get(userId) ?? [];
+        next.set(userId, mems.map(m => m.company_id === companyId ? { ...m, role: newRole } : m));
+        return next;
+      });
+      toast({ title: 'Rol actualizado' });
     }
-    setUpdatingCompany(null);
+    setUpdating(null);
   };
 
-  const { query: userQuery, setQuery: setUserQuery, filtered: filteredUsers } = useSearch(users, ['email', 'full_name', 'company_name', 'role'] as (keyof AdminUser)[]);
+  const handleRemoveMembership = async (userId: string, companyId: string) => {
+    const key = `${userId}-${companyId}`;
+    setUpdating(key);
+    const { error } = await supabase.rpc('remove_company_membership' as any, {
+      _user_id: userId, _company_id: companyId,
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setMembershipsByUser(prev => {
+        const next = new Map(prev);
+        next.set(userId, (next.get(userId) ?? []).filter(m => m.company_id !== companyId));
+        return next;
+      });
+      toast({ title: 'Membresía eliminada' });
+    }
+    setUpdating(null);
+  };
+
+  const handleAddMembership = async (userId: string, companyId: string, role: 'admin' | 'agent') => {
+    const key = `${userId}-add`;
+    setUpdating(key);
+    const { error } = await supabase.rpc('add_company_membership' as any, {
+      _user_id: userId, _company_id: companyId, _role: role,
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      const companyName = companies.find(c => c.id === companyId)?.name ?? '?';
+      setMembershipsByUser(prev => {
+        const next = new Map(prev);
+        const mems = next.get(userId) ?? [];
+        if (!mems.some(m => m.company_id === companyId)) {
+          next.set(userId, [...mems, { user_id: userId, company_id: companyId, company_name: companyName, role }]);
+        }
+        return next;
+      });
+      toast({ title: 'Membresía agregada' });
+    }
+    setUpdating(null);
+  };
+
+  const { query: userQuery, setQuery: setUserQuery, filtered: filteredUsers } = useSearch(users, ['email', 'full_name'] as (keyof AdminUser)[]);
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 
@@ -272,79 +398,62 @@ const UsersTab = () => {
             <CardTitle className="text-lg">Usuarios registrados</CardTitle>
             <CardDescription>{filteredUsers.length} de {users.length} usuario{users.length !== 1 ? 's' : ''}</CardDescription>
           </div>
-          {users.length > 0 && <SearchInput value={userQuery} onChange={setUserQuery} placeholder="Buscar por nombre, email, company..." />}
+          {users.length > 0 && <SearchInput value={userQuery} onChange={setUserQuery} placeholder="Buscar por nombre o email..." />}
         </div>
       </CardHeader>
       <CardContent>
         {users.length === 0 ? (
           <p className="text-muted-foreground text-sm text-center py-4">No hay usuarios registrados aún.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="hidden md:table-cell">Company</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Registro</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.map(u => (
-                <TableRow key={u.user_id}>
-                  <TableCell className="font-medium">{u.full_name ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Select
-                      value={u.company_id ?? 'none'}
-                      onValueChange={val => handleCompanyChange(u.user_id, val)}
-                      disabled={updatingCompany === u.user_id}
-                    >
-                      <SelectTrigger className="w-36 h-8 text-xs">
-                        {updatingCompany === u.user_id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <SelectValue />
+          <div className="space-y-2">
+            {filteredUsers.map(u => {
+              const memberships = membershipsByUser.get(u.user_id) ?? [];
+              const availableCompanies = companies.filter(c => !memberships.some(m => m.company_id === c.id));
+              const isMulti = memberships.length > 1;
+
+              return (
+                <div key={u.user_id} className="border border-border rounded-lg p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {u.full_name ?? '—'}
+                        {isMulti && (
+                          <Badge variant="outline" className="ml-2 text-[10px] border-primary/30 text-primary">Multi-company</Badge>
                         )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sin company</SelectItem>
-                        {companies.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={u.role ?? 'none'}
-                      onValueChange={val => handleRoleChange(u.user_id, val)}
-                      disabled={updatingRole === u.user_id}
-                    >
-                      <SelectTrigger className="w-28 h-8 text-xs">
-                        {updatingRole === u.user_id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <SelectValue />
-                        )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="agent">Agent</SelectItem>
-                        <SelectItem value="none">Sin rol</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                    {new Date(u.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredUsers.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sin resultados para "{userQuery}"</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/50 whitespace-nowrap shrink-0">
+                      {new Date(u.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {memberships.length === 0 && (
+                      <span className="text-[11px] text-muted-foreground/50">Sin empresas</span>
+                    )}
+                    {memberships.map(m => (
+                      <MembershipChip
+                        key={m.company_id}
+                        membership={m}
+                        isUpdating={updating === `${u.user_id}-${m.company_id}`}
+                        onRoleChange={(role) => handleRoleChange(u.user_id, m.company_id, role)}
+                        onRemove={() => handleRemoveMembership(u.user_id, m.company_id)}
+                      />
+                    ))}
+                    <AddMembershipPopover
+                      userId={u.user_id}
+                      availableCompanies={availableCompanies}
+                      isUpdating={updating === `${u.user_id}-add`}
+                      onAdd={handleAddMembership}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            {filteredUsers.length === 0 && (
+              <p className="text-center text-muted-foreground py-6">Sin resultados para "{userQuery}"</p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
