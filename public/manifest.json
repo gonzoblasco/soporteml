@@ -1,0 +1,21 @@
+{
+  "name": "SoporteML — Dashboard de Soporte",
+  "short_name": "SoporteML",
+  "description": "Panel de soporte para responder preguntas de Mercado Libre",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#d4a017",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
