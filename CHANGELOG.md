@@ -6,7 +6,34 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
-## [1.6.0] — 2026-03-08
+## [1.8.0] — 2026-03-09
+
+### 🏢 Multi-Company — Hito 4: Company Switcher UI
+
+#### Añadido
+
+- **`CompanySwitcher` component** (`src/components/CompanySwitcher.tsx`) — selector de empresa activa con tres modos:
+  - **Sin memberships**: indicador vacío con texto "Sin empresa asignada".
+  - **Una sola empresa**: badge compacto con ícono y nombre (sin dropdown, sin overhead UX innecesario).
+  - **Múltiples empresas**: dropdown usable con checkmark en la empresa activa, label "Cambiar empresa activa" y listado de todas las companies del usuario.
+- **Integración en `AppSidebar`** — el switcher aparece debajo del header de marca, visible en modo expandido y colapsado. En modo colapsado muestra solo el ícono de building con tooltip del nombre.
+- **Persistencia automática** — usa la lógica de `setCurrentCompanyId()` del hito anterior que persiste en `localStorage`.
+
+#### Cambiado
+
+- **`AppSidebar.tsx`** — conteos de Priority/Inbox ahora filtran por `currentCompanyId` explícitamente (no solo por RLS) y el canal realtime se recrea al cambiar de empresa.
+- **`Home.tsx`** — todas las queries del dashboard (preguntas, actividad reciente, estado de token MeLi) ahora filtran por `currentCompanyId` y el `useEffect` tiene `currentCompanyId` en sus deps. Al cambiar de empresa el dashboard se refresca completamente.
+- **Toast de preguntas urgentes** — se resetea al cambiar de empresa para mostrar la alerta nuevamente si la nueva empresa tiene preguntas prioritarias.
+
+#### Comportamiento garantizado
+
+- **Un único tenant activo por vez** — nunca se mezclan datos entre compañías.
+- **Todas las pantallas principales reaccionan** al cambiar `currentCompanyId`: Dashboard, Inbox, Priority, Settings, Catálogo, Plantillas.
+- **Seguridad**: el switcher solo muestra empresas que pertenecen al usuario (filtradas desde `memberships` en `AuthContext`).
+
+---
+
+## [1.7.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Hito 2: Compañía Activa en Frontend
 

@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { NotificationBell } from '@/components/NotificationBell';
+import { CompanySwitcher } from '@/components/CompanySwitcher';
 
 const navItems = [
   { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
@@ -31,7 +32,7 @@ export const SidebarContext = createContext({ collapsed: false });
 export const useSidebarCollapsed = () => useContext(SidebarContext);
 
 const AppSidebar = () => {
-  const { logout, user, profileName } = useAuth();
+  const { logout, user, profileName, currentCompanyId } = useAuth();
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -51,9 +52,10 @@ const AppSidebar = () => {
 
   useEffect(() => {
     const fetchCounts = async () => {
+      if (!currentCompanyId) { setPriorityCount(0); setInboxCount(0); return; }
       const [priorityRes, inboxRes] = await Promise.all([
-        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('requires_human', true).eq('status', 'pending'),
-        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('requires_human', false),
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('requires_human', true).eq('status', 'pending'),
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('status', 'pending').eq('requires_human', false),
       ]);
       setPriorityCount(priorityRes.count ?? 0);
       setInboxCount(inboxRes.count ?? 0);
@@ -61,14 +63,14 @@ const AppSidebar = () => {
     fetchCounts();
 
     const channel = supabase
-      .channel('priority-count')
+      .channel(`sidebar-counts-${currentCompanyId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => {
         fetchCounts();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [currentCompanyId]);
 
   const NavItem = ({ item }: { item: typeof navItems[0] }) => {
     const count = item.badgeKey === 'priority' ? priorityCount : item.badgeKey === 'inbox' ? inboxCount : 0;
@@ -129,6 +131,11 @@ const AppSidebar = () => {
             <X className="w-4 h-4" />
           </Button>
         )}
+      </div>
+
+      {/* Company Switcher */}
+      <div className={`border-b border-sidebar-border ${collapsed && !isMobile ? 'px-1 py-1' : 'px-2 py-1'}`}>
+        <CompanySwitcher collapsed={collapsed && !isMobile} />
       </div>
 
       {/* Nav */}
