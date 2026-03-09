@@ -1089,10 +1089,10 @@ const TrashSection = () => {
 
   const handlePermanentDelete = async (id: string) => {
     const item = items.find(i => i.id === id);
-    if (item && companyId) {
+    if (item && currentCompanyId) {
       await supabase.from('dismissed_meli_questions' as any).insert({
         meli_question_id: item.meli_question_id,
-        company_id: companyId,
+        company_id: currentCompanyId,
       });
     }
     const { error } = await supabase.from('questions').delete().eq('id', id);
