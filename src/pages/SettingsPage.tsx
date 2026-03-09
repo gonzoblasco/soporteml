@@ -164,7 +164,7 @@ const JoinCompanySection = () => {
 
 // ─── Company Section ───
 const CompanySection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [companyName, setCompanyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -173,15 +173,15 @@ const CompanySection = () => {
   const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
-    supabase.from('companies').select('name, invite_code').eq('id', companyId).single().then(({ data }) => {
+    if (!currentCompanyId) { setLoading(false); return; }
+    supabase.from('companies').select('name, invite_code').eq('id', currentCompanyId).single().then(({ data }) => {
       if (data) {
         setCompanyName(data.name);
         setInviteCode((data as any).invite_code ?? '');
       }
       setLoading(false);
     });
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleSave = async () => {
     if (!companyId || !companyName.trim()) return;
