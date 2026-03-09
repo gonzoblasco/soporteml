@@ -19,6 +19,7 @@ const PriorityInbox = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const isMobile = useIsMobile();
+  const { currentCompanyId } = useAuth();
 
   const fetchQuestions = useCallback(async () => {
     if (!currentCompanyId) { setLoading(false); return; }

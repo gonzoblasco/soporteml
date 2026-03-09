@@ -33,12 +33,15 @@ const Inbox = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const isMobile = useIsMobile();
+  const { currentCompanyId } = useAuth();
 
   const fetchQuestions = useCallback(async () => {
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     let query = supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
+      .eq('company_id', currentCompanyId)
       .eq('status', statusFilter)
       .order('created_at', { ascending: false });
 
