@@ -491,7 +491,7 @@ const MeliConnectionSection = () => {
             <p className="text-sm text-muted-foreground">
               Al conectar tu cuenta, las preguntas de tus publicaciones se importarán automáticamente con respuestas sugeridas por IA.
             </p>
-            {!companyId ? (
+            {!currentCompanyId ? (
               <p className="text-sm text-destructive">Tu cuenta no tiene una empresa asociada. Contactá al administrador.</p>
             ) : (
               <Button size="sm" onClick={handleConnect}>
