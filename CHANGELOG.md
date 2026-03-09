@@ -6,6 +6,27 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [2.0.1] — 2026-03-09
+
+### 🌐 Landing page — Reescritura comercial
+
+#### Cambiado
+
+- **Hero** — nuevo título enfocado en el pain point real ("respondé en segundos, no en horas"). CTA corregido de "Empezar gratis" (inconsistente con pricing) a "Probar SoporteML".
+- **Trust badges** — nueva fila bajo el hero con indicadores de confianza: conexión oficial, multi-usuario, métricas en tiempo real.
+- **Stats** — reemplazado "50+ vendedores" por "80% ahorro de tiempo", dato más comunicable.
+- **Sección "Para quién es"** — nueva sección que segmenta explícitamente: vendedores de alto volumen, equipos de atención, y agencias/operadores.
+- **Features** — ampliado de 6 a 8 features (agrega: Equipos y roles, Multi-empresa, Catálogo inteligente). Incorpora tags de categoría por feature.
+- **MockupTabs** — añadida nueva pestaña "Equipo" que muestra el sistema de roles, estados online/offline y código de invitación. Pestaña analytics incorpora métrica de Autopilot y empresa activa.
+- **Sección Autopilot** — nueva sección destacada que explica y muestra visualmente el autopilot con guardrails.
+- **Sección "¿Por qué SoporteML?"** — nueva sección de diferenciadores: especialización en MeLi, IA con contexto de producto, control total, multi-tenant real.
+- **FAQ** — nueva sección con 4 preguntas frecuentes clave (cuentas MeLi, capacidades IA, usuarios, cancelación).
+- **Pricing** — plan Base ahora con badge "Recomendado"; plan Pro sin badge de primary (era confuso). CTA de Pro cambiado a "Reservar acceso".
+- **Navbar** — agrega botón "Empezar" junto a "Ingresar" para mejorar conversión. Enlace FAQ en menú.
+- **Footer** — actualizado con logo y enlace a FAQ.
+
+---
+
 ## [2.0.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Cierre del Epic (Hitos 1-6)
