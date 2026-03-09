@@ -52,9 +52,10 @@ const AppSidebar = () => {
 
   useEffect(() => {
     const fetchCounts = async () => {
+      if (!currentCompanyId) { setPriorityCount(0); setInboxCount(0); return; }
       const [priorityRes, inboxRes] = await Promise.all([
-        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('requires_human', true).eq('status', 'pending'),
-        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('status', 'pending').eq('requires_human', false),
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('requires_human', true).eq('status', 'pending'),
+        supabase.from('questions').select('*', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('status', 'pending').eq('requires_human', false),
       ]);
       setPriorityCount(priorityRes.count ?? 0);
       setInboxCount(inboxRes.count ?? 0);
@@ -62,14 +63,14 @@ const AppSidebar = () => {
     fetchCounts();
 
     const channel = supabase
-      .channel('priority-count')
+      .channel(`sidebar-counts-${currentCompanyId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, () => {
         fetchCounts();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [currentCompanyId]);
 
   const NavItem = ({ item }: { item: typeof navItems[0] }) => {
     const count = item.badgeKey === 'priority' ? priorityCount : item.badgeKey === 'inbox' ? inboxCount : 0;
