@@ -290,18 +290,18 @@ const MeliConnectionSection = () => {
   const [savingInterval, setSavingInterval] = useState(false);
 
   const fetchStatus = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const [tokenRes, settingsRes] = await Promise.all([
-      supabase.from('meli_connection_status').select('meli_user_id, updated_at, expires_at, has_refresh_token').eq('company_id', companyId).maybeSingle(),
-      supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', companyId).maybeSingle(),
+      supabase.from('meli_connection_status').select('meli_user_id, updated_at, expires_at, has_refresh_token').eq('company_id', currentCompanyId).maybeSingle(),
+      supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', currentCompanyId).maybeSingle(),
     ]);
     setTokenInfo(tokenRes.data ?? null);
     if (settingsRes.data?.sync_interval_minutes) {
       setSyncInterval(settingsRes.data.sync_interval_minutes);
     }
     setLoading(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
