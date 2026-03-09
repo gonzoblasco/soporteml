@@ -21,10 +21,12 @@ const PriorityInbox = () => {
   const isMobile = useIsMobile();
 
   const fetchQuestions = useCallback(async () => {
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
+      .eq('company_id', currentCompanyId)
       .eq('requires_human', true)
       .in('status', ['pending', 'needs_human'])
       .order('created_at', { ascending: false });
