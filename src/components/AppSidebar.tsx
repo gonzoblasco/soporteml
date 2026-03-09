@@ -32,7 +32,7 @@ export const SidebarContext = createContext({ collapsed: false });
 export const useSidebarCollapsed = () => useContext(SidebarContext);
 
 const AppSidebar = () => {
-  const { logout, user, profileName } = useAuth();
+  const { logout, user, profileName, currentCompanyId } = useAuth();
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
