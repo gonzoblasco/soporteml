@@ -281,7 +281,7 @@ const SyncButton = () => {
 
 // ─── MeLi Connection Section ───
 const MeliConnectionSection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string; expires_at: string; has_refresh_token: boolean } | null>(null);
