@@ -507,7 +507,7 @@ const MeliConnectionSection = () => {
 
 // ─── Team Section (Hito 5: membership-based) ───
 const TeamSection = () => {
-  const { companyId, user } = useAuth();
+  const { currentCompanyId, user } = useAuth();
   const { toast } = useToast();
   const [members, setMembers] = useState<Array<{ user_id: string; full_name: string; role: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -516,12 +516,12 @@ const TeamSection = () => {
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
       const [membersRes, companyRes] = await Promise.all([
-        supabase.rpc('get_company_members' as any, { _company_id: companyId }),
-        supabase.from('companies').select('invite_code').eq('id', companyId).single(),
+        supabase.rpc('get_company_members' as any, { _company_id: currentCompanyId }),
+        supabase.from('companies').select('invite_code').eq('id', currentCompanyId).single(),
       ]);
 
       if (companyRes.data) setInviteCode((companyRes.data as any).invite_code ?? '');
@@ -533,7 +533,7 @@ const TeamSection = () => {
       })));
       setLoading(false);
     })();
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.rpc('update_membership_role' as any, {
