@@ -21,14 +21,14 @@ const TemplatePicker = ({ onSelect, variables = {} }: Props) => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!companyId || !open) return;
+    if (!currentCompanyId || !open) return;
     supabase
       .from('templates')
       .select('id, title, category, content')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .order('updated_at', { ascending: false })
       .then(({ data }) => setTemplates(data ?? []));
-  }, [companyId, open]);
+  }, [currentCompanyId, open]);
 
   const applyVariables = (text: string) => {
     let result = text;

@@ -1105,10 +1105,10 @@ const TrashSection = () => {
   };
 
   const handleEmptyTrash = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     const dismissedRows = items.map(i => ({
       meli_question_id: i.meli_question_id,
-      company_id: companyId,
+      company_id: currentCompanyId,
     }));
     await supabase.from('dismissed_meli_questions' as any).upsert(dismissedRows, { onConflict: 'meli_question_id,company_id' });
 

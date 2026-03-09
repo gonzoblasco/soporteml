@@ -53,11 +53,11 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
     // Fetch AI settings for tone/instructions
     let aiTone = 'profesional';
     let aiCustomInstructions: string | null = null;
-    if (companyId) {
+    if (currentCompanyId) {
       const { data: settings } = await supabase
         .from('company_settings')
         .select('ai_tone, ai_custom_instructions')
-        .eq('company_id', companyId)
+        .eq('company_id', currentCompanyId)
         .maybeSingle();
       if (settings) {
         aiTone = settings.ai_tone;
