@@ -686,7 +686,7 @@ const TeamSection = () => {
 
 // ─── AI Config Section ───
 const AiConfigSection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [aiTone, setAiTone] = useState('profesional');
   const [aiInstructions, setAiInstructions] = useState('');
