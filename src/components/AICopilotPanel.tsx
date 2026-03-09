@@ -35,7 +35,7 @@ const TONE_OPTIONS = [
 type ToneValue = typeof TONE_OPTIONS[number]['value'];
 
 const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
