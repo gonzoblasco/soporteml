@@ -133,6 +133,11 @@ const AppSidebar = () => {
         )}
       </div>
 
+      {/* Company Switcher */}
+      <div className={`border-b border-sidebar-border ${collapsed && !isMobile ? 'px-1 py-1' : 'px-2 py-1'}`}>
+        <CompanySwitcher collapsed={collapsed && !isMobile} />
+      </div>
+
       {/* Nav */}
       <TooltipProvider delayDuration={0}>
         <nav className="flex-1 py-3 px-3 space-y-0.5">
