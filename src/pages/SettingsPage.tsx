@@ -538,7 +538,7 @@ const TeamSection = () => {
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.rpc('update_membership_role' as any, {
       _user_id: userId,
-      _company_id: companyId,
+      _company_id: currentCompanyId,
       _new_role: newRole,
     });
     if (error) {
@@ -557,7 +557,7 @@ const TeamSection = () => {
     setRemovingId(userId);
     const { error } = await supabase.rpc('remove_company_membership' as any, {
       _user_id: userId,
-      _company_id: companyId,
+      _company_id: currentCompanyId,
     });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
