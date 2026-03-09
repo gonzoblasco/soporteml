@@ -14,6 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
 
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 type StatusFilter = 'pending' | 'published' | 'archived' | 'auto_published' | 'needs_human';
 
