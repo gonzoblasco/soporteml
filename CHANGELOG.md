@@ -6,7 +6,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
-## [2.0.1] — 2026-03-09
+## [1.0.1] — 2026-03-09
 
 ### 🌐 Landing page — Reescritura comercial
 
@@ -27,7 +27,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
-## [2.0.0] — 2026-03-09
+## [1.0.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Cierre del Epic (Hitos 1-6)
 
@@ -37,7 +37,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Backend migrado a memberships** — funciones admin (`get_admin_users`, `get_admin_company_metrics`) ahora leen desde `memberships` en vez de `profiles.company_id`.
   - `get_admin_users()`: devuelve campo `memberships` (JSONB array) con todas las companies del usuario, manteniendo `company_id` y `role` legacy para compatibilidad.
   - `get_admin_company_metrics()`: cuenta miembros usando `COUNT(DISTINCT user_id)` desde `memberships` activas, corrigiendo conteo para usuarios multi-company.
-- **`companyId` oficialmente deprecated** — alias legacy en `AuthContext` será removido en v2.1.0.
+- **`companyId` oficialmente deprecated** — alias legacy en `AuthContext` será removido en v1.1.0.
 
 #### Epic completado
 
@@ -52,7 +52,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.9.0] — 2026-03-09
+## [0.9.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Hito 5: Admin & Invites
 
@@ -71,7 +71,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.8.0] — 2026-03-09
+## [0.8.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Hito 4: Company Switcher UI
 
@@ -98,7 +98,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.7.0] — 2026-03-09
+## [0.7.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Hito 2: Compañía Activa en Frontend
 
@@ -123,7 +123,32 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.5.0] — 2026-03-08
+## [0.6.0] — 2026-03-09
+
+### 🔒 Multi-Company — Hito 3: Backend de Seguridad — Memberships como Fuente de Verdad
+
+#### Cambiado
+
+- **`get_user_company_id()`** ahora lee de `memberships` con fallback a `profiles.company_id` — para usuarios con 1 company el comportamiento es idéntico.
+- **4 Edge Functions migradas** (`ai-copilot`, `enrich-product`, `detect-duplicates`, `meli-item-proxy`): ya no leen `profiles.company_id` directamente. Usan `rpc("get_user_company_id")` que lee de memberships con fallback. Error 403 "No active membership found" si no hay membership activa.
+- **`Inbox.tsx` y `PriorityInbox.tsx`**: filtran explícitamente por `currentCompanyId` del `AuthContext`, garantizando aislamiento de tenant cuando un usuario tenga múltiples memberships.
+- **RLS en 11 tablas** migradas a `user_belongs_to_company()` + `has_membership_role()`: `companies`, `company_settings`, `questions`, `products`, `product_variants`, `templates`, `audit_logs`, `events`, `dismissed_meli_questions`, `meli_tokens`, `profiles`.
+
+#### Añadido
+
+- **Nueva función SQL `get_user_company_ids()`** — retorna todas las companies activas del usuario.
+- **Nueva función SQL `has_membership_role()`** — verifica rol por company via memberships.
+- **`handle_new_user()` actualizado** — genera membership al dar de alta un usuario (empresa nueva o por invite code), cerrando el gap donde usuarios quedaban sin membership.
+
+#### Notas de compatibilidad
+
+- `profiles.company_id` no se toca ni elimina.
+- `has_role()` se mantiene solo para `user_roles` (tabla legacy sin `company_id`, documentado).
+- No se habilita trabajo cross-company simultáneo todavía.
+
+---
+
+## [0.5.0] — 2026-03-08
 
 ### 🔧 Base Multi-Company — Hito 1
 
@@ -140,12 +165,12 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.4.4] — 2026-03-08
+## [0.4.4] — 2026-03-08
 
 ### Cambiado
 - Onboarding solo se muestra para admins nuevos en su empresa (primera vez). Super Admin lo saltea automáticamente.
 
-## [1.4.3] — 2026-03-08
+## [0.4.3] — 2026-03-08
 
 ### ✨ Mejoras
 
@@ -153,7 +178,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.4.2] — 2026-03-08
+## [0.4.2] — 2026-03-08
 
 ### ✨ Mejoras
 
@@ -161,7 +186,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.4.1] — 2026-03-07
+## [0.4.1] — 2026-03-07
 
 ### 🔒 Auditoría Multi-Tenant & Fix de Seguridad
 
@@ -179,7 +204,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.4.0] — 2026-03-06
+## [0.4.0] — 2026-03-06
 
 ### 🤖 Mega-Cambio: Autopilot con Guardrails + Base Firme
 
@@ -208,33 +233,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.7.0] — 2026-03-09
-
-### 🔒 Hito 3: Backend de Seguridad — Memberships como Fuente de Verdad
-
-#### Cambiado
-
-- **`get_user_company_id()`** ahora lee de `memberships` con fallback a `profiles.company_id` — para usuarios con 1 company el comportamiento es idéntico.
-- **4 Edge Functions migradas** (`ai-copilot`, `enrich-product`, `detect-duplicates`, `meli-item-proxy`): ya no leen `profiles.company_id` directamente. Usan `rpc("get_user_company_id")` que lee de memberships con fallback. Error 403 "No active membership found" si no hay membership activa.
-- **`Inbox.tsx` y `PriorityInbox.tsx`**: filtran explícitamente por `currentCompanyId` del `AuthContext`, garantizando aislamiento de tenant cuando un usuario tenga múltiples memberships.
-- **RLS en 11 tablas** migradas a `user_belongs_to_company()` + `has_membership_role()`: `companies`, `company_settings`, `questions`, `products`, `product_variants`, `templates`, `audit_logs`, `events`, `dismissed_meli_questions`, `meli_tokens`, `profiles`.
-
-#### Añadido
-
-- **Nueva función SQL `get_user_company_ids()`** — retorna todas las companies activas del usuario.
-- **Nueva función SQL `has_membership_role()`** — verifica rol por company via memberships.
-- **`handle_new_user()` actualizado** — genera membership al dar de alta un usuario (empresa nueva o por invite code), cerrando el gap donde usuarios quedaban sin membership.
-
-#### Notas de compatibilidad
-
-- `profiles.company_id` no se toca ni elimina.
-- `has_role()` se mantiene solo para `user_roles` (tabla legacy sin `company_id`, documentado).
-- No se habilita trabajo cross-company simultáneo todavía.
-
----
-
-
-## [1.3.0] — 2026-03-05
+## [0.3.0] — 2026-03-05
 
 ### 🔔 Epic 5 — Notificaciones & Engagement
 
@@ -252,7 +251,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.2.0] — 2026-03-05
+## [0.2.0] — 2026-03-05
 
 ### ✨ Epic 6 — Polish UX & Mobile
 
@@ -273,7 +272,7 @@ El sistema multi-company está cerrado y operativo con:
 
 ---
 
-## [1.1.0] — 2026-02-26
+## [0.1.0] — 2026-02-26
 
 ### 🎨 Rediseño Visual — Estética MockupTabs
 
@@ -311,11 +310,11 @@ Tres fases de mejora visual para unificar la estética del preview (MockupTabs) 
 
 ---
 
-## [1.0.0] — 2026-02-24
+## [0.0.1] — 2026-02-24
 
 ### 🎉 Release Inicial
 
-Primera versión pública de SoporteML — plataforma de gestión de consultas con IA para vendedores de Mercado Libre.
+Primera versión de SoporteML — plataforma de gestión de consultas con IA para vendedores de Mercado Libre.
 
 ### Añadido
 
