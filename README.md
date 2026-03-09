@@ -161,7 +161,7 @@ Incluye RLS + políticas/controles para mantener los datos aislados por empresa.
 
 ## ✅ Estado del release
 
-- v1.1 consolida estabilidad (OAuth/refresh), hardening de seguridad y una base de conocimiento (Catálogo CRM) para mejorar respuestas con IA.
+- v1.0 es la primera versión comercial de SoporteML: multi-company, autopilot con guardrails, catálogo CRM, panel admin y landing page comercial.
 - Próximos pasos típicos: QA end-to-end, re-scan de seguridad y mejoras de UX/estabilidad.
 
 ---
