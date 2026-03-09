@@ -1,156 +1,212 @@
 
 
-## Mega-Cambio: Autopilot con Guardrails + Base Firme
+# Plan de Cierre: Epic Multi-Company v2.0
 
-Dos bloques ejecutados como un único cambio coordinado.
+## Verificación de pendientes
 
----
+Confirmados **3 archivos/funciones** con uso residual del modelo legacy:
 
-### Bloque A — Base Firme (5 fixes)
+### Frontend
+- **`TemplatePicker.tsx`** (línea 18): usa `companyId` del contexto
+- **`AICopilotPanel.tsx`** (línea 38): usa `companyId` del contexto  
+- **`SettingsPage.tsx`** (líneas 689, 1053): 2 secciones internas (`AiConfigSection`, `TrashSection`) usan `companyId`
 
-**A1. Feature flags por empresa**
+### Backend
+- **`get_admin_users()`**: query `profiles.company_id` en vez de `memberships`
+- **`get_admin_company_metrics()`**: cuenta miembros usando `profiles.company_id` en vez de `memberships`
 
-Agregar columnas a `company_settings`:
-```sql
-features_ai_suggestions boolean DEFAULT true,
-features_autopilot_after_hours boolean DEFAULT false,
-features_autopilot_in_hours boolean DEFAULT false,
-autopilot_confidence_threshold numeric DEFAULT 0.85
-```
-El sync y la UI respetan estos flags antes de actuar.
+### Documentación
+- **CHANGELOG.md**: versión 1.9.0 está vacía (línea 39), debería fusionarse o completarse
 
-**A2. Tabla `events` (append-only audit trail)**
+## Tareas de cierre
 
-```sql
-CREATE TABLE public.events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  type text NOT NULL,  -- SYNC_STARTED, SYNC_DONE, AI_DECISION, AUTO_REPLY_SENT, ERROR, ...
-  entity_type text,    -- question, product, token
-  entity_id text,
-  payload jsonb DEFAULT '{}',
-  created_at timestamptz DEFAULT now()
-);
--- RLS: SELECT for company members, INSERT only via service role
-```
+### 1. Migración de componentes frontend (3 archivos)
 
-Integrar en `sync-meli-questions`: log SYNC_STARTED, SYNC_DONE, AI_DECISION (con confidence + action), AUTO_REPLY_SENT, ERROR.
+**TemplatePicker.tsx**
+```tsx
+// Línea 18: reemplazar
+const { companyId } = useAuth();
+// por
+const { currentCompanyId } = useAuth();
 
-**A3. Metadata ML completa en `questions`**
-
-```sql
-ALTER TABLE questions ADD COLUMN IF NOT EXISTS
-  ai_confidence numeric,
-  answered_by_ai boolean DEFAULT false,
-  ai_decision_reason text,
-  auto_action text DEFAULT 'none',  -- none | suggest | auto_reply
-  meli_status text,
-  meli_permalink text;
+// Línea 24, 28, 31: reemplazar todas las referencias
+companyId → currentCompanyId
 ```
 
-`requires_human` y `requires_human_reason` ya existen. `auto_action` registra qué decidió el sistema.
+**AICopilotPanel.tsx**
+```tsx
+// Línea 38: reemplazar
+const { companyId } = useAuth();
+// por
+const { currentCompanyId } = useAuth();
 
-**A4. Seguridad — validación de no filtrado de service role**
-
-Auditar que ninguna Edge Function devuelve tokens o service role keys al frontend. Esto ya está cubierto por la vista `meli_connection_status`, pero se refuerza revisando `debug-meli` (solo super admin) y asegurando que `notify` no expone datos sensibles.
-
-**A5. Health checks livianos**
-
-Nueva Edge Function `health-check` que:
-- Verifica conectividad DB (SELECT 1)
-- Verifica que la función responde
-- Devuelve status + timestamp
-
-Registrar en `config.toml`.
-
----
-
-### Bloque B — Autopilot Controlado (4 piezas)
-
-**B1. State machine de preguntas**
-
-Expandir los estados válidos del trigger `validate_question_status`:
-```
-pending → published | archived | queued_auto
-queued_auto → auto_published | needs_human | error
+// Todas las referencias subsiguientes (verificar líneas 62, 74, etc.)
+companyId → currentCompanyId
 ```
 
-Nuevos estados: `queued_auto`, `auto_published`, `needs_human`.
+**SettingsPage.tsx**
+```tsx
+// Línea 689 (AiConfigSection): reemplazar
+const { companyId } = useAuth();
+// por
+const { currentCompanyId } = useAuth();
 
-**B2. Motor de decisión en `sync-meli-questions`**
+// Línea 1053 (TrashSection): reemplazar
+const { companyId } = useAuth();
+// por
+const { currentCompanyId } = useAuth();
 
-Refactorizar la lógica de auto-reply actual para incorporar:
-
-```text
-1. IA genera respuesta + confidence score (0-1)
-2. Evaluar feature flags de la empresa:
-   - Si autopilot_after_hours ON y estamos fuera de horario:
-     → si confidence >= threshold y !requires_human → auto_action = 'auto_reply'
-     → sino → auto_action = 'suggest', status = 'needs_human'
-   - Si autopilot_in_hours ON y estamos en horario:
-     → si confidence >= threshold y !requires_human → auto_action = 'auto_reply'
-     → sino → auto_action = 'suggest'
-   - Si ningún autopilot ON:
-     → auto_action = 'suggest' (solo sugiere, humano aprueba)
-3. Registrar en events: AI_DECISION con payload {confidence, action, reason}
-4. Si auto_reply → publicar en MeLi → status = 'auto_published', answered_by_ai = true
-5. Failsafe: si publish falla → status = 'needs_human'
+// Actualizar todas las referencias en ambas secciones
 ```
 
-Modificar el prompt de IA para que devuelva `confidence` (0-1) además de los campos actuales.
+### 2. Actualización de funciones SQL (2 funciones)
 
-**B3. Función de evaluación de horario comercial**
+**get_admin_users()**
 
-Extraer la lógica de "¿estamos dentro o fuera del horario?" a una función reutilizable en `sync-meli-questions`, usando `business_hours` de `company_settings` y timezone Argentina (UTC-3).
-
-**B4. UI: Panel Autopilot en Settings**
-
-Expandir la sección Auto-Respuesta existente con:
-- Toggle "Autopilot fuera de horario" (ya existe como modo)
-- Toggle "Autopilot en horario" (nuevo, opt-in)
-- Slider de umbral de confianza (0.5–1.0, default 0.85)
-- Indicador de última sync + estado de conexión (ya existe en MeliConnectionSection)
-- Chip visual del modo activo: "Solo sugiere" | "Auto fuera de horario" | "Auto siempre"
-
----
-
-### Migración SQL (una sola)
+Cambiar query principal para reflejar memberships:
 
 ```sql
--- 1. Events table
-CREATE TABLE public.events (...);
-ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Company members can view events" ON public.events FOR SELECT TO authenticated USING (company_id = get_user_company_id(auth.uid()));
+-- Antes: junta profiles.company_id + user_roles.role
+-- Después: agregar columnas de memberships y mostrar TODAS las companies del usuario
 
--- 2. Questions: nuevas columnas
-ALTER TABLE public.questions ADD COLUMN ai_confidence numeric;
-ALTER TABLE public.questions ADD COLUMN answered_by_ai boolean DEFAULT false;
-ALTER TABLE public.questions ADD COLUMN ai_decision_reason text;
-ALTER TABLE public.questions ADD COLUMN auto_action text DEFAULT 'none';
-ALTER TABLE public.questions ADD COLUMN meli_status text;
-ALTER TABLE public.questions ADD COLUMN meli_permalink text;
-
--- 3. Company settings: feature flags
-ALTER TABLE public.company_settings ADD COLUMN features_ai_suggestions boolean DEFAULT true;
-ALTER TABLE public.company_settings ADD COLUMN features_autopilot_after_hours boolean DEFAULT false;
-ALTER TABLE public.company_settings ADD COLUMN features_autopilot_in_hours boolean DEFAULT false;
-ALTER TABLE public.company_settings ADD COLUMN autopilot_confidence_threshold numeric DEFAULT 0.85;
-
--- 4. Expand valid statuses
-CREATE OR REPLACE FUNCTION validate_question_status() ...
-  IF NEW.status NOT IN ('pending','published','archived','error','deleted','queued_auto','auto_published','needs_human') ...
+RETURN QUERY
+SELECT
+  p.id AS user_id,
+  u.email::text,
+  p.full_name,
+  -- Array de companies como JSONB para usuarios multi-company
+  COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'company_id', m.company_id,
+        'company_name', c.name,
+        'role', m.role,
+        'is_default', m.is_default
+      ) ORDER BY m.is_default DESC, m.created_at ASC
+    ) FILTER (WHERE m.company_id IS NOT NULL),
+    '[]'::jsonb
+  ) AS memberships,
+  -- Mantener company_id legacy (primera membership o profiles.company_id)
+  COALESCE(
+    (SELECT m2.company_id FROM memberships m2 
+     WHERE m2.user_id = p.id AND m2.status = 'active' 
+     ORDER BY m2.is_default DESC, m2.created_at ASC LIMIT 1),
+    p.company_id
+  ) AS company_id,
+  -- Rol legacy (primera membership o user_roles)
+  COALESCE(
+    (SELECT m3.role FROM memberships m3 
+     WHERE m3.user_id = p.id AND m3.status = 'active' 
+     ORDER BY m3.is_default DESC, m3.created_at ASC LIMIT 1),
+    ur.role
+  )::text AS role,
+  p.created_at
+FROM public.profiles p
+JOIN auth.users u ON u.id = p.id
+LEFT JOIN public.memberships m ON m.user_id = p.id AND m.status = 'active'
+LEFT JOIN public.companies c ON c.id = m.company_id
+LEFT JOIN public.user_roles ur ON ur.user_id = p.id
+GROUP BY p.id, u.email, p.full_name, p.company_id, p.created_at, ur.role
+ORDER BY p.created_at DESC;
 ```
 
-### Archivos a crear/modificar
+Impacto: AdminPanel ahora muestra correctamente usuarios con múltiples companies como badges clickeables.
 
-| Archivo | Cambio |
-|---|---|
-| Migración SQL | events + columnas questions + flags settings + estados |
-| `supabase/functions/health-check/index.ts` | Nuevo — ping DB + status |
-| `supabase/functions/sync-meli-questions/index.ts` | Motor de decisión autopilot + logging events + confidence |
-| `supabase/config.toml` | Registrar health-check |
-| `src/pages/SettingsPage.tsx` | Expandir AutoReplySection con flags + threshold slider |
-| `src/types/question.ts` | Nuevos campos del tipo |
-| `src/pages/Inbox.tsx` / `PriorityInbox.tsx` | Mostrar badge auto_published / needs_human |
-| `CHANGELOG.md` | Documentar cambios |
+**get_admin_company_metrics()**
+
+Reemplazar subquery de `member_count`:
+
+```sql
+-- Antes
+LEFT JOIN (
+  SELECT p.company_id, COUNT(*)::bigint AS cnt
+  FROM public.profiles p WHERE p.company_id IS NOT NULL
+  GROUP BY p.company_id
+) pm ON pm.company_id = c.id
+
+-- Después
+LEFT JOIN (
+  SELECT m.company_id, COUNT(DISTINCT m.user_id)::bigint AS cnt
+  FROM public.memberships m 
+  WHERE m.status = 'active'
+  GROUP BY m.company_id
+) pm ON pm.company_id = c.id
+```
+
+Impacto: conteo correcto de miembros activos, usuarios multi-company se cuentan correctamente en cada empresa.
+
+### 3. Ajuste de CHANGELOG (mínimo)
+
+Fusionar versión 1.9.0 vacía con 1.7.0 o eliminarla para mantener coherencia histórica.
+
+```markdown
+## [1.9.0] — 2026-03-09
+
+### 🏢 Multi-Company — Hito 5: Admin & Invites
+
+#### Añadido
+- **Funciones RPC de membership management**: `add_company_membership`, `remove_company_membership`, `update_membership_role`, `get_company_members`, `join_company_by_invite`
+- **AdminPanel Users tab**: rediseñado para mostrar memberships múltiples por usuario con badges interactivos
+- **Settings > Join Company**: nueva sección para que usuarios se unan a empresas adicionales vía invite code
+- **`refreshMemberships()` en AuthContext**: permite refrescar lista de companies del usuario sin logout
+
+#### Cambiado
+- **Team Section en Settings**: scope estricto a `currentCompanyId` usando `get_company_members` RPC
+- **CompaniesTab**: asignación de admin inicial al crear company usa `add_company_membership`
+```
+
+Actualizar versión 2.0.0 con nota de cierre del epic:
+
+```markdown
+## [2.0.0] — 2026-03-09
+
+### 🏢 Multi-Company — Cierre del Epic (Hitos 1-6)
+
+#### Cambiado
+- **Frontend migrado completamente a `currentCompanyId`**: todos los componentes (incluyendo TemplatePicker, AICopilotPanel, y secciones internas de Settings) ahora usan `currentCompanyId`.
+- **Backend migrado a memberships**: funciones admin (`get_admin_users`, `get_admin_company_metrics`) leen desde `memberships` en vez de `profiles.company_id`.
+- **`companyId` oficialmente deprecated**: alias legacy será removido en v2.1.0.
+
+#### Epic completado
+El sistema multi-company está cerrado y operativo con:
+- ✅ Memberships como fuente única de verdad
+- ✅ Switcher UI funcional para cambio de tenant
+- ✅ Isolation estricto por `currentCompanyId`
+- ✅ Admin panel adaptado a multi-company
+- ✅ Invite flow compatible con múltiples memberships
+- ✅ RLS y edge functions usando `get_user_company_id()` con fallback
+```
+
+## Alcance de cambios
+
+### Archivos tocados
+- `src/components/TemplatePicker.tsx`
+- `src/components/AICopilotPanel.tsx`
+- `src/pages/SettingsPage.tsx`
+- `supabase/migrations/<nueva_migration>.sql` (2 funciones SQL)
+- `CHANGELOG.md`
+
+### Funciones SQL modificadas
+- `get_admin_users()` — nueva estructura de retorno con memberships
+- `get_admin_company_metrics()` — conteo desde memberships
+
+### Qué NO se toca
+- ✅ AuthContext (sin cambios)
+- ✅ Edge Functions (sin cambios)
+- ✅ Invite flow (`handle_new_user`, `join_company_by_invite` funcionan correctamente)
+- ✅ RLS policies (ya migradas en Hito 3)
+- ✅ Lógica MercadoLibre (sin cambios)
+- ✅ Otras pantallas principales (ya migradas en Hito 6)
+
+## Resultado esperado
+
+**Epic Multi-Company oficialmente cerrado** en versión 2.0.0 con:
+- 0 referencias a `companyId` legacy fuera del alias deprecated en AuthContext
+- Backend completamente basado en `memberships`
+- Documentación coherente del epic completo
+- Sistema listo para operación multi-tenant
+
+## Observaciones adicionales detectadas
+
+No se encontraron otros pendientes técnicos bloqueantes. Sistema consistente tras estos cierres.
 
