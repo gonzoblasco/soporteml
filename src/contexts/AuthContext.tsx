@@ -23,6 +23,7 @@ interface AuthContextType {
   memberships: Membership[];
   currentCompanyId: string | null;
   setCurrentCompanyId: (id: string) => void;
+  refreshMemberships: () => Promise<void>;
   login: (email: string, password: string) => Promise<string | null>;
   signup: (email: string, password: string, fullName: string, opts?: { companyName?: string; inviteCode?: string }) => Promise<string | null>;
   logout: () => Promise<void>;
@@ -42,9 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<AppRole>(null);
-  // Legacy alias — kept in sync with currentCompanyId
   const [companyId, setCompanyId] = useState<string | null>(null);
-  // Hito 2: multi-company state
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [currentCompanyId, setCurrentCompanyIdState] = useState<string | null>(null);
 
@@ -58,7 +57,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(async () => {
           const uid = session.user.id;
 
-          // 1. Fetch profile (legacy source of truth for RLS)
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, company_id')
@@ -67,7 +65,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setProfileName(profile?.full_name ?? null);
           const legacyCompanyId = profile?.company_id ?? null;
 
-          // 2. Fetch active memberships from new memberships table
           const { data: membershipRows } = await supabase
             .from('memberships')
             .select('company_id, role, is_default')
@@ -81,29 +78,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }));
           setMemberships(activeMemberships);
 
-          // 3. Determine currentCompanyId with fallback chain:
-          //    localStorage → default membership → first active → legacy profiles.company_id
           const stored = localStorage.getItem(LS_KEY);
           let resolved: string | null = null;
 
           if (stored && activeMemberships.some(m => m.company_id === stored)) {
-            // Stored value is a valid active membership
             resolved = stored;
           } else if (activeMemberships.length > 0) {
-            // Use default or first active membership
             resolved =
               activeMemberships.find(m => m.is_default)?.company_id ??
               activeMemberships[0].company_id;
           } else {
-            // Fallback to legacy profiles.company_id (compatibility)
             resolved = legacyCompanyId;
           }
 
           if (resolved) localStorage.setItem(LS_KEY, resolved);
           setCurrentCompanyIdState(resolved);
-          setCompanyId(resolved); // keep legacy alias in sync
+          setCompanyId(resolved);
 
-          // 4. Resolve role: from matched membership, else fallback to user_roles
           const matchedMembership = activeMemberships.find(m => m.company_id === resolved);
           if (matchedMembership) {
             setUserRole(matchedMembership.role);
@@ -134,15 +125,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  /**
-   * Switch active company. Validates that the target belongs to the user
-   * with an active membership. Resets to default if invalid.
-   */
   const setCurrentCompanyId = useCallback((newId: string) => {
     const membership = memberships.find(m => m.company_id === newId);
 
     if (!membership) {
-      // Invalid target → reset to default
       const fallback =
         memberships.find(m => m.is_default)?.company_id ??
         memberships[0]?.company_id ??
@@ -159,9 +145,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     localStorage.setItem(LS_KEY, newId);
     setCurrentCompanyIdState(newId);
-    setCompanyId(newId); // keep legacy alias
+    setCompanyId(newId);
     setUserRole(membership.role);
   }, [memberships]);
+
+  /**
+   * Re-fetch memberships from DB. Used after joining a new company
+   * or when membership data may have changed externally.
+   */
+  const refreshMemberships = useCallback(async () => {
+    if (!user) return;
+    const uid = user.id;
+
+    const { data: membershipRows } = await supabase
+      .from('memberships')
+      .select('company_id, role, is_default')
+      .eq('user_id', uid)
+      .eq('status', 'active');
+
+    const activeMemberships: Membership[] = (membershipRows ?? []).map(m => ({
+      company_id: m.company_id,
+      role: m.role as AppRole,
+      is_default: m.is_default,
+    }));
+    setMemberships(activeMemberships);
+
+    // If current company is still valid, just update role
+    const currentMatch = activeMemberships.find(m => m.company_id === currentCompanyId);
+    if (currentMatch) {
+      setUserRole(currentMatch.role);
+    } else if (activeMemberships.length > 0) {
+      // Switch to default or first active
+      const first = activeMemberships.find(m => m.is_default) ?? activeMemberships[0];
+      localStorage.setItem(LS_KEY, first.company_id);
+      setCurrentCompanyIdState(first.company_id);
+      setCompanyId(first.company_id);
+      setUserRole(first.role);
+    }
+  }, [user, currentCompanyId]);
 
   const login = useCallback(async (email: string, password: string): Promise<string | null> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -194,6 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user, session, isLoading, profileName, userRole,
       companyId,
       memberships, currentCompanyId, setCurrentCompanyId,
+      refreshMemberships,
       login, signup, logout,
     }}>
       {children}

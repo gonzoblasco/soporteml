@@ -70,14 +70,14 @@ const CompaniesTab = () => {
     if (!companiesData) { setLoading(false); return; }
 
     const companyIds = companiesData.map(c => c.id);
-    const [profilesRes, meliRes] = await Promise.all([
-      supabase.from('profiles').select('company_id').in('company_id', companyIds),
+    const [membershipsRes, meliRes] = await Promise.all([
+      supabase.from('memberships').select('company_id').eq('status', 'active').in('company_id', companyIds),
       supabase.from('meli_connection_status').select('company_id').in('company_id', companyIds),
     ]);
 
     const memberCounts: Record<string, number> = {};
-    (profilesRes.data ?? []).forEach(p => {
-      memberCounts[p.company_id!] = (memberCounts[p.company_id!] ?? 0) + 1;
+    (membershipsRes.data ?? []).forEach(m => {
+      memberCounts[m.company_id] = (memberCounts[m.company_id] ?? 0) + 1;
     });
     const meliSet = new Set((meliRes.data ?? []).map(t => t.company_id));
 
@@ -125,17 +125,18 @@ const CompaniesTab = () => {
 
     let assignedEmail: string | undefined;
 
-    // 2. If a user was selected, assign them as admin
+    // 2. If a user was selected, create membership via RPC (Hito 5)
     if (selectedUserId && selectedUserId !== 'none') {
       const selectedUser = unassignedUsers.find(u => u.id === selectedUserId);
 
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from('profiles').update({ company_id: newCompany.id }).eq('id', selectedUserId),
-        supabase.from('user_roles').upsert({ user_id: selectedUserId, role: 'admin' as const }, { onConflict: 'user_id' }),
-      ]);
+      const { error: membershipErr } = await supabase.rpc('add_company_membership' as any, {
+        _user_id: selectedUserId,
+        _company_id: newCompany.id,
+        _role: 'admin',
+      });
 
-      if (profileRes.error || roleRes.error) {
-        toast({ title: 'Empresa creada, pero error al asignar usuario', description: (profileRes.error ?? roleRes.error)?.message, variant: 'destructive' });
+      if (membershipErr) {
+        toast({ title: 'Empresa creada, pero error al asignar usuario', description: membershipErr.message, variant: 'destructive' });
       } else {
         assignedEmail = selectedUser?.email;
       }

@@ -732,6 +732,14 @@ export type Database = {
       }
     }
     Functions: {
+      add_company_membership: {
+        Args: {
+          _company_id: string
+          _role?: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       find_similar_products: {
         Args: {
           _company_id: string
@@ -773,6 +781,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_company_members: {
+        Args: { _company_id: string }
+        Returns: {
+          full_name: string
+          joined_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+          user_id: string
+        }[]
+      }
       get_user_active_companies: {
         Args: { _user_id: string }
         Returns: {
@@ -804,6 +822,19 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: never; Returns: boolean }
+      join_company_by_invite: { Args: { _invite_code: string }; Returns: Json }
+      remove_company_membership: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: undefined
+      }
+      update_membership_role: {
+        Args: {
+          _company_id: string
+          _new_role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       user_belongs_to_company: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
