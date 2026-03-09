@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { NotificationBell } from '@/components/NotificationBell';
+import { CompanySwitcher } from '@/components/CompanySwitcher';
 
 const navItems = [
   { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
