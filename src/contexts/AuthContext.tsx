@@ -18,7 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   profileName: string | null;
   userRole: AppRole;
-  /** @legacy alias → siempre apunta a currentCompanyId. Mantiene compatibilidad con código existente. */
+  /** @deprecated Use `currentCompanyId` en su lugar. Alias legacy que se eliminará en la próxima versión. */
   companyId: string | null;
   memberships: Membership[];
   currentCompanyId: string | null;
