@@ -281,7 +281,7 @@ const SyncButton = () => {
 
 // ─── MeLi Connection Section ───
 const MeliConnectionSection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [tokenInfo, setTokenInfo] = useState<{ meli_user_id: string; updated_at: string; expires_at: string; has_refresh_token: boolean } | null>(null);
@@ -290,18 +290,18 @@ const MeliConnectionSection = () => {
   const [savingInterval, setSavingInterval] = useState(false);
 
   const fetchStatus = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const [tokenRes, settingsRes] = await Promise.all([
-      supabase.from('meli_connection_status').select('meli_user_id, updated_at, expires_at, has_refresh_token').eq('company_id', companyId).maybeSingle(),
-      supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', companyId).maybeSingle(),
+      supabase.from('meli_connection_status').select('meli_user_id, updated_at, expires_at, has_refresh_token').eq('company_id', currentCompanyId).maybeSingle(),
+      supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', currentCompanyId).maybeSingle(),
     ]);
     setTokenInfo(tokenRes.data ?? null);
     if (settingsRes.data?.sync_interval_minutes) {
       setSyncInterval(settingsRes.data.sync_interval_minutes);
     }
     setLoading(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
@@ -507,7 +507,7 @@ const MeliConnectionSection = () => {
 
 // ─── Team Section (Hito 5: membership-based) ───
 const TeamSection = () => {
-  const { companyId, user } = useAuth();
+  const { currentCompanyId, user } = useAuth();
   const { toast } = useToast();
   const [members, setMembers] = useState<Array<{ user_id: string; full_name: string; role: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -516,12 +516,12 @@ const TeamSection = () => {
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
       const [membersRes, companyRes] = await Promise.all([
-        supabase.rpc('get_company_members' as any, { _company_id: companyId }),
-        supabase.from('companies').select('invite_code').eq('id', companyId).single(),
+        supabase.rpc('get_company_members' as any, { _company_id: currentCompanyId }),
+        supabase.from('companies').select('invite_code').eq('id', currentCompanyId).single(),
       ]);
 
       if (companyRes.data) setInviteCode((companyRes.data as any).invite_code ?? '');
@@ -533,7 +533,7 @@ const TeamSection = () => {
       })));
       setLoading(false);
     })();
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.rpc('update_membership_role' as any, {
