@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -34,6 +35,7 @@ interface RecentQuestion {
 type TokenAlert = MeliHealthStatus;
 const Home = () => {
   const navigate = useNavigate();
+  const { currentCompanyId } = useAuth();
   const [questions, setQuestions] = useState<any[]>([]);
   const [recentQuestions, setRecentQuestions] = useState<RecentQuestion[]>([]);
   const [agentData, setAgentData] = useState<{ name: string; answered: number }[]>([]);
@@ -43,21 +45,25 @@ const Home = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentCompanyId) { setLoading(false); return; }
       setLoading(true);
 
       const [{ data: qs }, { data: recent }, { data: token }] = await Promise.all([
         supabase
           .from('questions')
-          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)'),
+          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)')
+          .eq('company_id', currentCompanyId),
         supabase
           .from('questions')
           .select('id, question_text, buyer_nickname, requires_human, created_at')
+          .eq('company_id', currentCompanyId)
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(5),
         supabase
           .from('meli_connection_status')
           .select('expires_at, has_refresh_token')
+          .eq('company_id', currentCompanyId)
           .limit(1)
           .maybeSingle(),
       ]);
@@ -99,7 +105,7 @@ const Home = () => {
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [currentCompanyId]);
 
   // Welcome toast for priority questions
   const toastShown = useRef(false);
