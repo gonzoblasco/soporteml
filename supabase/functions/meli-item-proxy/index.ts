@@ -46,15 +46,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user's company access token
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
+    // Get user's company (via memberships)
+    const { data: companyId } = await supabase.rpc("get_user_company_id", { _user_id: user.id });
 
-    if (!profile?.company_id) {
-      return new Response(JSON.stringify({ error: "No company" }), {
+    if (!companyId) {
+      return new Response(JSON.stringify({ error: "No active membership found" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -63,7 +59,7 @@ Deno.serve(async (req) => {
     const { data: tokenRow } = await supabase
       .from("meli_tokens")
       .select("access_token")
-      .eq("company_id", profile.company_id)
+      .eq("company_id", companyId)
       .maybeSingle();
 
     // Fetch item data from MeLi (with auth if available, public otherwise)

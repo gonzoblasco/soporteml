@@ -61,7 +61,7 @@ const Inbox = () => {
       setQuestions(mapped);
     }
     setLoading(false);
-  }, [statusFilter]);
+  }, [statusFilter, currentCompanyId]);
 
   useEffect(() => {
     setSelectedId(null);

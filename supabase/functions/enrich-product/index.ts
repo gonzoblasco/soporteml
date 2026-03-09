@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
       const { data: tokenRow } = await supabase
         .from("meli_tokens")
         .select("*")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .maybeSingle();
 
       const headers: Record<string, string> = {};

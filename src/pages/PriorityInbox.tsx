@@ -42,7 +42,7 @@ const PriorityInbox = () => {
       setQuestions(mapped);
     }
     setLoading(false);
-  }, []);
+  }, [currentCompanyId]);
 
   useEffect(() => {
     setSelectedId(null);

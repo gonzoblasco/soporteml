@@ -53,14 +53,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
+    // Get user company (via memberships)
+    const { data: companyId } = await supabase.rpc("get_user_company_id", { _user_id: user.id });
 
-    if (!profile?.company_id) {
-      return new Response(JSON.stringify({ error: "No company" }), {
+    if (!companyId) {
+      return new Response(JSON.stringify({ error: "No active membership found" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -71,7 +68,7 @@ Deno.serve(async (req) => {
       .from("products")
       .select("id, title, meli_item_id, external_id, sku, source, company_id")
       .eq("id", product_id)
-      .eq("company_id", profile.company_id)
+      .eq("company_id", companyId)
       .single();
 
     if (!product) {
@@ -89,7 +86,7 @@ Deno.serve(async (req) => {
       const { data: matches } = await supabase
         .from("products")
         .select("id, title, external_id")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .eq("source", product.source)
         .eq("external_id", product.external_id)
         .neq("id", product.id)
@@ -114,7 +111,7 @@ Deno.serve(async (req) => {
       const { data: matches } = await supabase
         .from("products")
         .select("id, title, meli_item_id")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .eq("meli_item_id", product.meli_item_id)
         .neq("id", product.id)
         .eq("status", "active")
@@ -138,7 +135,7 @@ Deno.serve(async (req) => {
       const { data: matches } = await supabase
         .from("products")
         .select("id, title, sku")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .eq("sku", product.sku)
         .neq("id", product.id)
         .eq("status", "active")
@@ -160,7 +157,7 @@ Deno.serve(async (req) => {
     // Level 4: Title similarity via pg_trgm
     if (product.title && product.title.length > 5) {
       const { data: matches } = await supabase.rpc("find_similar_products", {
-        _company_id: profile.company_id,
+        _company_id: companyId,
         _product_id: product.id,
         _title: product.title,
         _threshold: 0.6,
