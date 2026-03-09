@@ -1056,12 +1056,12 @@ const TrashSection = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchDeleted = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
       .from('questions')
       .select('id, meli_question_id, question_text, created_at, product_id, products(title)')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .eq('status', 'deleted')
       .order('created_at', { ascending: false });
 
@@ -1073,7 +1073,7 @@ const TrashSection = () => {
       product_title: q.products?.title,
     })));
     setLoading(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => { fetchDeleted(); }, [fetchDeleted]);
 
