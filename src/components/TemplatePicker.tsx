@@ -15,7 +15,7 @@ interface Props {
 }
 
 const TemplatePicker = ({ onSelect, variables = {} }: Props) => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const [templates, setTemplates] = useState<{ id: string; title: string; category: string; content: string }[]>([]);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
