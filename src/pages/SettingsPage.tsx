@@ -164,7 +164,7 @@ const JoinCompanySection = () => {
 
 // ─── Company Section ───
 const CompanySection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [companyName, setCompanyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -173,20 +173,20 @@ const CompanySection = () => {
   const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
-    supabase.from('companies').select('name, invite_code').eq('id', companyId).single().then(({ data }) => {
+    if (!currentCompanyId) { setLoading(false); return; }
+    supabase.from('companies').select('name, invite_code').eq('id', currentCompanyId).single().then(({ data }) => {
       if (data) {
         setCompanyName(data.name);
         setInviteCode((data as any).invite_code ?? '');
       }
       setLoading(false);
     });
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleSave = async () => {
-    if (!companyId || !companyName.trim()) return;
+    if (!currentCompanyId || !companyName.trim()) return;
     setSaving(true);
-    const { error } = await supabase.from('companies').update({ name: companyName.trim() }).eq('id', companyId);
+    const { error } = await supabase.from('companies').update({ name: companyName.trim() }).eq('id', currentCompanyId);
     toast(error
       ? { title: 'Error', description: error.message, variant: 'destructive' }
       : { title: 'Guardado', description: 'Nombre de empresa actualizado.' }
@@ -195,13 +195,13 @@ const CompanySection = () => {
   };
 
   const handleRegenerate = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setRegenerating(true);
     const arr = new Uint8Array(6);
     crypto.getRandomValues(arr);
     const newCode = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const { error } = await supabase.from('companies').update({ invite_code: newCode } as any).eq('id', companyId);
+    const { error } = await supabase.from('companies').update({ invite_code: newCode } as any).eq('id', currentCompanyId);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
@@ -306,7 +306,7 @@ const MeliConnectionSection = () => {
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
   const handleConnect = async () => {
-    if (!companyId) {
+    if (!currentCompanyId) {
       toast({ title: 'Error', description: 'No se encontró una empresa asociada.', variant: 'destructive' });
       return;
     }
@@ -329,7 +329,7 @@ const MeliConnectionSection = () => {
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-    const statePayload = `${companyId}|${codeVerifier}`;
+    const statePayload = `${currentCompanyId}|${codeVerifier}`;
 
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meli-oauth-callback`;
     const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(statePayload)}&scope=offline_access%20read%20write&code_challenge=${codeChallenge}&code_challenge_method=S256`;
@@ -357,7 +357,7 @@ const MeliConnectionSection = () => {
     setSavingInterval(true);
     const { error } = await supabase
       .from('company_settings')
-      .upsert({ company_id: companyId!, sync_interval_minutes: minutes }, { onConflict: 'company_id' });
+      .upsert({ company_id: currentCompanyId!, sync_interval_minutes: minutes }, { onConflict: 'company_id' });
     toast(error
       ? { title: 'Error', description: error.message, variant: 'destructive' }
       : { title: 'Frecuencia actualizada', description: `La sincronización se ejecutará cada ${minutes} minutos.` }
@@ -491,7 +491,7 @@ const MeliConnectionSection = () => {
             <p className="text-sm text-muted-foreground">
               Al conectar tu cuenta, las preguntas de tus publicaciones se importarán automáticamente con respuestas sugeridas por IA.
             </p>
-            {!companyId ? (
+            {!currentCompanyId ? (
               <p className="text-sm text-destructive">Tu cuenta no tiene una empresa asociada. Contactá al administrador.</p>
             ) : (
               <Button size="sm" onClick={handleConnect}>
@@ -538,7 +538,7 @@ const TeamSection = () => {
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.rpc('update_membership_role' as any, {
       _user_id: userId,
-      _company_id: companyId,
+      _company_id: currentCompanyId,
       _new_role: newRole,
     });
     if (error) {
@@ -557,7 +557,7 @@ const TeamSection = () => {
     setRemovingId(userId);
     const { error } = await supabase.rpc('remove_company_membership' as any, {
       _user_id: userId,
-      _company_id: companyId,
+      _company_id: currentCompanyId,
     });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -800,7 +800,7 @@ const DEFAULT_BUSINESS_HOURS: BusinessHours = {
 };
 
 const AutoReplySection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [mode, setMode] = useState<AutoReplyMode>('off');
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
@@ -812,12 +812,12 @@ const AutoReplySection = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     (async () => {
       const { data } = await supabase
         .from('company_settings')
         .select('auto_reply_enabled, auto_reply_exclusion_rules, auto_reply_mode, business_hours, features_autopilot_after_hours, features_autopilot_in_hours, autopilot_confidence_threshold')
-        .eq('company_id', companyId)
+        .eq('company_id', currentCompanyId)
         .maybeSingle();
 
       if (data) {
@@ -837,16 +837,16 @@ const AutoReplySection = () => {
       }
       setLoading(false);
     })();
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleSave = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setSaving(true);
 
     const { error } = await supabase
       .from('company_settings')
       .upsert({
-        company_id: companyId,
+        company_id: currentCompanyId,
         auto_reply_enabled: mode !== 'off',
         auto_reply_mode: mode,
         business_hours: businessHours,

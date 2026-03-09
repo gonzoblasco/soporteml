@@ -36,7 +36,7 @@ interface Product {
 }
 
 const CatalogPage = () => {
-  const { user, companyId } = useAuth();
+  const { user, currentCompanyId } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,16 +45,16 @@ const CatalogPage = () => {
   const [showForm, setShowForm] = useState(false);
 
   const fetchProducts = useCallback(async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     const { data } = await supabase
       .from('products')
       .select('id, company_id, title, meli_item_id, sku, permalink, status, source, external_id, external_url, support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, updated_at, meli_cache_fetched_at, meli_cache, price, meli_category_name')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .order('updated_at', { ascending: false });
 
     setProducts((data ?? []) as unknown as Product[]);
     setLoading(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => {
     fetchProducts();
@@ -72,21 +72,21 @@ const CatalogPage = () => {
 
   // Handle deep link ?new=true
   useEffect(() => {
-    if (searchParams.get('new') === 'true' && companyId) {
+    if (searchParams.get('new') === 'true' && currentCompanyId) {
       handleNew();
       setSearchParams({}, { replace: true });
     }
-  }, [searchParams, companyId]);
+  }, [searchParams, currentCompanyId]);
 
   const handleNew = async () => {
-    if (!companyId || !user) return;
+    if (!currentCompanyId || !user) return;
 
     const title = searchParams.get('title') || 'Nuevo producto';
     const meliItemId = searchParams.get('meli_item_id') || null;
     const permalink = searchParams.get('permalink') || null;
 
     const insert: Record<string, unknown> = {
-      company_id: companyId,
+      company_id: currentCompanyId,
       title,
       source: meliItemId ? 'meli' : 'manual',
       meli_item_id: meliItemId,
@@ -107,7 +107,7 @@ const CatalogPage = () => {
     }
 
     await logAuditEntry({
-      companyId,
+      companyId: currentCompanyId,
       actorUserId: user.id,
       entityType: 'product',
       entityId: (data as any).id,

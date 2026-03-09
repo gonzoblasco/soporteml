@@ -32,7 +32,7 @@ interface Template {
 }
 
 const TemplatesPage = () => {
-  const { companyId, userRole } = useAuth();
+  const { currentCompanyId, userRole } = useAuth();
   const isAdmin = userRole === 'admin';
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,12 +47,12 @@ const TemplatesPage = () => {
   const [content, setContent] = useState('');
 
   const fetchTemplates = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('templates')
       .select('*')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .order('updated_at', { ascending: false });
     if (error) {
       toast.error('Error al cargar plantillas');
@@ -62,7 +62,7 @@ const TemplatesPage = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchTemplates(); }, [companyId]);
+  useEffect(() => { fetchTemplates(); }, [currentCompanyId]);
 
   const extractVariables = (text: string): string[] => {
     const matches = text.match(/\{(\w+)\}/g);
@@ -86,7 +86,7 @@ const TemplatesPage = () => {
   };
 
   const handleSave = async () => {
-    if (!companyId || !title.trim() || !content.trim()) {
+    if (!currentCompanyId || !title.trim() || !content.trim()) {
       toast.error('Completá título y contenido');
       return;
     }
@@ -101,7 +101,7 @@ const TemplatesPage = () => {
     } else {
       const { error } = await supabase
         .from('templates')
-        .insert({ company_id: companyId, title: title.trim(), category, content: content.trim(), variables });
+        .insert({ company_id: currentCompanyId, title: title.trim(), category, content: content.trim(), variables });
       if (error) { toast.error('Error: ' + error.message); return; }
       toast.success('Plantilla creada');
     }
