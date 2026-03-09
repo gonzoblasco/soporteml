@@ -357,7 +357,7 @@ const MeliConnectionSection = () => {
     setSavingInterval(true);
     const { error } = await supabase
       .from('company_settings')
-      .upsert({ company_id: companyId!, sync_interval_minutes: minutes }, { onConflict: 'company_id' });
+      .upsert({ company_id: currentCompanyId!, sync_interval_minutes: minutes }, { onConflict: 'company_id' });
     toast(error
       ? { title: 'Error', description: error.message, variant: 'destructive' }
       : { title: 'Frecuencia actualizada', description: `La sincronización se ejecutará cada ${minutes} minutos.` }
