@@ -1050,7 +1050,7 @@ const AutoReplySection = () => {
 
 // ─── Trash Section (Admins only) ───
 const TrashSection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<Array<{ id: string; meli_question_id: string; question_text: string; created_at: string; product_title?: string }>>([]);
   const [loading, setLoading] = useState(true);
