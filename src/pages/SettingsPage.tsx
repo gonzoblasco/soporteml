@@ -184,9 +184,9 @@ const CompanySection = () => {
   }, [currentCompanyId]);
 
   const handleSave = async () => {
-    if (!companyId || !companyName.trim()) return;
+    if (!currentCompanyId || !companyName.trim()) return;
     setSaving(true);
-    const { error } = await supabase.from('companies').update({ name: companyName.trim() }).eq('id', companyId);
+    const { error } = await supabase.from('companies').update({ name: companyName.trim() }).eq('id', currentCompanyId);
     toast(error
       ? { title: 'Error', description: error.message, variant: 'destructive' }
       : { title: 'Guardado', description: 'Nombre de empresa actualizado.' }
