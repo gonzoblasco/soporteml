@@ -694,11 +694,11 @@ const AiConfigSection = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     supabase
       .from('company_settings')
       .select('ai_tone, ai_custom_instructions')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -707,7 +707,7 @@ const AiConfigSection = () => {
         }
         setLoading(false);
       });
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleSave = async () => {
     if (!companyId) return;
