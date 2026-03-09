@@ -800,7 +800,7 @@ const DEFAULT_BUSINESS_HOURS: BusinessHours = {
 };
 
 const AutoReplySection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [mode, setMode] = useState<AutoReplyMode>('off');
   const [businessHours, setBusinessHours] = useState<BusinessHours>(DEFAULT_BUSINESS_HOURS);
@@ -812,12 +812,12 @@ const AutoReplySection = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     (async () => {
       const { data } = await supabase
         .from('company_settings')
         .select('auto_reply_enabled, auto_reply_exclusion_rules, auto_reply_mode, business_hours, features_autopilot_after_hours, features_autopilot_in_hours, autopilot_confidence_threshold')
-        .eq('company_id', companyId)
+        .eq('company_id', currentCompanyId)
         .maybeSingle();
 
       if (data) {
@@ -837,16 +837,16 @@ const AutoReplySection = () => {
       }
       setLoading(false);
     })();
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleSave = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setSaving(true);
 
     const { error } = await supabase
       .from('company_settings')
       .upsert({
-        company_id: companyId,
+        company_id: currentCompanyId,
         auto_reply_enabled: mode !== 'off',
         auto_reply_mode: mode,
         business_hours: businessHours,
