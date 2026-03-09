@@ -1,134 +1,156 @@
 
 
-## Hito 3: Backend de Seguridad — Memberships como Fuente de Verdad
+## Mega-Cambio: Autopilot con Guardrails + Base Firme
 
-### Diagnóstico actual
-
-**Lo que usa `profiles.company_id` y hay que migrar:**
-- 12 tablas con RLS que usan `get_user_company_id(auth.uid())` (lee de `profiles`)
-- 4 edge functions que leen `profiles.company_id` directamente via service client: `ai-copilot`, `enrich-product`, `detect-duplicates`, `meli-item-proxy`
-- `handle_new_user()` trigger: no inserta en `memberships` al crear usuario
-
-**Lo que ya está correcto:**
-- `sync-meli-questions`, `publish-meli-answer`, `disconnect-meli`: ya usan `rpc("get_user_company_id")`
-- Frontend: `CatalogPage`, `SettingsPage`, `TemplatesPage` ya filtran por `companyId`
-- `Inbox.tsx` y `PriorityInbox.tsx`: sin filtro explícito de `company_id` — dependen solo de RLS
+Dos bloques ejecutados como un único cambio coordinado.
 
 ---
 
-### 1. Migración SQL (1 archivo)
+### Bloque A — Base Firme (5 fixes)
 
-**a) Nueva función `get_user_company_ids()`** — retorna todas las companies activas del usuario:
+**A1. Feature flags por empresa**
+
+Agregar columnas a `company_settings`:
 ```sql
-CREATE FUNCTION get_user_company_ids(_user_id uuid)
-RETURNS TABLE(company_id uuid) SECURITY DEFINER ...
-  SELECT m.company_id FROM memberships WHERE user_id = _user_id AND status = 'active'
+features_ai_suggestions boolean DEFAULT true,
+features_autopilot_after_hours boolean DEFAULT false,
+features_autopilot_in_hours boolean DEFAULT false,
+autopilot_confidence_threshold numeric DEFAULT 0.85
+```
+El sync y la UI respetan estos flags antes de actuar.
+
+**A2. Tabla `events` (append-only audit trail)**
+
+```sql
+CREATE TABLE public.events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  type text NOT NULL,  -- SYNC_STARTED, SYNC_DONE, AI_DECISION, AUTO_REPLY_SENT, ERROR, ...
+  entity_type text,    -- question, product, token
+  entity_id text,
+  payload jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now()
+);
+-- RLS: SELECT for company members, INSERT only via service role
 ```
 
-**b) Actualizar `get_user_company_id()`** — ahora lee de memberships con fallback a profiles:
-```sql
-COALESCE(
-  get_user_default_company(_user_id),           -- lee de memberships
-  (SELECT company_id FROM profiles WHERE id = _user_id) -- fallback temporal
-)
-```
-Esto hace que `sync-meli-questions`, `publish-meli-answer` y `disconnect-meli` ya mejoren automáticamente.
+Integrar en `sync-meli-questions`: log SYNC_STARTED, SYNC_DONE, AI_DECISION (con confidence + action), AUTO_REPLY_SENT, ERROR.
 
-**c) Nueva función `has_membership_role()`** — verifica rol por company:
+**A3. Metadata ML completa en `questions`**
+
 ```sql
-CREATE FUNCTION has_membership_role(_user_id uuid, _company_id uuid, _role app_role)
-RETURNS boolean SECURITY DEFINER ...
-  EXISTS (SELECT 1 FROM memberships WHERE user_id=... AND company_id=... AND role=... AND status='active')
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS
+  ai_confidence numeric,
+  answered_by_ai boolean DEFAULT false,
+  ai_decision_reason text,
+  auto_action text DEFAULT 'none',  -- none | suggest | auto_reply
+  meli_status text,
+  meli_permalink text;
 ```
 
-**d) Migrar RLS en todas las tablas** — reemplazar `get_user_company_id()` y `has_role()` con:
-- `user_belongs_to_company(auth.uid(), company_id)` para aislamiento tenant
-- `has_membership_role(auth.uid(), company_id, 'admin')` para comprobación de rol por company
+`requires_human` y `requires_human_reason` ya existen. `auto_action` registra qué decidió el sistema.
 
-Tablas afectadas: `companies`, `company_settings`, `questions`, `products`, `product_variants`, `templates`, `audit_logs`, `events`, `dismissed_meli_questions`, `meli_tokens`, `profiles`.
+**A4. Seguridad — validación de no filtrado de service role**
 
-Excepción documentada: `user_roles` mantiene `has_role()` porque no tiene `company_id` (tabla legacy sin contexto de company).
+Auditar que ninguna Edge Function devuelve tokens o service role keys al frontend. Esto ya está cubierto por la vista `meli_connection_status`, pero se refuerza revisando `debug-meli` (solo super admin) y asegurando que `notify` no expone datos sensibles.
 
-**e) Actualizar `handle_new_user()`** — agregar `INSERT INTO memberships` cuando se asigna company:
-```sql
--- En el flow de nueva empresa y de invite_code:
-INSERT INTO memberships (user_id, company_id, role, status, is_default)
-VALUES (NEW.id, _company_id, 'admin'/'agent', 'active', true);
-```
-Cierra el gap donde usuarios nuevos quedan sin membership.
+**A5. Health checks livianos**
+
+Nueva Edge Function `health-check` que:
+- Verifica conectividad DB (SELECT 1)
+- Verifica que la función responde
+- Devuelve status + timestamp
+
+Registrar en `config.toml`.
 
 ---
 
-### 2. Edge Functions (4 funciones)
+### Bloque B — Autopilot Controlado (4 piezas)
 
-Patrón actual en `ai-copilot`, `enrich-product`, `detect-duplicates`, `meli-item-proxy`:
-```typescript
-// ❌ ANTES: lee profiles directamente
-const { data: profile } = await serviceClient.from("profiles").select("company_id").eq("id", user.id).single();
-const companyId = profile.company_id;
+**B1. State machine de preguntas**
+
+Expandir los estados válidos del trigger `validate_question_status`:
+```
+pending → published | archived | queued_auto
+queued_auto → auto_published | needs_human | error
 ```
 
-Cambio en los 4:
-```typescript
-// ✅ DESPUÉS: usa RPC que lee de memberships
-const { data: companyId } = await serviceClient.rpc("get_user_company_id", { _user_id: user.id });
-if (!companyId) return 403 "No active membership found"
-```
+Nuevos estados: `queued_auto`, `auto_published`, `needs_human`.
 
-Beneficio: el RPC ya tiene fallback, no rompe compatibilidad, y valida membership activa.
+**B2. Motor de decisión en `sync-meli-questions`**
 
----
-
-### 3. Frontend (2 páginas)
-
-**`Inbox.tsx` y `PriorityInbox.tsx`** — sin filtro explícito de company actualmente:
-
-```typescript
-// Agregar useAuth() y filtro:
-const { currentCompanyId } = useAuth();
-// En fetchQuestions:
-let query = supabase.from('questions').select('...')
-  .eq('company_id', currentCompanyId)  // ← nuevo
-  .eq('status', statusFilter)
-```
-
-Sin este cambio, cuando un usuario tenga múltiples memberships, el RLS migrado (`user_belongs_to_company`) mostraría preguntas de TODAS sus companies mezcladas.
-
----
-
-### 4. CHANGELOG v1.7.0
+Refactorizar la lógica de auto-reply actual para incorporar:
 
 ```text
-- RLS migradas a user_belongs_to_company() + has_membership_role() en 11 tablas
-- get_user_company_id() ahora lee de memberships con fallback a profiles.company_id
-- Nueva función get_user_company_ids() y has_membership_role()
-- handle_new_user() genera membership en alta de usuario
-- 4 edge functions migradas a usar RPC en vez de profiles directamente
-- Inbox y PriorityInbox filtran por currentCompanyId explícitamente
-- has_role() se mantiene solo para user_roles (legacy, documentado)
-- No se habilita trabajo cross-company simultáneo todavía
+1. IA genera respuesta + confidence score (0-1)
+2. Evaluar feature flags de la empresa:
+   - Si autopilot_after_hours ON y estamos fuera de horario:
+     → si confidence >= threshold y !requires_human → auto_action = 'auto_reply'
+     → sino → auto_action = 'suggest', status = 'needs_human'
+   - Si autopilot_in_hours ON y estamos en horario:
+     → si confidence >= threshold y !requires_human → auto_action = 'auto_reply'
+     → sino → auto_action = 'suggest'
+   - Si ningún autopilot ON:
+     → auto_action = 'suggest' (solo sugiere, humano aprueba)
+3. Registrar en events: AI_DECISION con payload {confidence, action, reason}
+4. Si auto_reply → publicar en MeLi → status = 'auto_published', answered_by_ai = true
+5. Failsafe: si publish falla → status = 'needs_human'
 ```
+
+Modificar el prompt de IA para que devuelva `confidence` (0-1) además de los campos actuales.
+
+**B3. Función de evaluación de horario comercial**
+
+Extraer la lógica de "¿estamos dentro o fuera del horario?" a una función reutilizable en `sync-meli-questions`, usando `business_hours` de `company_settings` y timezone Argentina (UTC-3).
+
+**B4. UI: Panel Autopilot en Settings**
+
+Expandir la sección Auto-Respuesta existente con:
+- Toggle "Autopilot fuera de horario" (ya existe como modo)
+- Toggle "Autopilot en horario" (nuevo, opt-in)
+- Slider de umbral de confianza (0.5–1.0, default 0.85)
+- Indicador de última sync + estado de conexión (ya existe en MeliConnectionSection)
+- Chip visual del modo activo: "Solo sugiere" | "Auto fuera de horario" | "Auto siempre"
 
 ---
 
-### Archivos afectados
+### Migración SQL (una sola)
+
+```sql
+-- 1. Events table
+CREATE TABLE public.events (...);
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Company members can view events" ON public.events FOR SELECT TO authenticated USING (company_id = get_user_company_id(auth.uid()));
+
+-- 2. Questions: nuevas columnas
+ALTER TABLE public.questions ADD COLUMN ai_confidence numeric;
+ALTER TABLE public.questions ADD COLUMN answered_by_ai boolean DEFAULT false;
+ALTER TABLE public.questions ADD COLUMN ai_decision_reason text;
+ALTER TABLE public.questions ADD COLUMN auto_action text DEFAULT 'none';
+ALTER TABLE public.questions ADD COLUMN meli_status text;
+ALTER TABLE public.questions ADD COLUMN meli_permalink text;
+
+-- 3. Company settings: feature flags
+ALTER TABLE public.company_settings ADD COLUMN features_ai_suggestions boolean DEFAULT true;
+ALTER TABLE public.company_settings ADD COLUMN features_autopilot_after_hours boolean DEFAULT false;
+ALTER TABLE public.company_settings ADD COLUMN features_autopilot_in_hours boolean DEFAULT false;
+ALTER TABLE public.company_settings ADD COLUMN autopilot_confidence_threshold numeric DEFAULT 0.85;
+
+-- 4. Expand valid statuses
+CREATE OR REPLACE FUNCTION validate_question_status() ...
+  IF NEW.status NOT IN ('pending','published','archived','error','deleted','queued_auto','auto_published','needs_human') ...
+```
+
+### Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---|---|
-| Nueva migración SQL | helpers + RLS + handle_new_user |
-| `supabase/functions/ai-copilot/index.ts` | profiles → RPC |
-| `supabase/functions/enrich-product/index.ts` | profiles → RPC |
-| `supabase/functions/detect-duplicates/index.ts` | profiles → RPC |
-| `supabase/functions/meli-item-proxy/index.ts` | profiles → RPC |
-| `src/pages/Inbox.tsx` | filtro por currentCompanyId |
-| `src/pages/PriorityInbox.tsx` | filtro por currentCompanyId |
-| `CHANGELOG.md` | v1.7.0 |
-
-### Garantías de compatibilidad
-
-- `profiles.company_id` no se toca ni elimina
-- `get_user_company_id()` mantiene fallback a `profiles.company_id`
-- `has_role()` se mantiene para `user_roles`
-- Para usuarios con 1 company (todos los actuales): comportamiento idéntico al actual
-- No se habilita acceso cross-company simultáneo
+| Migración SQL | events + columnas questions + flags settings + estados |
+| `supabase/functions/health-check/index.ts` | Nuevo — ping DB + status |
+| `supabase/functions/sync-meli-questions/index.ts` | Motor de decisión autopilot + logging events + confidence |
+| `supabase/config.toml` | Registrar health-check |
+| `src/pages/SettingsPage.tsx` | Expandir AutoReplySection con flags + threshold slider |
+| `src/types/question.ts` | Nuevos campos del tipo |
+| `src/pages/Inbox.tsx` / `PriorityInbox.tsx` | Mostrar badge auto_published / needs_human |
+| `CHANGELOG.md` | Documentar cambios |
 

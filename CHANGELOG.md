@@ -116,6 +116,31 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.7.0] — 2026-03-09
+
+### 🔒 Hito 3: Backend de Seguridad — Memberships como Fuente de Verdad
+
+#### Cambiado
+
+- **`get_user_company_id()`** ahora lee de `memberships` con fallback a `profiles.company_id` — para usuarios con 1 company el comportamiento es idéntico.
+- **4 Edge Functions migradas** (`ai-copilot`, `enrich-product`, `detect-duplicates`, `meli-item-proxy`): ya no leen `profiles.company_id` directamente. Usan `rpc("get_user_company_id")` que lee de memberships con fallback. Error 403 "No active membership found" si no hay membership activa.
+- **`Inbox.tsx` y `PriorityInbox.tsx`**: filtran explícitamente por `currentCompanyId` del `AuthContext`, garantizando aislamiento de tenant cuando un usuario tenga múltiples memberships.
+- **RLS en 11 tablas** migradas a `user_belongs_to_company()` + `has_membership_role()`: `companies`, `company_settings`, `questions`, `products`, `product_variants`, `templates`, `audit_logs`, `events`, `dismissed_meli_questions`, `meli_tokens`, `profiles`.
+
+#### Añadido
+
+- **Nueva función SQL `get_user_company_ids()`** — retorna todas las companies activas del usuario.
+- **Nueva función SQL `has_membership_role()`** — verifica rol por company via memberships.
+- **`handle_new_user()` actualizado** — genera membership al dar de alta un usuario (empresa nueva o por invite code), cerrando el gap donde usuarios quedaban sin membership.
+
+#### Notas de compatibilidad
+
+- `profiles.company_id` no se toca ni elimina.
+- `has_role()` se mantiene solo para `user_roles` (tabla legacy sin `company_id`, documentado).
+- No se habilita trabajo cross-company simultáneo todavía.
+
+---
+
 
 ## [1.3.0] — 2026-03-05
 

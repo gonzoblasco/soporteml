@@ -48,15 +48,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user company
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
+    // Get user company (via memberships)
+    const { data: companyId } = await supabase.rpc("get_user_company_id", { _user_id: user.id });
 
-    if (!profile?.company_id) {
-      return new Response(JSON.stringify({ error: "No company" }), {
+    if (!companyId) {
+      return new Response(JSON.stringify({ error: "No active membership found" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -67,7 +63,7 @@ Deno.serve(async (req) => {
       .from("products")
       .select("*")
       .eq("id", product_id)
-      .eq("company_id", profile.company_id)
+      .eq("company_id", companyId)
       .single();
 
     if (prodErr || !product) {
@@ -106,7 +102,7 @@ Deno.serve(async (req) => {
       const { data: tokenRow } = await supabase
         .from("meli_tokens")
         .select("*")
-        .eq("company_id", profile.company_id)
+        .eq("company_id", companyId)
         .maybeSingle();
 
       const headers: Record<string, string> = {};

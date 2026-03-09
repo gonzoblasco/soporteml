@@ -14,6 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
 
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 type StatusFilter = 'pending' | 'published' | 'archived' | 'auto_published' | 'needs_human';
 
@@ -32,12 +33,15 @@ const Inbox = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const isMobile = useIsMobile();
+  const { currentCompanyId } = useAuth();
 
   const fetchQuestions = useCallback(async () => {
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     let query = supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
+      .eq('company_id', currentCompanyId)
       .eq('status', statusFilter)
       .order('created_at', { ascending: false });
 
@@ -60,7 +64,7 @@ const Inbox = () => {
       setQuestions(mapped);
     }
     setLoading(false);
-  }, [statusFilter]);
+  }, [statusFilter, currentCompanyId]);
 
   useEffect(() => {
     setSelectedId(null);

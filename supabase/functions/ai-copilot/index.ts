@@ -40,23 +40,18 @@ serve(async (req) => {
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
 
-    // Fetch caller's company_id for tenant isolation
+    // Fetch caller's company_id for tenant isolation (via memberships)
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-    const { data: callerProfile } = await serviceClient
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
+    const { data: callerCompanyId } = await serviceClient.rpc("get_user_company_id", { _user_id: user.id });
 
-    if (!callerProfile?.company_id) {
-      return new Response(JSON.stringify({ error: "Usuario sin empresa asignada" }), {
+    if (!callerCompanyId) {
+      return new Response(JSON.stringify({ error: "No active membership found" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const callerCompanyId = callerProfile.company_id;
 
     // Fetch CRM product knowledge if product_id is provided
     let productKnowledge = "";

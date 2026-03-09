@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import MeliConnectionStatus from '@/components/MeliConnectionStatus';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PriorityInbox = () => {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
@@ -18,12 +19,15 @@ const PriorityInbox = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const isMobile = useIsMobile();
+  const { currentCompanyId } = useAuth();
 
   const fetchQuestions = useCallback(async () => {
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
+      .eq('company_id', currentCompanyId)
       .eq('requires_human', true)
       .in('status', ['pending', 'needs_human'])
       .order('created_at', { ascending: false });
@@ -39,7 +43,7 @@ const PriorityInbox = () => {
       setQuestions(mapped);
     }
     setLoading(false);
-  }, []);
+  }, [currentCompanyId]);
 
   useEffect(() => {
     setSelectedId(null);
