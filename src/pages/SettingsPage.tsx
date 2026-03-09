@@ -686,7 +686,7 @@ const TeamSection = () => {
 
 // ─── AI Config Section ───
 const AiConfigSection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [aiTone, setAiTone] = useState('profesional');
   const [aiInstructions, setAiInstructions] = useState('');
@@ -694,11 +694,11 @@ const AiConfigSection = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     supabase
       .from('company_settings')
       .select('ai_tone, ai_custom_instructions')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -707,14 +707,14 @@ const AiConfigSection = () => {
         }
         setLoading(false);
       });
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   const handleSave = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     setSaving(true);
 
     const payload = {
-      company_id: companyId,
+      company_id: currentCompanyId,
       ai_tone: aiTone,
       ai_custom_instructions: aiInstructions.trim() || null,
     };
@@ -1050,18 +1050,18 @@ const AutoReplySection = () => {
 
 // ─── Trash Section (Admins only) ───
 const TrashSection = () => {
-  const { companyId } = useAuth();
+  const { currentCompanyId } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<Array<{ id: string; meli_question_id: string; question_text: string; created_at: string; product_title?: string }>>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDeleted = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const { data } = await supabase
       .from('questions')
       .select('id, meli_question_id, question_text, created_at, product_id, products(title)')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .eq('status', 'deleted')
       .order('created_at', { ascending: false });
 
@@ -1073,7 +1073,7 @@ const TrashSection = () => {
       product_title: q.products?.title,
     })));
     setLoading(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => { fetchDeleted(); }, [fetchDeleted]);
 
@@ -1089,10 +1089,10 @@ const TrashSection = () => {
 
   const handlePermanentDelete = async (id: string) => {
     const item = items.find(i => i.id === id);
-    if (item && companyId) {
+    if (item && currentCompanyId) {
       await supabase.from('dismissed_meli_questions' as any).insert({
         meli_question_id: item.meli_question_id,
-        company_id: companyId,
+        company_id: currentCompanyId,
       });
     }
     const { error } = await supabase.from('questions').delete().eq('id', id);
@@ -1105,10 +1105,10 @@ const TrashSection = () => {
   };
 
   const handleEmptyTrash = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
     const dismissedRows = items.map(i => ({
       meli_question_id: i.meli_question_id,
-      company_id: companyId,
+      company_id: currentCompanyId,
     }));
     await supabase.from('dismissed_meli_questions' as any).upsert(dismissedRows, { onConflict: 'meli_question_id,company_id' });
 

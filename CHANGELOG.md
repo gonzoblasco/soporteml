@@ -8,35 +8,47 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [2.0.0] — 2026-03-09
 
-### 🏢 Multi-Company — Hito 6: Memberships como Fuente Principal de Verdad
+### 🏢 Multi-Company — Cierre del Epic (Hitos 1-6)
 
 #### Cambiado
 
-- **Frontend completamente migrado a `currentCompanyId`** — CatalogPage, TemplatesPage y todas las secciones de Settings ahora usan `currentCompanyId` del contexto de autenticación (fuente: memberships) en lugar del alias legacy `companyId`.
-- **`companyId` marcado como deprecated** — alias legacy en `AuthContext` ahora documenta claramente su estado deprecated y próxima eliminación.
+- **Frontend migrado completamente a `currentCompanyId`** — todos los componentes (incluyendo `TemplatePicker`, `AICopilotPanel`, y secciones internas de `SettingsPage`: `AiConfigSection`, `TrashSection`) ahora usan `currentCompanyId` en vez del alias legacy `companyId`.
+- **Backend migrado a memberships** — funciones admin (`get_admin_users`, `get_admin_company_metrics`) ahora leen desde `memberships` en vez de `profiles.company_id`.
+  - `get_admin_users()`: devuelve campo `memberships` (JSONB array) con todas las companies del usuario, manteniendo `company_id` y `role` legacy para compatibilidad.
+  - `get_admin_company_metrics()`: cuenta miembros usando `COUNT(DISTINCT user_id)` desde `memberships` activas, corrigiendo conteo para usuarios multi-company.
+- **`companyId` oficialmente deprecated** — alias legacy en `AuthContext` será removido en v2.1.0.
 
-#### Seguridad y consistencia validada
+#### Epic completado
 
-- **Un usuario con 1 company**: comportamiento idéntico al anterior.
-- **Un usuario con 2+ companies**: puede cambiar de tenant sin mezcla de datos.
-- **Isolation tenant**: todas las pantallas principales (Home, Inbox, Priority, Settings, Catálogo, Plantillas) garantizan aislamiento completo por `currentCompanyId`.
-- **Company switcher reactivo**: cambios de compañía activa disparan refresh completo de datos scopeados.
-- **1 cuenta ML por company**: constraint UNIQUE en `meli_tokens.company_id` sigue intacto.
-
-#### Compatibilidad mantenida temporalmente
-
-- **`profiles.company_id`** se preserva como campo legacy. Las funciones `join_company_by_invite` y `add_company_membership` lo actualizan para primera membership (backward compatibility).
-- **`user_roles` tabla** no se modifica. Sigue coexistiendo con memberships.
-- **Edge Functions y RLS** sin cambios. Siguen operando sobre `get_user_company_id()` que ya lee de memberships con fallback.
-
-#### Documentación técnica
-
-- **Epic Multi-Company COMPLETADO** — Sistema consistente basado en memberships como fuente principal de verdad.
-- **Deprecation notice**: `companyId` será removido en versión 2.1.0. Usar `currentCompanyId`.
+El sistema multi-company está cerrado y operativo con:
+- ✅ Memberships como fuente única de verdad (base de datos + backend)
+- ✅ Switcher UI funcional para cambio de tenant
+- ✅ Isolation estricto por `currentCompanyId` (frontend reactivo)
+- ✅ Admin panel adaptado a multi-company (usuarios pueden tener múltiples empresas)
+- ✅ Invite flow compatible con múltiples memberships
+- ✅ RLS y edge functions usando `get_user_company_id()` con fallback
+- ✅ 0 referencias a `companyId` legacy fuera del alias deprecated en AuthContext
 
 ---
 
 ## [1.9.0] — 2026-03-09
+
+### 🏢 Multi-Company — Hito 5: Admin & Invites
+
+#### Añadido
+
+- **Funciones RPC de membership management**: `add_company_membership`, `remove_company_membership`, `update_membership_role`, `get_company_members`, `join_company_by_invite` — administración completa de memberships con validación de permisos (admin o super admin).
+- **AdminPanel Users tab**: rediseñado para mostrar memberships múltiples por usuario. Cada usuario ahora puede tener badges clickeables con todas sus companies.
+- **Settings > Join Company**: nueva sección para que usuarios se unan a empresas adicionales vía invite code. Si es la primera membership, se marca automáticamente como default.
+- **`refreshMemberships()` en AuthContext**: permite refrescar lista de companies del usuario sin hacer logout/login completo.
+
+#### Cambiado
+
+- **Team Section en Settings**: scope estricto a `currentCompanyId` usando `get_company_members()` RPC. Solo muestra miembros de la empresa activa.
+- **CompaniesTab en AdminPanel**: asignación de admin inicial al crear company usa `add_company_membership` en vez de manipular `profiles` directamente.
+- **`handle_new_user()`**: actualizado para crear membership automáticamente al registrarse (empresa nueva o por invite code), cerrando gap donde usuarios quedaban sin membership.
+
+---
 
 ## [1.8.0] — 2026-03-09
 
