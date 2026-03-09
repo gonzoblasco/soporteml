@@ -168,7 +168,7 @@ Incluye RLS + políticas/controles para mantener los datos aislados por empresa.
 
 ## 🗺️ Roadmap (por versiones)
 
-### v1.1.x — Hardening + Release Quality
+### v1.0.x — Hardening + Release Quality
 
 - **QA end-to-end** (Inbox → Conversación → Copiloto → Publicación)
   - Casos críticos: múltiples preguntas, producto sin catálogo, token expirado, reconexión, rate limits.
