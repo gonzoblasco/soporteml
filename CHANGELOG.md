@@ -33,6 +33,23 @@ El sistema multi-company está cerrado y operativo con:
 
 ## [1.9.0] — 2026-03-09
 
+### 🏢 Multi-Company — Hito 5: Admin & Invites
+
+#### Añadido
+
+- **Funciones RPC de membership management**: `add_company_membership`, `remove_company_membership`, `update_membership_role`, `get_company_members`, `join_company_by_invite` — administración completa de memberships con validación de permisos (admin o super admin).
+- **AdminPanel Users tab**: rediseñado para mostrar memberships múltiples por usuario. Cada usuario ahora puede tener badges clickeables con todas sus companies.
+- **Settings > Join Company**: nueva sección para que usuarios se unan a empresas adicionales vía invite code. Si es la primera membership, se marca automáticamente como default.
+- **`refreshMemberships()` en AuthContext**: permite refrescar lista de companies del usuario sin hacer logout/login completo.
+
+#### Cambiado
+
+- **Team Section en Settings**: scope estricto a `currentCompanyId` usando `get_company_members()` RPC. Solo muestra miembros de la empresa activa.
+- **CompaniesTab en AdminPanel**: asignación de admin inicial al crear company usa `add_company_membership` en vez de manipular `profiles` directamente.
+- **`handle_new_user()`**: actualizado para crear membership automáticamente al registrarse (empresa nueva o por invite code), cerrando gap donde usuarios quedaban sin membership.
+
+---
+
 ## [1.8.0] — 2026-03-09
 
 ### 🏢 Multi-Company — Hito 4: Company Switcher UI
