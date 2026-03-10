@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.3] — 2026-03-10
+
+### Corregido
+- **Bug multi-company**: Inbox y Priority Inbox ahora se actualizan en tiempo real cuando llegan nuevas consultas (suscripción realtime por company).
+- **Bug multi-company**: Los toasts de notificación solo se muestran para consultas de la compañía activa del usuario.
+- **Bug multi-company**: El estado de conexión de MercadoLibre ahora filtra por la compañía activa y se actualiza al cambiar de empresa.
+
+
+
 ## [1.0.2] — 2026-03-10
 
 ### 🛡️ Admin — Crear usuarios
