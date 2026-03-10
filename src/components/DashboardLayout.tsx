@@ -135,6 +135,7 @@ const DashboardLayout = () => {
         (payload) => {
           if (initialLoad.current) return;
           const q = payload.new as any;
+          if (currentCompanyId && q.company_id !== currentCompanyId) return;
           const text = q.question_text?.slice(0, 120) || 'Nueva consulta';
 
           playSound('normal');
