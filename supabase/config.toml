@@ -27,3 +27,5 @@ project_id = "ropbkdqhqdeiwrenrmjt"
     verify_jwt = false
   [functions.notify]
     verify_jwt = false
+  [functions.admin-create-user]
+    verify_jwt = false
