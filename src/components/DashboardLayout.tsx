@@ -88,6 +88,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const initialLoad = useRef(true);
+  const { currentCompanyId } = useAuth();
 
   useEffect(() => {
     // Request push notification permission on mount
@@ -103,6 +104,7 @@ const DashboardLayout = () => {
         (payload) => {
           if (initialLoad.current) return;
           const q = payload.new as any;
+          if (currentCompanyId && q.company_id !== currentCompanyId) return;
           const text = q.question_text?.slice(0, 120) || 'Nueva consulta';
 
           playSound('priority');
