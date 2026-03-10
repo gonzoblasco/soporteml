@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.2] — 2026-03-10
+
+### 🛡️ Admin — Crear usuarios
+
+#### Agregado
+
+- **Botón "Crear usuario"** en Admin > Usuarios que abre un dialog con formulario completo (nombre, email, contraseña, empresa, rol, plan).
+- **Edge Function `admin-create-user`** — crea usuario con email auto-confirmado, asigna membresía a empresa y opcionalmente crea suscripción Stripe (Plan Base $100/mes).
+- **Selector de plan** — Plan Base habilitado; Plan Pro visible pero deshabilitado con badge "Próximamente".
+
+---
+
 ## [1.0.1] — 2026-03-09
 
 ### 🌐 Landing page — Reescritura comercial

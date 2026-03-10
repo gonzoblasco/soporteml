@@ -15,6 +15,7 @@ import { Trash2, Plus, Loader2, Mail, Building2, Users, Shield, UserCircle, Sear
 import { Badge } from '@/components/ui/badge';
 import MetricsTab from '@/components/admin/MetricsTab';
 import CompaniesTab from '@/components/admin/CompaniesTab';
+import CreateUserDialog from '@/components/admin/CreateUserDialog';
 
 const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
   <div className="relative">
@@ -398,7 +399,10 @@ const UsersTab = () => {
             <CardTitle className="text-lg">Usuarios registrados</CardTitle>
             <CardDescription>{filteredUsers.length} de {users.length} usuario{users.length !== 1 ? 's' : ''}</CardDescription>
           </div>
-          {users.length > 0 && <SearchInput value={userQuery} onChange={setUserQuery} placeholder="Buscar por nombre o email..." />}
+          <div className="flex items-center gap-2">
+            {users.length > 0 && <SearchInput value={userQuery} onChange={setUserQuery} placeholder="Buscar por nombre o email..." />}
+            <CreateUserDialog companies={companies} onCreated={fetchData} />
+          </div>
         </div>
       </CardHeader>
       <CardContent>
