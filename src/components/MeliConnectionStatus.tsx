@@ -3,23 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { computeHealth, getHealthUI, type MeliHealthInfo } from '@/lib/meliTokenHealth';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MeliConnectionStatus = () => {
   const [healthInfo, setHealthInfo] = useState<MeliHealthInfo>({ status: null });
   const navigate = useNavigate();
+  const { currentCompanyId } = useAuth();
 
   useEffect(() => {
+    if (!currentCompanyId) { setHealthInfo({ status: null }); return; }
     const loadStatus = async () => {
       const { data: token } = await supabase
         .from('meli_connection_status')
         .select('id, expires_at, has_refresh_token')
-        .limit(1)
+        .eq('company_id', currentCompanyId)
         .maybeSingle();
 
       setHealthInfo(computeHealth(token));
     };
     loadStatus();
-  }, []);
+  }, [currentCompanyId]);
 
   if (healthInfo.status === null) return null;
 

@@ -71,6 +71,25 @@ const Inbox = () => {
     fetchQuestions();
   }, [fetchQuestions]);
 
+  // Realtime: auto-refresh when new questions arrive for current company
+  useEffect(() => {
+    if (!currentCompanyId) return;
+    const channel = supabase
+      .channel('inbox-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'questions' },
+        (payload) => {
+          const row = (payload.new || payload.old) as any;
+          if (row?.company_id === currentCompanyId) {
+            fetchQuestions();
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentCompanyId, fetchQuestions]);
+
   const filtered = questions.filter(
     (q) =>
       (q.product_title ?? '').toLowerCase().includes(search.toLowerCase()) ||

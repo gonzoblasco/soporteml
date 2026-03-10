@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AlertTriangle, Inbox } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Simple notification sound using Web Audio API
 const playSound = (type: 'priority' | 'normal') => {
@@ -87,6 +88,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const initialLoad = useRef(true);
+  const { currentCompanyId } = useAuth();
 
   useEffect(() => {
     // Request push notification permission on mount
@@ -102,6 +104,7 @@ const DashboardLayout = () => {
         (payload) => {
           if (initialLoad.current) return;
           const q = payload.new as any;
+          if (currentCompanyId && q.company_id !== currentCompanyId) return;
           const text = q.question_text?.slice(0, 120) || 'Nueva consulta';
 
           playSound('priority');
@@ -132,6 +135,7 @@ const DashboardLayout = () => {
         (payload) => {
           if (initialLoad.current) return;
           const q = payload.new as any;
+          if (currentCompanyId && q.company_id !== currentCompanyId) return;
           const text = q.question_text?.slice(0, 120) || 'Nueva consulta';
 
           playSound('normal');
@@ -162,7 +166,7 @@ const DashboardLayout = () => {
       clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [navigate]);
+  }, [navigate, currentCompanyId]);
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
