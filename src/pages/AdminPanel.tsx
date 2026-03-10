@@ -15,6 +15,7 @@ import { Trash2, Plus, Loader2, Mail, Building2, Users, Shield, UserCircle, Sear
 import { Badge } from '@/components/ui/badge';
 import MetricsTab from '@/components/admin/MetricsTab';
 import CompaniesTab from '@/components/admin/CompaniesTab';
+import CreateUserDialog from '@/components/admin/CreateUserDialog';
 
 const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
   <div className="relative">
