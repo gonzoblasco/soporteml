@@ -166,7 +166,7 @@ const DashboardLayout = () => {
       clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [navigate]);
+  }, [navigate, currentCompanyId]);
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
