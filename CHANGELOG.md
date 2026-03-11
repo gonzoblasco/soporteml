@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.4] — 2026-03-11
+
+### Corregido
+- **RLS meli_tokens**: Usuarios no-super-admin ahora pueden ver el estado de conexión de MercadoLibre de su propia empresa (nueva política SELECT por membership).
+- **Sync manual multi-company**: `sync-meli-questions` ahora recibe `company_id` explícito del frontend, validando pertenencia antes de sincronizar. El cron sigue operando sin cambios.
+- **Disconnect multi-company**: `disconnect-meli` reemplazó `has_role` (legacy) por `has_membership_role` y ahora recibe `company_id` explícito para desconectar la empresa activa correcta.
+- **Frontend Settings**: `SyncButton` y `handleDisconnect` envían `currentCompanyId` en el body de la invocación.
+
+---
+
 ## [1.0.3] — 2026-03-10
 
 ### Corregido

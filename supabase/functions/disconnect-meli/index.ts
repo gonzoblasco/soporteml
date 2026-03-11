@@ -40,29 +40,53 @@ Deno.serve(async (req) => {
     const userId = user.id;
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Verify admin role
-    const { data: isAdmin } = await serviceClient.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
+    // Get company_id from request body (explicit) or fall back to default
+    let body: any = {};
+    try { body = await req.json(); } catch { /* empty body */ }
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let companyId: string | null = body.company_id ?? null;
+
+    if (companyId) {
+      // Validate user is admin of the requested company via memberships
+      const { data: isAdmin } = await serviceClient.rpc("has_membership_role", {
+        _user_id: userId,
+        _company_id: companyId,
+        _role: "admin",
       });
-    }
 
-    // Get company_id
-    const { data: companyId } = await serviceClient.rpc("get_user_company_id", {
-      _user_id: userId,
-    });
-
-    if (!companyId) {
-      return new Response(JSON.stringify({ error: "No company found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin of this company required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      // Legacy fallback: use default company
+      const { data: defaultCompanyId } = await serviceClient.rpc("get_user_company_id", {
+        _user_id: userId,
       });
+      companyId = defaultCompanyId;
+
+      if (!companyId) {
+        return new Response(JSON.stringify({ error: "No company found" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Still verify admin role via memberships
+      const { data: isAdmin } = await serviceClient.rpc("has_membership_role", {
+        _user_id: userId,
+        _company_id: companyId,
+        _role: "admin",
+      });
+
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Delete tokens
