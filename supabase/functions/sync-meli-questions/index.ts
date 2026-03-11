@@ -255,7 +255,27 @@ Deno.serve(async (req) => {
     // Scope meli_tokens query: user-triggered calls are restricted to caller's company
     let query = supabase.from("meli_tokens").select("*");
     if (callerUserId) {
-      const { data: callerCompanyId } = await supabase.rpc("get_user_company_id", { _user_id: callerUserId });
+      // Prefer explicit company_id from body; fall back to default company
+      const explicitCompanyId = body.company_id ?? null;
+      let callerCompanyId: string | null = explicitCompanyId;
+
+      if (explicitCompanyId) {
+        // Validate user belongs to the requested company
+        const { data: belongs } = await supabase.rpc("user_belongs_to_company", {
+          _user_id: callerUserId,
+          _company_id: explicitCompanyId,
+        });
+        if (!belongs) {
+          return new Response(JSON.stringify({ error: "Forbidden: user does not belong to this company" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        const { data: defaultCompanyId } = await supabase.rpc("get_user_company_id", { _user_id: callerUserId });
+        callerCompanyId = defaultCompanyId;
+      }
+
       if (!callerCompanyId) {
         return new Response(JSON.stringify({ error: "No company found for user" }), {
           status: 403,

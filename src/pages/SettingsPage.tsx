@@ -344,7 +344,9 @@ const MeliConnectionSection = () => {
 
   const handleDisconnect = async () => {
     setDisconnecting(true);
-    const { error } = await supabase.functions.invoke('disconnect-meli');
+    const { error } = await supabase.functions.invoke('disconnect-meli', {
+      body: { company_id: currentCompanyId },
+    });
     if (error) {
       toast({ title: 'Error', description: 'No se pudo desconectar. Intentá de nuevo.', variant: 'destructive' });
     } else {
