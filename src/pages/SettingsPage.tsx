@@ -259,11 +259,14 @@ const CompanySection = () => {
 // ─── Sync Button ───
 const SyncButton = () => {
   const { toast } = useToast();
+  const { currentCompanyId } = useAuth();
   const [syncing, setSyncing] = useState(false);
 
   const handleSync = async () => {
     setSyncing(true);
-    const { error } = await supabase.functions.invoke('sync-meli-questions');
+    const { error } = await supabase.functions.invoke('sync-meli-questions', {
+      body: { company_id: currentCompanyId },
+    });
     toast(error
       ? { title: 'Error', description: 'No se pudo sincronizar. Intentá de nuevo.', variant: 'destructive' }
       : { title: 'Sincronización completada', description: 'Las preguntas fueron actualizadas.' }
