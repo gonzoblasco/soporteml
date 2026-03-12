@@ -150,6 +150,11 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
     systemPrompt += crmKnowledge;
   }
 
+  // Inject business knowledge entries
+  if (businessKnowledge) {
+    systemPrompt += businessKnowledge;
+  }
+
   systemPrompt += `\n\nRespondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
 {"answer": "tu respuesta lista para publicar, corta y clara", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
 
