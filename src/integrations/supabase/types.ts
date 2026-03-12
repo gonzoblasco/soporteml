@@ -227,6 +227,62 @@ export type Database = {
           },
         ]
       }
+      knowledge_entries: {
+        Row: {
+          ai_visible: boolean
+          company_id: string
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean
+          priority: number
+          scope: string
+          title: string
+          type: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ai_visible?: boolean
+          company_id: string
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          priority?: number
+          scope?: string
+          title: string
+          type: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ai_visible?: boolean
+          company_id?: string
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          priority?: number
+          scope?: string
+          title?: string
+          type?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meli_tokens: {
         Row: {
           access_token: string
