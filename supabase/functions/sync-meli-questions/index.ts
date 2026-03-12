@@ -52,6 +52,47 @@ function isOutsideBusinessHours(businessHours: { days: string[]; start_time: str
   return currentMinutes < startMinutes || currentMinutes >= endMinutes;
 }
 
+// ─── Fetch Knowledge Entries ───
+async function fetchKnowledgeContext(supabase: any, companyId: string): Promise<{ positive: string; restrictions: string }> {
+  try {
+    const { data: entries } = await supabase
+      .from("knowledge_entries")
+      .select("title, content, type, priority")
+      .eq("company_id", companyId)
+      .eq("ai_visible", true)
+      .eq("is_active", true)
+      .eq("scope", "global")
+      .order("priority", { ascending: false });
+
+    if (!entries?.length) return { positive: "", restrictions: "" };
+
+    const positiveParts: string[] = [];
+    const restrictionParts: string[] = [];
+    let totalChars = 0;
+    const MAX_CHARS = 4000;
+
+    for (const entry of entries) {
+      const line = `• ${entry.title}: ${entry.content}`;
+      if (totalChars + line.length > MAX_CHARS) break;
+      totalChars += line.length;
+
+      if (entry.type === "restriccion") {
+        restrictionParts.push(line);
+      } else {
+        positiveParts.push(line);
+      }
+    }
+
+    return {
+      positive: positiveParts.length ? `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${positiveParts.join('\n')}` : "",
+      restrictions: restrictionParts.length ? `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionParts.join('\n')}` : "",
+    };
+  } catch (e) {
+    console.error("Error fetching knowledge entries:", e);
+    return { positive: "", restrictions: "" };
+  }
+}
+
 async function generateAiAnswer(
   questionText: string,
   productContext: string,
@@ -62,6 +103,7 @@ async function generateAiAnswer(
   productTitle: string | null = null,
   productPrice: number | null = null,
   crmKnowledge: string = "",
+  businessKnowledge: string = "",
 ): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
