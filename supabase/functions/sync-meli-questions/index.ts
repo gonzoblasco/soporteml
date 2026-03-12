@@ -748,11 +748,40 @@ async function processQuestion(
     }
   }
 
-  // ─── Enrich product context with CRM data ───
+  // ─── Fetch CRM knowledge for system prompt (Copilot-grade) ───
+  let crmKnowledge = "";
   if (productId) {
-    const crmContext = await fetchCrmContext(supabase, productId, companyId);
-    if (crmContext) {
-      productContext += '\n\n' + crmContext;
+    crmKnowledge = await fetchCrmContext(supabase, productId, companyId);
+  }
+
+  // ─── Fetch MeLi item description for richer context ───
+  if (q.item_id) {
+    try {
+      // Check meli_cache first
+      if (productId) {
+        const { data: cachedProd } = await supabase
+          .from("products")
+          .select("meli_cache")
+          .eq("id", productId)
+          .maybeSingle();
+        const cachedDesc = cachedProd?.meli_cache?.description;
+        if (cachedDesc) {
+          productContext += `\nDescripción del producto: ${cachedDesc}`;
+        } else {
+          // Fetch from MeLi API
+          const descRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}/description`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (descRes.ok) {
+            const descData = await descRes.json();
+            if (descData?.plain_text) {
+              productContext += `\nDescripción del producto: ${descData.plain_text}`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching item description:", e);
     }
   }
 
@@ -772,12 +801,12 @@ async function processQuestion(
     }
   }
 
-  console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`);
+  console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}, hasCRM=${!!crmKnowledge}`);
 
-  // Generate AI answer (with full copilot-grade context)
+  // Generate AI answer (CRM injected into system prompt, product data in user prompt)
   const productObj = product || null;
   const { answer, category, requires_human, requires_human_reason, confidence } = aiSuggestionsEnabled
-    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules, buyerNickname, productTitle, productObj?.price ?? null)
+    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules, buyerNickname, productTitle, productObj?.price ?? null, crmKnowledge)
     : { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
 
   // ─── Autopilot Decision Engine ───

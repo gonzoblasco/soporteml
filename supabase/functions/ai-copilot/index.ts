@@ -63,7 +63,7 @@ serve(async (req) => {
         .eq("company_id", callerCompanyId)
         .maybeSingle();
 
-      if (crmProduct?.support_summary) {
+      if (crmProduct) {
         const parts: string[] = [`\n\n--- CONOCIMIENTO CRM DEL PRODUCTO ---`];
         parts.push(`Resumen: ${crmProduct.support_summary}`);
         if (crmProduct.key_points?.length) parts.push(`Puntos clave:\n${(crmProduct.key_points as string[]).map((p: string) => `• ${p}`).join('\n')}`);
