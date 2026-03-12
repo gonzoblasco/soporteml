@@ -112,9 +112,9 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
     }
   };
 
-  // Auto-trigger on question change (pending questions only)
+  // Auto-trigger on question change (pending questions only, and only if no AI answer already exists)
   useEffect(() => {
-    const isPending = question.status === 'pending';
+    const isPending = question.status === 'pending' || question.status === 'needs_human';
     const isNewQuestion = lastQuestionIdRef.current !== question.id;
     lastQuestionIdRef.current = question.id;
 
@@ -122,6 +122,13 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
       setResult(null);
       setError(null);
       setActiveTone(null);
+
+      // If the sync already generated an answer, don't auto-trigger the copilot
+      if (question.ai_suggested_answer) {
+        // No auto-trigger — the textarea already has the sync-generated answer
+        return;
+      }
+
       fetchCopilot(undefined, true);
     }
   }, [question.id]);
