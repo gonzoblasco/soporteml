@@ -801,6 +801,10 @@ async function processQuestion(
     crmKnowledge = await fetchCrmContext(supabase, productId, companyId);
   }
 
+  // ─── Fetch business knowledge entries ───
+  const knowledgeCtx = await fetchKnowledgeContext(supabase, companyId);
+  const businessKnowledge = knowledgeCtx.positive + knowledgeCtx.restrictions;
+
   // ─── Fetch MeLi item description for richer context ───
   if (q.item_id) {
     try {
