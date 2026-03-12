@@ -1468,7 +1468,7 @@ const SettingsPage = () => {
     <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-xl font-semibold text-foreground mb-1">Settings</h1>
-        <p className="text-sm text-muted-foreground mb-6">Configuración de la cuenta y preferencias</p>
+        <p className="text-sm text-muted-foreground mb-4 sm:mb-6">Configuración de la cuenta y preferencias</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-4">
