@@ -123,6 +123,7 @@ serve(async (req) => {
 
       if (crmProduct) {
         productCategoryId = crmProduct.meli_category_id;
+        productCategoryName = crmProduct.meli_category_name;
 
         const parts: string[] = [`\n\n--- CONOCIMIENTO CRM DEL PRODUCTO ---`];
         parts.push(`Resumen: ${crmProduct.support_summary}`);
