@@ -1,23 +1,47 @@
 
 
+# Fase 3: Sugerencias proactivas de Conocimiento — Plan
 
-## Módulo Conocimiento v1 — IMPLEMENTADO ✅
+## Decisiones del feedback
 
-Implementado en v1.1.0. Tabla `knowledge_entries` con RLS, UI split-view en `/knowledge`, inyección en `ai-copilot` y `sync-meli-questions`.
+1. **Criterio = solo tipos críticos faltantes** (0 entries de `politica`, `restriccion`, o `faq`). Sin medir calidad. Tono suave: "podrías mejorar esto".
+2. **Independiente de CRM suggestions** — max 2 knowledge suggestions, siempre visibles si existen, bloque compacto separado.
+3. **Solo gaps globales en v1** — no sugerir por categoría todavía (Fase 3.1).
+4. **Anti-spam** — max 1 sugerencia mostrada por sesión (dedup client-side con `useRef<Set>`). Si ya se vio "faltan políticas" en esta sesión, no repetir.
 
-## Módulo Conocimiento Fase 2 — IMPLEMENTADO ✅
+## Cambios
 
-Implementado en v1.2.0. Scope `categoria` con selector de categoría MeLi y `scope_ref`.
+### 1. `ai-copilot/index.ts` — generar `knowledge_suggestions`
 
-### Cambios Fase 2
-- Columna `scope_ref` en `knowledge_entries` con trigger de validación de consistencia (`global` → NULL, `categoria` → NOT NULL)
-- UI: selector de alcance (Global / Categoría), dropdown de categorías MeLi, filtro por scope, badges de categoría
-- UI defensiva: si no hay categorías sincronizadas, deshabilita scope `categoria` y muestra mensaje claro
-- IA: inyección ordenada por prioridad: restricciones (categoría → global), conocimiento de categoría, conocimiento global
-- Truncación inteligente a ~4000 chars cortando desde global positivo de menor prioridad
+Después de fetchear `kEntries`, contar tipos globales existentes:
 
-### Fase 3 (pendiente)
-- Sugerencias proactivas del Copiloto para crear entries faltantes
-- Editor markdown con preview
-- Artículos de ejemplo en onboarding
-- Vector search / embeddings para bases grandes
+```text
+const globalTypes = new Set(kEntries?.filter(e => e.scope === 'global').map(e => e.type));
+const suggestions = [];
+if (!globalTypes.has('politica')) suggestions.push({ message: "Podrías agregar una política de envíos o devoluciones para mejorar las respuestas", type: "politica" });
+if (!globalTypes.has('restriccion')) suggestions.push({ message: "Definí qué no prometer a los compradores para evitar respuestas riesgosas", type: "restriccion" });
+if (!globalTypes.has('faq')) suggestions.push({ message: "Agregá preguntas frecuentes para respuestas más completas", type: "faq" });
+// Max 2
+parsed.knowledge_suggestions = suggestions.slice(0, 2);
+```
+
+### 2. `AICopilotPanel.tsx` — renderizar + anti-spam
+
+- Add `knowledge_suggestions` to `CopilotResult` interface
+- Add `useRef<Set<string>>` for `dismissedKnowledgeSuggestionsRef` (session-scoped, persists across question changes)
+- Filter out already-seen suggestions by `type`
+- After rendering, mark types as seen
+- Render as compact block with `BookOpen` icon + link to `/knowledge`
+- Use `useNavigate` from react-router-dom
+
+### 3. Files
+
+| File | Change |
+|---|---|
+| `supabase/functions/ai-copilot/index.ts` | Count global types, generate max 2 `knowledge_suggestions` |
+| `src/components/AICopilotPanel.tsx` | Render suggestions with session dedup |
+| `.lovable/plan.md` | Mark Fase 3 done |
+| `CHANGELOG.md` | Document |
+
+No database changes needed.
+
