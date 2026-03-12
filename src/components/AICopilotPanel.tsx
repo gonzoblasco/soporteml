@@ -319,8 +319,19 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
               const toShow = unseen.slice(0, 1);
               toShow.forEach(s => markKnowledgeTypeSeen(s.type));
               return (
-                <div className="rounded-md bg-muted/50 border border-border/30 p-3 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
+                <div className="rounded-md bg-muted/50 border border-border/30 p-3 space-y-1.5 relative">
+                  <button
+                    onClick={() => {
+                      // Dismiss all remaining suggestions for this session
+                      (result.knowledge_suggestions || []).forEach(s => markKnowledgeTypeSeen(s.type));
+                      setResult(prev => prev ? { ...prev, knowledge_suggestions: [] } : prev);
+                    }}
+                    className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Descartar sugerencia"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="flex items-center gap-1.5 pr-4">
                     <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
                     <p className="text-[11px] font-medium text-muted-foreground">Mejorá tu base de conocimiento</p>
                   </div>
