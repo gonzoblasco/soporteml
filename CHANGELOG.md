@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.1.0] — 2026-03-12
+
+### Agregado — Módulo Conocimiento v1
+
+- **Nueva sección CRM "Conocimiento"** (`/knowledge`): base de conocimiento del negocio con artículos de tipo Política, FAQ, Guía y Restricción. Scope v1: solo global (aplica a toda la empresa).
+- **Split-view UI**: lista con búsqueda y filtro por tipo + editor con título, contenido (max 2000 chars), prioridad (0-10), toggles de visibilidad IA y estado activo. Mobile: navegación lista → editor fullscreen.
+- **Inyección en IA**: las entries activas y visibles se inyectan automáticamente en el system prompt del Copiloto IA y del Sync de preguntas, separando conocimiento afirmativo (`--- CONOCIMIENTO DEL NEGOCIO ---`) de restricciones (`--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---`). Ordenadas por prioridad DESC con truncación a ~4000 chars.
+- **Tabla `knowledge_entries`** con RLS completa: members pueden ver, admin/agent pueden crear/editar, solo admin puede eliminar.
+- **Sidebar CRM**: link "Conocimiento" habilitado con ícono BookOpen.
+
+---
+
 ## [1.0.8] — 2026-03-12
 
 ### Mejorado — EPIC Responsive Design & Mobile UX
