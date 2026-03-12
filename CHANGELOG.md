@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.5] — 2026-03-12
+
+### Corregido
+- **Contexto CRM en ingesta**: `sync-meli-questions` ahora enriquece el contexto del producto con datos CRM (`support_summary`, `key_points`, `faq_bullets`, `do_not_say`, `shipping_notes`, `returns_notes`, `warranty_notes`) y variantes del catálogo interno antes de generar la respuesta IA. Esto unifica la calidad entre la respuesta de ingesta y la del copiloto.
+- **Auto-respuesta con placeholder**: Autopilot ahora publica respuestas generadas con contexto CRM completo en lugar de respuestas genéricas sin datos del producto.
+
+---
+
 ## [1.0.4] — 2026-03-11
 
 ### Corregido
