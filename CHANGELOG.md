@@ -6,6 +6,22 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.8] — 2026-03-12
+
+### Mejorado — EPIC Responsive Design & Mobile UX
+- **Admin Panel**: Tabs responsive con texto abreviado en móvil; tablas de Métricas, Companies y Consultas convertidas a cards en pantallas <640px con scroll horizontal en desktop.
+- **Admin Users**: Memberships con chips y popovers ya funcionan correctamente en mobile.
+- **Settings**: Layout de grid adaptado; sección MeLi con descripción oculta en mobile para evitar overflow; botones de acciones con flex-wrap correcto.
+- **Landing**: Botón "Empezar" visible en todas las pantallas (antes oculto en mobile con `hidden sm:inline-flex`).
+- **Home/Dashboard**: Padding reducido en mobile (p-4 vs p-6), espaciado más compacto.
+- **Plantillas**: Header y filtros apilados verticalmente en mobile; botón "Nueva plantilla" ocupa ancho completo.
+- **Catálogo ProductForm**: Tabs scrollables horizontalmente en mobile con texto más pequeño.
+- **QuestionDetail**: Padding reducido en mobile; botones de acción con `size="sm"` consistente; "Guardar como plantilla" abreviado.
+- **Inbox y Priority**: Layout ya era correcto (detalle full-screen en mobile) — sin cambios necesarios.
+- **Login/Signup/Onboarding**: Ya eran responsive — sin cambios necesarios.
+
+---
+
 ## [1.0.7] — 2026-03-12
 
 ### Corregido
