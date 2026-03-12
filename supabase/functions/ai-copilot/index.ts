@@ -7,11 +7,67 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ─── Build knowledge context with category-aware ordering ───
+function buildKnowledgePrompt(entries: any[]): { positive: string; restrictions: string } {
+  if (!entries?.length) return { positive: "", restrictions: "" };
+
+  // Separate by type and scope
+  const catRestrictions: any[] = [];
+  const globalRestrictions: any[] = [];
+  const catPositive: any[] = [];
+  const globalPositive: any[] = [];
+
+  for (const e of entries) {
+    if (e.type === "restriccion") {
+      (e.scope === "categoria" ? catRestrictions : globalRestrictions).push(e);
+    } else {
+      (e.scope === "categoria" ? catPositive : globalPositive).push(e);
+    }
+  }
+
+  // Build in priority order: restrictions first, then category positive, then global positive
+  const MAX_CHARS = 4000;
+  let totalChars = 0;
+
+  const restrictionLines: string[] = [];
+  for (const e of [...catRestrictions, ...globalRestrictions]) {
+    const line = `• ${e.title}: ${e.content}`;
+    if (totalChars + line.length > MAX_CHARS) break;
+    totalChars += line.length;
+    restrictionLines.push(line);
+  }
+
+  const catPositiveLines: string[] = [];
+  for (const e of catPositive) {
+    const line = `• ${e.title}: ${e.content}`;
+    if (totalChars + line.length > MAX_CHARS) break;
+    totalChars += line.length;
+    catPositiveLines.push(line);
+  }
+
+  const globalPositiveLines: string[] = [];
+  for (const e of globalPositive) {
+    const line = `• ${e.title}: ${e.content}`;
+    if (totalChars + line.length > MAX_CHARS) break;
+    totalChars += line.length;
+    globalPositiveLines.push(line);
+  }
+
+  let positive = "";
+  if (catPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DE CATEGORÍA ---\n${catPositiveLines.join('\n')}`;
+  if (globalPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${globalPositiveLines.join('\n')}`;
+
+  const restrictions = restrictionLines.length
+    ? `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionLines.join('\n')}`
+    : "";
+
+  return { positive, restrictions };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Authenticate request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "No autorizado" }), {
@@ -40,7 +96,6 @@ serve(async (req) => {
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
 
-    // Fetch caller's company_id for tenant isolation (via memberships)
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -55,23 +110,27 @@ serve(async (req) => {
 
     // Fetch CRM product knowledge if product_id is provided
     let productKnowledge = "";
+    let productCategoryId: string | null = null;
+
     if (product_id) {
       const { data: crmProduct } = await serviceClient
         .from("products")
-        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say")
+        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, meli_category_id")
         .eq("id", product_id)
         .eq("company_id", callerCompanyId)
         .maybeSingle();
 
       if (crmProduct) {
+        productCategoryId = crmProduct.meli_category_id;
+
         const parts: string[] = [`\n\n--- CONOCIMIENTO CRM DEL PRODUCTO ---`];
         parts.push(`Resumen: ${crmProduct.support_summary}`);
-        if (crmProduct.key_points?.length) parts.push(`Puntos clave:\n${(crmProduct.key_points as string[]).map((p: string) => `• ${p}`).join('\n')}`);
+        if ((crmProduct.key_points as string[])?.length) parts.push(`Puntos clave:\n${(crmProduct.key_points as string[]).map((p: string) => `• ${p}`).join('\n')}`);
         if (crmProduct.shipping_notes) parts.push(`Envíos: ${crmProduct.shipping_notes}`);
         if (crmProduct.returns_notes) parts.push(`Devoluciones: ${crmProduct.returns_notes}`);
         if (crmProduct.warranty_notes) parts.push(`Garantía: ${crmProduct.warranty_notes}`);
-        if (crmProduct.faq_bullets?.length) parts.push(`FAQ:\n${(crmProduct.faq_bullets as string[]).map((f: string) => `• ${f}`).join('\n')}`);
-        if (crmProduct.do_not_say?.length) parts.push(`NO PROMETER:\n${(crmProduct.do_not_say as string[]).map((d: string) => `⚠️ ${d}`).join('\n')}`);
+        if ((crmProduct.faq_bullets as string[])?.length) parts.push(`FAQ:\n${(crmProduct.faq_bullets as string[]).map((f: string) => `• ${f}`).join('\n')}`);
+        if ((crmProduct.do_not_say as string[])?.length) parts.push(`NO PROMETER:\n${(crmProduct.do_not_say as string[]).map((d: string) => `⚠️ ${d}`).join('\n')}`);
         productKnowledge = parts.join('\n');
 
         // Fetch variants
@@ -91,41 +150,23 @@ serve(async (req) => {
       }
     }
 
-    // ─── Fetch business knowledge entries ───
-    let businessKnowledgePositive = "";
-    let businessKnowledgeRestrictions = "";
-    {
-      const { data: kEntries } = await serviceClient
-        .from("knowledge_entries")
-        .select("title, content, type, priority")
-        .eq("company_id", callerCompanyId)
-        .eq("ai_visible", true)
-        .eq("is_active", true)
-        .eq("scope", "global")
-        .order("priority", { ascending: false });
+    // ─── Fetch knowledge entries (global + category) ───
+    let knowledgeQuery = serviceClient
+      .from("knowledge_entries")
+      .select("title, content, type, priority, scope, scope_ref")
+      .eq("company_id", callerCompanyId)
+      .eq("ai_visible", true)
+      .eq("is_active", true)
+      .order("priority", { ascending: false });
 
-      if (kEntries?.length) {
-        const positiveParts: string[] = [];
-        const restrictionParts: string[] = [];
-        let totalChars = 0;
-        const MAX_CHARS = 4000;
-
-        for (const entry of kEntries) {
-          const line = `• ${entry.title}: ${entry.content}`;
-          if (totalChars + line.length > MAX_CHARS) break;
-          totalChars += line.length;
-
-          if (entry.type === "restriccion") {
-            restrictionParts.push(line);
-          } else {
-            positiveParts.push(line);
-          }
-        }
-
-        if (positiveParts.length) businessKnowledgePositive = `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${positiveParts.join('\n')}`;
-        if (restrictionParts.length) businessKnowledgeRestrictions = `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionParts.join('\n')}`;
-      }
+    if (productCategoryId) {
+      knowledgeQuery = knowledgeQuery.or(`scope.eq.global,and(scope.eq.categoria,scope_ref.eq.${productCategoryId})`);
+    } else {
+      knowledgeQuery = knowledgeQuery.eq("scope", "global");
     }
+
+    const { data: kEntries } = await knowledgeQuery;
+    const { positive: businessKnowledgePositive, restrictions: businessKnowledgeRestrictions } = buildKnowledgePrompt(kEntries || []);
 
     const systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
 Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
@@ -140,9 +181,9 @@ Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estru
 }
 
 Si no falta ningún dato, devolvé "missing_data": [].
-Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}${businessKnowledgePositive}${businessKnowledgeRestrictions}`;
+Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}${businessKnowledgeRestrictions}${businessKnowledgePositive}`;
 
-    // Deterministic CRM suggestions based on field completeness
+    // Deterministic CRM suggestions
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
     if (product_id) {
       const { data: crmCheck } = await serviceClient
@@ -207,7 +248,6 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
     const aiData = await response.json();
     const raw = aiData.choices?.[0]?.message?.content ?? "";
 
-    // Parse JSON from response (strip markdown fences if present)
     let parsed;
     try {
       const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
@@ -221,7 +261,6 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
       };
     }
 
-    // Attach CRM suggestions to response
     if (crmSuggestions.length > 0) {
       parsed.crm_suggestions = crmSuggestions;
     }
