@@ -90,6 +90,43 @@ serve(async (req) => {
         }
       }
     }
+
+    // ─── Fetch business knowledge entries ───
+    let businessKnowledgePositive = "";
+    let businessKnowledgeRestrictions = "";
+    {
+      const { data: kEntries } = await serviceClient
+        .from("knowledge_entries")
+        .select("title, content, type, priority")
+        .eq("company_id", callerCompanyId)
+        .eq("ai_visible", true)
+        .eq("is_active", true)
+        .eq("scope", "global")
+        .order("priority", { ascending: false });
+
+      if (kEntries?.length) {
+        const positiveParts: string[] = [];
+        const restrictionParts: string[] = [];
+        let totalChars = 0;
+        const MAX_CHARS = 4000;
+
+        for (const entry of kEntries) {
+          const line = `• ${entry.title}: ${entry.content}`;
+          if (totalChars + line.length > MAX_CHARS) break;
+          totalChars += line.length;
+
+          if (entry.type === "restriccion") {
+            restrictionParts.push(line);
+          } else {
+            positiveParts.push(line);
+          }
+        }
+
+        if (positiveParts.length) businessKnowledgePositive = `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${positiveParts.join('\n')}`;
+        if (restrictionParts.length) businessKnowledgeRestrictions = `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionParts.join('\n')}`;
+      }
+    }
+
     const systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
 Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
 
@@ -103,7 +140,7 @@ Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estru
 }
 
 Si no falta ningún dato, devolvé "missing_data": [].
-Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}`;
+Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}${businessKnowledgePositive}${businessKnowledgeRestrictions}`;
 
     // Deterministic CRM suggestions based on field completeness
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
