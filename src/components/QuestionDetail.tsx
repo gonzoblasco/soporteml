@@ -145,7 +145,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
         className="flex-1 flex overflow-hidden"
       >
         {/* Main content */}
-        <div className={`flex-1 flex flex-col p-6 ${isMobile ? 'pb-24' : ''} overflow-y-auto space-y-4`}>
+        <div className={`flex-1 flex flex-col p-4 sm:p-6 ${isMobile ? 'pb-24' : ''} overflow-y-auto space-y-3 sm:space-y-4`}>
           {/* Question Block — muted background */}
           <div className="rounded-lg bg-muted/50 p-4 border border-border/30">
             <div className="flex items-center gap-2 mb-2">
