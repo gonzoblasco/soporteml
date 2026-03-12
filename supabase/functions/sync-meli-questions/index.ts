@@ -515,7 +515,7 @@ async function fetchAndStoreProduct(
   return null;
 }
 
-// ─── Fetch CRM context from products + variants ───
+// ─── Fetch CRM context from products + variants (Copilot-grade format) ───
 async function fetchCrmContext(supabase: any, productId: string, companyId: string): Promise<string> {
   try {
     const [productRes, variantsRes] = await Promise.all([
@@ -536,38 +536,34 @@ async function fetchCrmContext(supabase: any, productId: string, companyId: stri
     const parts: string[] = [];
     const p = productRes.data;
 
+    // Use same format as ai-copilot: structured headers with bullet points
     if (p) {
-      if (p.support_summary) parts.push(`Resumen de soporte: ${p.support_summary}`);
+      if (p.support_summary) parts.push(`Resumen: ${p.support_summary}`);
       if (Array.isArray(p.key_points) && p.key_points.length > 0) {
-        parts.push(`Puntos clave:\n${p.key_points.map((k: string) => `- ${k}`).join('\n')}`);
+        parts.push(`Puntos clave:\n${p.key_points.map((k: string) => `• ${k}`).join('\n')}`);
       }
+      if (p.shipping_notes) parts.push(`Envíos: ${p.shipping_notes}`);
+      if (p.returns_notes) parts.push(`Devoluciones: ${p.returns_notes}`);
+      if (p.warranty_notes) parts.push(`Garantía: ${p.warranty_notes}`);
       if (Array.isArray(p.faq_bullets) && p.faq_bullets.length > 0) {
-        parts.push(`FAQ:\n${p.faq_bullets.map((f: string) => `- ${f}`).join('\n')}`);
+        parts.push(`FAQ:\n${p.faq_bullets.map((f: string) => `• ${f}`).join('\n')}`);
       }
       if (Array.isArray(p.do_not_say) && p.do_not_say.length > 0) {
-        parts.push(`NO decir:\n${p.do_not_say.map((d: string) => `- ${d}`).join('\n')}`);
+        parts.push(`NO PROMETER:\n${p.do_not_say.map((d: string) => `⚠️ ${d}`).join('\n')}`);
       }
-      if (p.shipping_notes) parts.push(`Notas de envío: ${p.shipping_notes}`);
-      if (p.returns_notes) parts.push(`Política de devoluciones: ${p.returns_notes}`);
-      if (p.warranty_notes) parts.push(`Garantía del vendedor: ${p.warranty_notes}`);
     }
 
     const variants = variantsRes.data;
     if (variants?.length) {
       const varLines = variants.map((v: any) => {
-        let line = `- ${v.variant_name}`;
-        if (v.variant_sku) line += ` (SKU: ${v.variant_sku})`;
-        if (v.support_notes) line += ` — ${v.support_notes}`;
-        const attrs = v.attributes;
-        if (attrs && typeof attrs === 'object' && Object.keys(attrs).length > 0) {
-          line += ` [${Object.entries(attrs).map(([k, val]) => `${k}: ${val}`).join(', ')}]`;
-        }
-        return line;
+        const attrs = Object.entries(v.attributes || {}).map(([k, val]) => `${k}: ${val}`).join(', ');
+        return `- ${v.variant_name}${attrs ? ` (${attrs})` : ''}${v.support_notes ? ` — ${v.support_notes}` : ''}`;
       });
-      parts.push(`Variantes del catálogo interno:\n${varLines.join('\n')}`);
+      parts.push(`Variantes:\n${varLines.join('\n')}`);
     }
 
-    return parts.join('\n');
+    if (parts.length === 0) return "";
+    return `\n\n--- CONOCIMIENTO CRM DEL PRODUCTO ---\n${parts.join('\n')}`;
   } catch (e) {
     console.error("Error fetching CRM context:", e);
     return "";
