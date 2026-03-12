@@ -238,6 +238,7 @@ export type Database = {
           is_active: boolean
           priority: number
           scope: string
+          scope_ref: string | null
           title: string
           type: string
           updated_at: string | null
@@ -253,6 +254,7 @@ export type Database = {
           is_active?: boolean
           priority?: number
           scope?: string
+          scope_ref?: string | null
           title: string
           type: string
           updated_at?: string | null
@@ -268,6 +270,7 @@ export type Database = {
           is_active?: boolean
           priority?: number
           scope?: string
+          scope_ref?: string | null
           title?: string
           type?: string
           updated_at?: string | null
