@@ -312,11 +312,12 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
 
             {/* Knowledge gap suggestions */}
             {(() => {
-              const unseen = (result.knowledge_suggestions || []).filter(s => !seenKnowledgeSuggestionsRef.current.has(s.type));
+              const seenTypes = getSeenKnowledgeTypes();
+              const unseen = (result.knowledge_suggestions || []).filter(s => !seenTypes.has(s.type));
               if (unseen.length === 0) return null;
               // Show max 1 per render, mark as seen
               const toShow = unseen.slice(0, 1);
-              toShow.forEach(s => seenKnowledgeSuggestionsRef.current.add(s.type));
+              toShow.forEach(s => markKnowledgeTypeSeen(s.type));
               return (
                 <div className="rounded-md bg-muted/50 border border-border/30 p-3 space-y-1.5">
                   <div className="flex items-center gap-1.5">
