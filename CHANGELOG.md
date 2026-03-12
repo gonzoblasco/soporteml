@@ -6,6 +6,14 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.3.1] — 2026-03-12
+
+### Added
+- Sugerencias de conocimiento por categoría MeLi: si un producto tiene categoría y no hay entries específicas, sugiere crearlas
+- Combinación inteligente de sugerencias globales + categoría (max 2 totales)
+
+---
+
 ## [1.3.0] — 2026-03-12
 
 ### Added

@@ -20,8 +20,11 @@ Implementado en v1.2.0. Scope `categoria` con selector de categoría MeLi y `sco
 
 Implementado en v1.3.0. Sugerencias proactivas de gaps de conocimiento global (política, restricción, FAQ) en el Copiloto IA. Anti-spam con dedup por sesión (max 1 sugerencia por render). Solo gaps globales; categoría diferida a Fase 3.1.
 
-### Fase 3.1+ (pendiente)
-- Sugerencias de conocimiento por categoría
+### Fase 3.1 — IMPLEMENTADO ✅
+
+Implementado en v1.3.1. Sugerencia proactiva por categoría MeLi cuando no hay entries con `scope=categoria` para el producto actual. Combinada con sugerencias globales, max 2 totales.
+
+### Fase 3.2+ (pendiente)
 - Editor markdown con preview
 - Artículos de ejemplo en onboarding
 - Vector search / embeddings para bases grandes
