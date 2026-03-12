@@ -267,12 +267,22 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
       parsed.crm_suggestions = crmSuggestions;
     }
 
-    // Knowledge gap suggestions (global types only)
+    // Knowledge gap suggestions (global + category)
     const globalTypes = new Set((kEntries || []).filter((e: any) => e.scope === 'global').map((e: any) => e.type));
     const knowledgeSuggestions: Array<{message: string; type: string}> = [];
     if (!globalTypes.has('politica')) knowledgeSuggestions.push({ message: "Podrías agregar una política de envíos o devoluciones para mejorar las respuestas", type: "politica" });
     if (!globalTypes.has('restriccion')) knowledgeSuggestions.push({ message: "Definí qué no prometer a los compradores para evitar respuestas riesgosas", type: "restriccion" });
     if (!globalTypes.has('faq')) knowledgeSuggestions.push({ message: "Agregá preguntas frecuentes para respuestas más completas", type: "faq" });
+
+    // Category-specific gap suggestion
+    if (productCategoryId) {
+      const hasCategoryEntries = (kEntries || []).some((e: any) => e.scope === 'categoria' && e.scope_ref === productCategoryId);
+      if (!hasCategoryEntries) {
+        const catLabel = productCategoryName || productCategoryId;
+        knowledgeSuggestions.push({ message: `No hay conocimiento específico para la categoría "${catLabel}". Agregá artículos para respuestas más precisas en esta categoría`, type: "categoria" });
+      }
+    }
+
     if (knowledgeSuggestions.length > 0) {
       parsed.knowledge_suggestions = knowledgeSuggestions.slice(0, 2);
     }
