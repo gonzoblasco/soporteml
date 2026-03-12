@@ -836,7 +836,7 @@ async function processQuestion(
   }
 
   // ─── Fetch business knowledge entries ───
-  const knowledgeCtx = await fetchKnowledgeContext(supabase, companyId);
+  const knowledgeCtx = await fetchKnowledgeContext(supabase, companyId, productCategoryId);
   const businessKnowledge = knowledgeCtx.positive + knowledgeCtx.restrictions;
 
   // ─── Fetch MeLi item description for richer context ───

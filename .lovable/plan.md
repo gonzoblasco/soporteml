@@ -1,11 +1,22 @@
 
 
+
 ## Módulo Conocimiento v1 — IMPLEMENTADO ✅
 
 Implementado en v1.1.0. Tabla `knowledge_entries` con RLS, UI split-view en `/knowledge`, inyección en `ai-copilot` y `sync-meli-questions`.
 
-### Fase 2 (pendiente)
-- Scope `categoria` con selector de categoría MeLi y `scope_ref`
+## Módulo Conocimiento Fase 2 — IMPLEMENTADO ✅
+
+Implementado en v1.2.0. Scope `categoria` con selector de categoría MeLi y `scope_ref`.
+
+### Cambios Fase 2
+- Columna `scope_ref` en `knowledge_entries` con trigger de validación de consistencia (`global` → NULL, `categoria` → NOT NULL)
+- UI: selector de alcance (Global / Categoría), dropdown de categorías MeLi, filtro por scope, badges de categoría
+- UI defensiva: si no hay categorías sincronizadas, deshabilita scope `categoria` y muestra mensaje claro
+- IA: inyección ordenada por prioridad: restricciones (categoría → global), conocimiento de categoría, conocimiento global
+- Truncación inteligente a ~4000 chars cortando desde global positivo de menor prioridad
+
+### Fase 3 (pendiente)
 - Sugerencias proactivas del Copiloto para crear entries faltantes
 - Editor markdown con preview
 - Artículos de ejemplo en onboarding

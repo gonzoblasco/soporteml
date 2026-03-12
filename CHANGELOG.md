@@ -6,6 +6,18 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.2.0] — 2026-03-12
+
+### Agregado — Conocimiento Fase 2: Scope Categoría
+
+- **Scope `categoria`**: artículos de conocimiento ahora pueden aplicarse a una categoría MeLi específica además de globalmente. Selector de categoría poblado automáticamente desde productos sincronizados.
+- **Trigger de consistencia en DB**: `scope = 'global'` fuerza `scope_ref = NULL`; `scope = 'categoria'` requiere `scope_ref NOT NULL`.
+- **Inyección IA priorizada**: el prompt de IA ahora ordena restricciones primero (categoría → global), luego conocimiento de categoría, luego global. Cada bloque por `priority DESC`.
+- **Filtro por alcance en UI**: nuevo dropdown en la lista para filtrar artículos por Global / Categoría.
+- **UI defensiva**: si no hay categorías detectadas en productos sincronizados, se muestra mensaje claro y se deshabilita el scope `categoria`.
+
+---
+
 ## [1.1.0] — 2026-03-12
 
 ### Agregado — Módulo Conocimiento v1
