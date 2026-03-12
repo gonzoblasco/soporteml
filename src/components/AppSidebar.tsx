@@ -22,7 +22,7 @@ const crmSubItems = [
   { title: 'Productos', url: '/catalog', icon: Package, enabled: true },
   { title: 'Clientes', url: '#', icon: Users, enabled: false },
   { title: 'Órdenes', url: '#', icon: ShoppingCart, enabled: false },
-  { title: 'Conocimiento', url: '#', icon: BookOpen, enabled: false },
+  { title: 'Conocimiento', url: '/knowledge', icon: BookOpen, enabled: true },
 ];
 
 const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
