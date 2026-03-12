@@ -6,6 +6,15 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.3.0] — 2026-03-12
+
+### Added
+- Sugerencias proactivas de conocimiento en el Copiloto IA: detecta gaps globales (política, restricción, FAQ) y sugiere crearlos
+- Anti-spam por sesión: cada tipo de sugerencia se muestra solo una vez por sesión
+- Link directo a /knowledge desde las sugerencias
+
+
+
 ## [1.2.0] — 2026-03-12
 
 ### Agregado — Conocimiento Fase 2: Scope Categoría
