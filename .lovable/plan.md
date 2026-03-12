@@ -1,156 +1,129 @@
 
 
-## Mega-Cambio: Autopilot con Guardrails + Base Firme
+# Módulo Conocimiento v1 — Plan Actualizado
 
-Dos bloques ejecutados como un único cambio coordinado.
+Incorpora los 3 ajustes del feedback.
 
 ---
 
-### Bloque A — Base Firme (5 fixes)
+## Decisiones cerradas
 
-**A1. Feature flags por empresa**
+1. **Scope v1 = solo `global`**. Sin categoría. Sin `scope_ref`. Sin selector condicional. Fase 2 agrega `categoria` con su UX y lógica de inyección selectiva.
 
-Agregar columnas a `company_settings`:
-```sql
-features_ai_suggestions boolean DEFAULT true,
-features_autopilot_after_hours boolean DEFAULT false,
-features_autopilot_in_hours boolean DEFAULT false,
-autopilot_confidence_threshold numeric DEFAULT 0.85
-```
-El sync y la UI respetan estos flags antes de actuar.
+2. **Campo `priority`** agregado a `knowledge_entries` (`integer DEFAULT 0`). El prompt de IA ordena entries por priority DESC. Truncación corta por prioridad baja, no por antigüedad.
 
-**A2. Tabla `events` (append-only audit trail)**
+3. **Restricciones separadas formalmente en el prompt**: entries con `type = 'restriccion'` se inyectan bajo `--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---`, separadas del bloque afirmativo `--- CONOCIMIENTO DEL NEGOCIO ---` que agrupa `politica`, `faq`, `guia`.
+
+---
+
+## Modelo de datos
 
 ```sql
-CREATE TABLE public.events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  type text NOT NULL,  -- SYNC_STARTED, SYNC_DONE, AI_DECISION, AUTO_REPLY_SENT, ERROR, ...
-  entity_type text,    -- question, product, token
-  entity_id text,
-  payload jsonb DEFAULT '{}',
-  created_at timestamptz DEFAULT now()
+CREATE TABLE public.knowledge_entries (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id    uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  title         text NOT NULL,
+  content       text NOT NULL,
+  type          text NOT NULL,          -- 'politica' | 'faq' | 'guia' | 'restriccion'
+  scope         text NOT NULL DEFAULT 'global',  -- v1: solo 'global'
+  ai_visible    boolean NOT NULL DEFAULT true,
+  is_active     boolean NOT NULL DEFAULT true,
+  priority      integer NOT NULL DEFAULT 0,
+  created_by    uuid,
+  updated_by    uuid,
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
 );
--- RLS: SELECT for company members, INSERT only via service role
+
+-- RLS
+ALTER TABLE public.knowledge_entries ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: company members
+CREATE POLICY "Members can view" ON public.knowledge_entries
+  FOR SELECT TO authenticated
+  USING (user_belongs_to_company(auth.uid(), company_id));
+
+-- INSERT/UPDATE: admin or agent
+CREATE POLICY "Admin/agent can insert" ON public.knowledge_entries
+  FOR INSERT TO authenticated
+  WITH CHECK (user_belongs_to_company(auth.uid(), company_id)
+    AND (has_membership_role(auth.uid(), company_id, 'admin')
+      OR has_membership_role(auth.uid(), company_id, 'agent')));
+
+CREATE POLICY "Admin/agent can update" ON public.knowledge_entries
+  FOR UPDATE TO authenticated
+  USING (user_belongs_to_company(auth.uid(), company_id)
+    AND (has_membership_role(auth.uid(), company_id, 'admin')
+      OR has_membership_role(auth.uid(), company_id, 'agent')));
+
+-- DELETE: admin only
+CREATE POLICY "Admin can delete" ON public.knowledge_entries
+  FOR DELETE TO authenticated
+  USING (user_belongs_to_company(auth.uid(), company_id)
+    AND has_membership_role(auth.uid(), company_id, 'admin'));
+
+-- updated_at trigger
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.knowledge_entries
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
-
-Integrar en `sync-meli-questions`: log SYNC_STARTED, SYNC_DONE, AI_DECISION (con confidence + action), AUTO_REPLY_SENT, ERROR.
-
-**A3. Metadata ML completa en `questions`**
-
-```sql
-ALTER TABLE questions ADD COLUMN IF NOT EXISTS
-  ai_confidence numeric,
-  answered_by_ai boolean DEFAULT false,
-  ai_decision_reason text,
-  auto_action text DEFAULT 'none',  -- none | suggest | auto_reply
-  meli_status text,
-  meli_permalink text;
-```
-
-`requires_human` y `requires_human_reason` ya existen. `auto_action` registra qué decidió el sistema.
-
-**A4. Seguridad — validación de no filtrado de service role**
-
-Auditar que ninguna Edge Function devuelve tokens o service role keys al frontend. Esto ya está cubierto por la vista `meli_connection_status`, pero se refuerza revisando `debug-meli` (solo super admin) y asegurando que `notify` no expone datos sensibles.
-
-**A5. Health checks livianos**
-
-Nueva Edge Function `health-check` que:
-- Verifica conectividad DB (SELECT 1)
-- Verifica que la función responde
-- Devuelve status + timestamp
-
-Registrar en `config.toml`.
 
 ---
 
-### Bloque B — Autopilot Controlado (4 piezas)
+## Inyección al prompt de IA
 
-**B1. State machine de preguntas**
+Tanto en `ai-copilot` como en `sync-meli-questions`:
 
-Expandir los estados válidos del trigger `validate_question_status`:
-```
-pending → published | archived | queued_auto
-queued_auto → auto_published | needs_human | error
-```
-
-Nuevos estados: `queued_auto`, `auto_published`, `needs_human`.
-
-**B2. Motor de decisión en `sync-meli-questions`**
-
-Refactorizar la lógica de auto-reply actual para incorporar:
-
-```text
-1. IA genera respuesta + confidence score (0-1)
-2. Evaluar feature flags de la empresa:
-   - Si autopilot_after_hours ON y estamos fuera de horario:
-     → si confidence >= threshold y !requires_human → auto_action = 'auto_reply'
-     → sino → auto_action = 'suggest', status = 'needs_human'
-   - Si autopilot_in_hours ON y estamos en horario:
-     → si confidence >= threshold y !requires_human → auto_action = 'auto_reply'
-     → sino → auto_action = 'suggest'
-   - Si ningún autopilot ON:
-     → auto_action = 'suggest' (solo sugiere, humano aprueba)
-3. Registrar en events: AI_DECISION con payload {confidence, action, reason}
-4. Si auto_reply → publicar en MeLi → status = 'auto_published', answered_by_ai = true
-5. Failsafe: si publish falla → status = 'needs_human'
-```
-
-Modificar el prompt de IA para que devuelva `confidence` (0-1) además de los campos actuales.
-
-**B3. Función de evaluación de horario comercial**
-
-Extraer la lógica de "¿estamos dentro o fuera del horario?" a una función reutilizable en `sync-meli-questions`, usando `business_hours` de `company_settings` y timezone Argentina (UTC-3).
-
-**B4. UI: Panel Autopilot en Settings**
-
-Expandir la sección Auto-Respuesta existente con:
-- Toggle "Autopilot fuera de horario" (ya existe como modo)
-- Toggle "Autopilot en horario" (nuevo, opt-in)
-- Slider de umbral de confianza (0.5–1.0, default 0.85)
-- Indicador de última sync + estado de conexión (ya existe en MeliConnectionSection)
-- Chip visual del modo activo: "Solo sugiere" | "Auto fuera de horario" | "Auto siempre"
+1. Query: `WHERE company_id = X AND ai_visible = true AND is_active = true AND scope = 'global' ORDER BY priority DESC`
+2. Separar en dos bloques:
+   - **Afirmativo** (type IN politica, faq, guia) → header `--- CONOCIMIENTO DEL NEGOCIO ---`
+   - **Restrictivo** (type = restriccion) → header `--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---`
+3. Truncar a ~4000 chars total, cortando desde los de menor prioridad
+4. Inyectar en el **system prompt**, después del CRM de producto
 
 ---
 
-### Migración SQL (una sola)
+## UI
 
-```sql
--- 1. Events table
-CREATE TABLE public.events (...);
-ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Company members can view events" ON public.events FOR SELECT TO authenticated USING (company_id = get_user_company_id(auth.uid()));
+### Ruta y navegación
+- Habilitar `Conocimiento` en sidebar (`enabled: true`, url: `/knowledge`)
+- Nueva página `src/pages/KnowledgePage.tsx`
 
--- 2. Questions: nuevas columnas
-ALTER TABLE public.questions ADD COLUMN ai_confidence numeric;
-ALTER TABLE public.questions ADD COLUMN answered_by_ai boolean DEFAULT false;
-ALTER TABLE public.questions ADD COLUMN ai_decision_reason text;
-ALTER TABLE public.questions ADD COLUMN auto_action text DEFAULT 'none';
-ALTER TABLE public.questions ADD COLUMN meli_status text;
-ALTER TABLE public.questions ADD COLUMN meli_permalink text;
+### Layout: split-view (mismo patrón que CatalogPage)
+- **Izquierda**: lista de entries con búsqueda + filtro por tipo (dropdown)
+- **Derecha**: editor con título, tipo (select), contenido (textarea), toggles ai_visible + is_active, input priority (0-10), botones guardar/eliminar
+- **Mobile**: lista → tap → editor fullscreen con botón volver
 
--- 3. Company settings: feature flags
-ALTER TABLE public.company_settings ADD COLUMN features_ai_suggestions boolean DEFAULT true;
-ALTER TABLE public.company_settings ADD COLUMN features_autopilot_after_hours boolean DEFAULT false;
-ALTER TABLE public.company_settings ADD COLUMN features_autopilot_in_hours boolean DEFAULT false;
-ALTER TABLE public.company_settings ADD COLUMN autopilot_confidence_threshold numeric DEFAULT 0.85;
+### Badges por tipo
+- `politica` → azul
+- `faq` → verde
+- `guia` → amarillo
+- `restriccion` → rojo
 
--- 4. Expand valid statuses
-CREATE OR REPLACE FUNCTION validate_question_status() ...
-  IF NEW.status NOT IN ('pending','published','archived','error','deleted','queued_auto','auto_published','needs_human') ...
-```
+### Indicador IA
+- Icono o chip "IA" junto al título si `ai_visible = true`
 
-### Archivos a crear/modificar
+---
+
+## Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---|---|
-| Migración SQL | events + columnas questions + flags settings + estados |
-| `supabase/functions/health-check/index.ts` | Nuevo — ping DB + status |
-| `supabase/functions/sync-meli-questions/index.ts` | Motor de decisión autopilot + logging events + confidence |
-| `supabase/config.toml` | Registrar health-check |
-| `src/pages/SettingsPage.tsx` | Expandir AutoReplySection con flags + threshold slider |
-| `src/types/question.ts` | Nuevos campos del tipo |
-| `src/pages/Inbox.tsx` / `PriorityInbox.tsx` | Mostrar badge auto_published / needs_human |
-| `CHANGELOG.md` | Documentar cambios |
+| Migración SQL | Tabla `knowledge_entries` + RLS + trigger |
+| `src/pages/KnowledgePage.tsx` | Nueva página split-view |
+| `src/components/AppSidebar.tsx` | Habilitar link Conocimiento → `/knowledge` |
+| `src/App.tsx` | Agregar ruta `/knowledge` |
+| `supabase/functions/ai-copilot/index.ts` | Fetch + inyectar knowledge entries al system prompt |
+| `supabase/functions/sync-meli-questions/index.ts` | Fetch + inyectar knowledge entries al system prompt |
+| `CHANGELOG.md` | Documentar v1 de Conocimiento |
+
+---
+
+## Fuera de v1 (Fase 2+)
+
+- Scope `categoria` con selector de categoría MeLi y `scope_ref`
+- Scope `producto` (redundante con ficha CRM, evaluar si conviene)
+- Sugerencias proactivas del Copiloto para crear entries faltantes
+- Editor markdown con preview
+- Artículos de ejemplo en onboarding
+- Vector search / embeddings para bases grandes
 
