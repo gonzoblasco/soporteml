@@ -14,11 +14,17 @@ interface CrmSuggestion {
   tab?: string;
 }
 
+interface KnowledgeSuggestion {
+  message: string;
+  type: string;
+}
+
 interface CopilotResult {
   summary: string;
   draft: string;
   missing_data: string[];
   crm_suggestions?: CrmSuggestion[];
+  knowledge_suggestions?: KnowledgeSuggestion[];
 }
 
 interface Props {
