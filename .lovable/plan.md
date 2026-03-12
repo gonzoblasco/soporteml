@@ -16,8 +16,12 @@ Implementado en v1.2.0. Scope `categoria` con selector de categoría MeLi y `sco
 - IA: inyección ordenada por prioridad: restricciones (categoría → global), conocimiento de categoría, conocimiento global
 - Truncación inteligente a ~4000 chars cortando desde global positivo de menor prioridad
 
-### Fase 3 (pendiente)
-- Sugerencias proactivas del Copiloto para crear entries faltantes
+## Módulo Conocimiento Fase 3 — IMPLEMENTADO ✅
+
+Implementado en v1.3.0. Sugerencias proactivas de gaps de conocimiento global (política, restricción, FAQ) en el Copiloto IA. Anti-spam con dedup por sesión (max 1 sugerencia por render). Solo gaps globales; categoría diferida a Fase 3.1.
+
+### Fase 3.1+ (pendiente)
+- Sugerencias de conocimiento por categoría
 - Editor markdown con preview
 - Artículos de ejemplo en onboarding
 - Vector search / embeddings para bases grandes

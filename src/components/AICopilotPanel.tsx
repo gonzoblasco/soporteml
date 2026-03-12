@@ -298,6 +298,32 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
                 ))}
               </div>
             )}
+
+            {/* Knowledge gap suggestions */}
+            {(() => {
+              const unseen = (result.knowledge_suggestions || []).filter(s => !seenKnowledgeSuggestionsRef.current.has(s.type));
+              if (unseen.length === 0) return null;
+              // Show max 1 per render, mark as seen
+              const toShow = unseen.slice(0, 1);
+              toShow.forEach(s => seenKnowledgeSuggestionsRef.current.add(s.type));
+              return (
+                <div className="rounded-md bg-muted/50 border border-border/30 p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-[11px] font-medium text-muted-foreground">Mejorá tu base de conocimiento</p>
+                  </div>
+                  {toShow.map((s, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => navigate('/knowledge')}
+                      className="block w-full text-left text-[11px] text-foreground hover:text-primary transition-colors leading-relaxed"
+                    >
+                      💡 {s.message}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         ) : null}
       </motion.div>
