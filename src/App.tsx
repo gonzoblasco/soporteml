@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
 import AdminPanel from "./pages/AdminPanel";
 import CatalogPage from "./pages/CatalogPage";
+import KnowledgePage from "./pages/KnowledgePage";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
