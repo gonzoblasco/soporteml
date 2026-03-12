@@ -43,6 +43,7 @@ type ToneValue = typeof TONE_OPTIONS[number]['value'];
 
 const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const { currentCompanyId } = useAuth();
+  const navigate = useNavigate();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,7 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const [activeTone, setActiveTone] = useState<ToneValue | null>(null);
   const autoApplyRef = useRef(false);
   const lastQuestionIdRef = useRef<string | null>(null);
+  const seenKnowledgeSuggestionsRef = useRef<Set<string>>(new Set());
 
   const fetchCopilot = async (toneOverride?: ToneValue, isAutoTrigger = false) => {
     setLoading(true);
