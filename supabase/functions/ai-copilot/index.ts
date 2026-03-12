@@ -111,6 +111,7 @@ serve(async (req) => {
     // Fetch CRM product knowledge if product_id is provided
     let productKnowledge = "";
     let productCategoryId: string | null = null;
+    let productCategoryName: string | null = null;
 
     if (product_id) {
       const { data: crmProduct } = await serviceClient
