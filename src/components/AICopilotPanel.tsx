@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { QuestionRow } from '@/types/question';
@@ -13,11 +14,17 @@ interface CrmSuggestion {
   tab?: string;
 }
 
+interface KnowledgeSuggestion {
+  message: string;
+  type: string;
+}
+
 interface CopilotResult {
   summary: string;
   draft: string;
   missing_data: string[];
   crm_suggestions?: CrmSuggestion[];
+  knowledge_suggestions?: KnowledgeSuggestion[];
 }
 
 interface Props {
@@ -36,6 +43,7 @@ type ToneValue = typeof TONE_OPTIONS[number]['value'];
 
 const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const { currentCompanyId } = useAuth();
+  const navigate = useNavigate();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +51,7 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const [activeTone, setActiveTone] = useState<ToneValue | null>(null);
   const autoApplyRef = useRef(false);
   const lastQuestionIdRef = useRef<string | null>(null);
+  const seenKnowledgeSuggestionsRef = useRef<Set<string>>(new Set());
 
   const fetchCopilot = async (toneOverride?: ToneValue, isAutoTrigger = false) => {
     setLoading(true);
@@ -289,6 +298,32 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
                 ))}
               </div>
             )}
+
+            {/* Knowledge gap suggestions */}
+            {(() => {
+              const unseen = (result.knowledge_suggestions || []).filter(s => !seenKnowledgeSuggestionsRef.current.has(s.type));
+              if (unseen.length === 0) return null;
+              // Show max 1 per render, mark as seen
+              const toShow = unseen.slice(0, 1);
+              toShow.forEach(s => seenKnowledgeSuggestionsRef.current.add(s.type));
+              return (
+                <div className="rounded-md bg-muted/50 border border-border/30 p-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-[11px] font-medium text-muted-foreground">Mejorá tu base de conocimiento</p>
+                  </div>
+                  {toShow.map((s, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => navigate('/knowledge')}
+                      className="block w-full text-left text-[11px] text-foreground hover:text-primary transition-colors leading-relaxed"
+                    >
+                      💡 {s.message}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         ) : null}
       </motion.div>

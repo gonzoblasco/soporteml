@@ -265,6 +265,16 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
       parsed.crm_suggestions = crmSuggestions;
     }
 
+    // Knowledge gap suggestions (global types only)
+    const globalTypes = new Set((kEntries || []).filter((e: any) => e.scope === 'global').map((e: any) => e.type));
+    const knowledgeSuggestions: Array<{message: string; type: string}> = [];
+    if (!globalTypes.has('politica')) knowledgeSuggestions.push({ message: "Podrías agregar una política de envíos o devoluciones para mejorar las respuestas", type: "politica" });
+    if (!globalTypes.has('restriccion')) knowledgeSuggestions.push({ message: "Definí qué no prometer a los compradores para evitar respuestas riesgosas", type: "restriccion" });
+    if (!globalTypes.has('faq')) knowledgeSuggestions.push({ message: "Agregá preguntas frecuentes para respuestas más completas", type: "faq" });
+    if (knowledgeSuggestions.length > 0) {
+      parsed.knowledge_suggestions = knowledgeSuggestions.slice(0, 2);
+    }
+
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
