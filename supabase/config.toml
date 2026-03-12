@@ -29,3 +29,7 @@ project_id = "ropbkdqhqdeiwrenrmjt"
     verify_jwt = false
   [functions.admin-create-user]
     verify_jwt = false
+  [functions.backfill-ai-answers]
+    verify_jwt = false
+  [functions.meli-item-proxy]
+    verify_jwt = false

@@ -6,6 +6,19 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.7] — 2026-03-12
+
+### Corregido
+- **CRM en system prompt (causa raíz)**: El contexto CRM (resumen, puntos clave, FAQ, políticas, variantes) ahora se inyecta en el **system prompt** durante el sync — igual que hace el Copiloto IA. Antes iba en el user prompt, donde el modelo lo trataba como contexto secundario.
+- **Formato CRM unificado**: `fetchCrmContext` ahora usa headers idénticos al Copiloto (`--- CONOCIMIENTO CRM DEL PRODUCTO ---`, `• bullets`, `⚠️ NO PROMETER`).
+- **Descripción de MeLi incluida**: El sync ahora busca la descripción del producto (desde `meli_cache` o API `/items/{id}/description`) y la incluye en el contexto.
+- **Guard CRM del Copiloto corregido**: `ai-copilot` ya no ignora campos CRM cuando falta `support_summary` — ahora incluye key_points, FAQ, etc. aunque no haya resumen.
+
+### Agregado
+- **Backfill masivo** (`backfill-ai-answers`): Nueva edge function que regenera `ai_suggested_answer` para preguntas pendientes usando la lógica unificada con CRM completo.
+
+---
+
 ## [1.0.6] — 2026-03-12
 
 ### Corregido

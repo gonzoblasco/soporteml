@@ -61,6 +61,7 @@ async function generateAiAnswer(
   buyerNickname: string | null = null,
   productTitle: string | null = null,
   productPrice: number | null = null,
+  crmKnowledge: string = "",
 ): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -102,6 +103,11 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
     systemPrompt += `\n\nREGLAS ADICIONALES DE EXCLUSIÓN (marcá requires_human = true si aplican):\n${exclusionRules}`;
   }
 
+  // Inject CRM knowledge into system prompt (same position as Copilot)
+  if (crmKnowledge) {
+    systemPrompt += crmKnowledge;
+  }
+
   systemPrompt += `\n\nRespondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
 {"answer": "tu respuesta lista para publicar, corta y clara", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
 
@@ -109,7 +115,7 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
 Comprador: ${buyerNickname || "desconocido"}
 Producto: ${productTitle || "sin título"}${productPrice != null ? ` — $${productPrice}` : ""}
 
-Datos del producto:
+Datos del producto (publicación MeLi):
 ${productContext}`;
 
   try {
@@ -509,7 +515,7 @@ async function fetchAndStoreProduct(
   return null;
 }
 
-// ─── Fetch CRM context from products + variants ───
+// ─── Fetch CRM context from products + variants (Copilot-grade format) ───
 async function fetchCrmContext(supabase: any, productId: string, companyId: string): Promise<string> {
   try {
     const [productRes, variantsRes] = await Promise.all([
@@ -530,38 +536,34 @@ async function fetchCrmContext(supabase: any, productId: string, companyId: stri
     const parts: string[] = [];
     const p = productRes.data;
 
+    // Use same format as ai-copilot: structured headers with bullet points
     if (p) {
-      if (p.support_summary) parts.push(`Resumen de soporte: ${p.support_summary}`);
+      if (p.support_summary) parts.push(`Resumen: ${p.support_summary}`);
       if (Array.isArray(p.key_points) && p.key_points.length > 0) {
-        parts.push(`Puntos clave:\n${p.key_points.map((k: string) => `- ${k}`).join('\n')}`);
+        parts.push(`Puntos clave:\n${p.key_points.map((k: string) => `• ${k}`).join('\n')}`);
       }
+      if (p.shipping_notes) parts.push(`Envíos: ${p.shipping_notes}`);
+      if (p.returns_notes) parts.push(`Devoluciones: ${p.returns_notes}`);
+      if (p.warranty_notes) parts.push(`Garantía: ${p.warranty_notes}`);
       if (Array.isArray(p.faq_bullets) && p.faq_bullets.length > 0) {
-        parts.push(`FAQ:\n${p.faq_bullets.map((f: string) => `- ${f}`).join('\n')}`);
+        parts.push(`FAQ:\n${p.faq_bullets.map((f: string) => `• ${f}`).join('\n')}`);
       }
       if (Array.isArray(p.do_not_say) && p.do_not_say.length > 0) {
-        parts.push(`NO decir:\n${p.do_not_say.map((d: string) => `- ${d}`).join('\n')}`);
+        parts.push(`NO PROMETER:\n${p.do_not_say.map((d: string) => `⚠️ ${d}`).join('\n')}`);
       }
-      if (p.shipping_notes) parts.push(`Notas de envío: ${p.shipping_notes}`);
-      if (p.returns_notes) parts.push(`Política de devoluciones: ${p.returns_notes}`);
-      if (p.warranty_notes) parts.push(`Garantía del vendedor: ${p.warranty_notes}`);
     }
 
     const variants = variantsRes.data;
     if (variants?.length) {
       const varLines = variants.map((v: any) => {
-        let line = `- ${v.variant_name}`;
-        if (v.variant_sku) line += ` (SKU: ${v.variant_sku})`;
-        if (v.support_notes) line += ` — ${v.support_notes}`;
-        const attrs = v.attributes;
-        if (attrs && typeof attrs === 'object' && Object.keys(attrs).length > 0) {
-          line += ` [${Object.entries(attrs).map(([k, val]) => `${k}: ${val}`).join(', ')}]`;
-        }
-        return line;
+        const attrs = Object.entries(v.attributes || {}).map(([k, val]) => `${k}: ${val}`).join(', ');
+        return `- ${v.variant_name}${attrs ? ` (${attrs})` : ''}${v.support_notes ? ` — ${v.support_notes}` : ''}`;
       });
-      parts.push(`Variantes del catálogo interno:\n${varLines.join('\n')}`);
+      parts.push(`Variantes:\n${varLines.join('\n')}`);
     }
 
-    return parts.join('\n');
+    if (parts.length === 0) return "";
+    return `\n\n--- CONOCIMIENTO CRM DEL PRODUCTO ---\n${parts.join('\n')}`;
   } catch (e) {
     console.error("Error fetching CRM context:", e);
     return "";
@@ -746,11 +748,40 @@ async function processQuestion(
     }
   }
 
-  // ─── Enrich product context with CRM data ───
+  // ─── Fetch CRM knowledge for system prompt (Copilot-grade) ───
+  let crmKnowledge = "";
   if (productId) {
-    const crmContext = await fetchCrmContext(supabase, productId, companyId);
-    if (crmContext) {
-      productContext += '\n\n' + crmContext;
+    crmKnowledge = await fetchCrmContext(supabase, productId, companyId);
+  }
+
+  // ─── Fetch MeLi item description for richer context ───
+  if (q.item_id) {
+    try {
+      // Check meli_cache first
+      if (productId) {
+        const { data: cachedProd } = await supabase
+          .from("products")
+          .select("meli_cache")
+          .eq("id", productId)
+          .maybeSingle();
+        const cachedDesc = cachedProd?.meli_cache?.description;
+        if (cachedDesc) {
+          productContext += `\nDescripción del producto: ${cachedDesc}`;
+        } else {
+          // Fetch from MeLi API
+          const descRes = await fetch(`https://api.mercadolibre.com/items/${q.item_id}/description`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (descRes.ok) {
+            const descData = await descRes.json();
+            if (descData?.plain_text) {
+              productContext += `\nDescripción del producto: ${descData.plain_text}`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching item description:", e);
     }
   }
 
@@ -770,12 +801,12 @@ async function processQuestion(
     }
   }
 
-  console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`);
+  console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}, hasCRM=${!!crmKnowledge}`);
 
-  // Generate AI answer (with full copilot-grade context)
+  // Generate AI answer (CRM injected into system prompt, product data in user prompt)
   const productObj = product || null;
   const { answer, category, requires_human, requires_human_reason, confidence } = aiSuggestionsEnabled
-    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules, buyerNickname, productTitle, productObj?.price ?? null)
+    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules, buyerNickname, productTitle, productObj?.price ?? null, crmKnowledge)
     : { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
 
   // ─── Autopilot Decision Engine ───
