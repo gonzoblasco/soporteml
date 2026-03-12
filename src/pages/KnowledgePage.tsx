@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Loader2, BookOpen, Plus, Search, Brain, Trash2, ArrowLeft } from 'lucide-react';
+import { Loader2, BookOpen, Plus, Search, Brain, Trash2, ArrowLeft, Tag, Globe } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,11 +19,17 @@ interface KnowledgeEntry {
   content: string;
   type: string;
   scope: string;
+  scope_ref: string | null;
   ai_visible: boolean;
   is_active: boolean;
   priority: number;
   created_at: string;
   updated_at: string;
+}
+
+interface MeliCategory {
+  meli_category_id: string;
+  meli_category_name: string;
 }
 
 const TYPE_CONFIG: Record<string, { label: string; className: string }> = {
@@ -43,12 +48,16 @@ const KnowledgePage = () => {
   const [showEditor, setShowEditor] = useState(false);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterScope, setFilterScope] = useState<string>('all');
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<MeliCategory[]>([]);
 
   // Editor state
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editType, setEditType] = useState('politica');
+  const [editScope, setEditScope] = useState<'global' | 'categoria'>('global');
+  const [editScopeRef, setEditScopeRef] = useState<string | null>(null);
   const [editAiVisible, setEditAiVisible] = useState(true);
   const [editIsActive, setEditIsActive] = useState(true);
   const [editPriority, setEditPriority] = useState(0);
@@ -65,18 +74,40 @@ const KnowledgePage = () => {
     setLoading(false);
   }, [currentCompanyId]);
 
+  const fetchCategories = useCallback(async () => {
+    if (!currentCompanyId) return;
+    const { data } = await supabase
+      .from('products')
+      .select('meli_category_id, meli_category_name')
+      .eq('company_id', currentCompanyId)
+      .not('meli_category_id', 'is', null)
+      .not('meli_category_name', 'is', null);
+
+    if (!data) return;
+    // Deduplicate
+    const map = new Map<string, string>();
+    for (const row of data) {
+      if (row.meli_category_id && row.meli_category_name) {
+        map.set(row.meli_category_id, row.meli_category_name);
+      }
+    }
+    setCategories(Array.from(map.entries()).map(([id, name]) => ({ meli_category_id: id, meli_category_name: name })));
+  }, [currentCompanyId]);
+
   useEffect(() => {
     fetchEntries();
-  }, [fetchEntries]);
+    fetchCategories();
+  }, [fetchEntries, fetchCategories]);
 
   const selectedEntry = entries.find(e => e.id === selectedId) || null;
 
-  // Populate editor when selection changes
   useEffect(() => {
     if (selectedEntry) {
       setEditTitle(selectedEntry.title);
       setEditContent(selectedEntry.content);
       setEditType(selectedEntry.type);
+      setEditScope((selectedEntry.scope as 'global' | 'categoria') || 'global');
+      setEditScopeRef(selectedEntry.scope_ref);
       setEditAiVisible(selectedEntry.ai_visible);
       setEditIsActive(selectedEntry.is_active);
       setEditPriority(selectedEntry.priority);
@@ -97,6 +128,8 @@ const KnowledgePage = () => {
         title: 'Nuevo artículo',
         content: '',
         type: 'politica',
+        scope: 'global',
+        scope_ref: null,
         created_by: user.id,
         updated_by: user.id,
       } as any)
@@ -112,6 +145,14 @@ const KnowledgePage = () => {
 
   const handleSave = async () => {
     if (!selectedId || !user) return;
+    const finalScope = editScope;
+    const finalScopeRef = finalScope === 'global' ? null : editScopeRef;
+
+    if (finalScope === 'categoria' && !finalScopeRef) {
+      toast.error('Seleccioná una categoría');
+      return;
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from('knowledge_entries')
@@ -119,6 +160,8 @@ const KnowledgePage = () => {
         title: editTitle,
         content: editContent,
         type: editType,
+        scope: finalScope,
+        scope_ref: finalScopeRef,
         ai_visible: editAiVisible,
         is_active: editIsActive,
         priority: editPriority,
@@ -146,8 +189,14 @@ const KnowledgePage = () => {
     fetchEntries();
   };
 
+  const getCategoryName = (scopeRef: string | null) => {
+    if (!scopeRef) return null;
+    return categories.find(c => c.meli_category_id === scopeRef)?.meli_category_name || scopeRef;
+  };
+
   const filtered = entries.filter(e => {
     if (filterType !== 'all' && e.type !== filterType) return false;
+    if (filterScope !== 'all' && e.scope !== filterScope) return false;
     if (search && !e.title.toLowerCase().includes(search.toLowerCase()) && !e.content.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -174,15 +223,25 @@ const KnowledgePage = () => {
             />
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[120px] h-9 text-sm">
+            <SelectTrigger className="w-[110px] h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Tipo</SelectItem>
               <SelectItem value="politica">Políticas</SelectItem>
               <SelectItem value="faq">FAQ</SelectItem>
               <SelectItem value="guia">Guías</SelectItem>
               <SelectItem value="restriccion">Restricciones</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterScope} onValueChange={setFilterScope}>
+            <SelectTrigger className="w-[110px] h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alcance</SelectItem>
+              <SelectItem value="global">Global</SelectItem>
+              <SelectItem value="categoria">Categoría</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -201,6 +260,7 @@ const KnowledgePage = () => {
         ) : (
           filtered.map(entry => {
             const cfg = TYPE_CONFIG[entry.type] || TYPE_CONFIG.politica;
+            const catName = getCategoryName(entry.scope_ref);
             return (
               <button
                 key={entry.id}
@@ -209,10 +269,19 @@ const KnowledgePage = () => {
                   selectedId === entry.id ? 'bg-accent' : ''
                 }`}
               >
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.className}`}>
                     {cfg.label}
                   </span>
+                  {entry.scope === 'categoria' && catName && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 flex items-center gap-0.5">
+                      <Tag className="w-2.5 h-2.5" />
+                      {catName}
+                    </span>
+                  )}
+                  {entry.scope === 'global' && (
+                    <Globe className="w-3 h-3 text-muted-foreground" />
+                  )}
                   {entry.ai_visible && (
                     <Brain className="w-3 h-3 text-primary" />
                   )}
@@ -254,6 +323,45 @@ const KnowledgePage = () => {
         </div>
 
         <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Alcance</Label>
+          <Select value={editScope} onValueChange={(v) => {
+            setEditScope(v as 'global' | 'categoria');
+            if (v === 'global') setEditScopeRef(null);
+          }}>
+            <SelectTrigger className="text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="global">Global (toda la empresa)</SelectItem>
+              <SelectItem value="categoria" disabled={categories.length === 0}>
+                Categoría MeLi
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {editScope === 'categoria' && categories.length > 0 && (
+            <Select value={editScopeRef || ''} onValueChange={setEditScopeRef}>
+              <SelectTrigger className="text-sm mt-1.5">
+                <SelectValue placeholder="Seleccionar categoría..." />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(c => (
+                  <SelectItem key={c.meli_category_id} value={c.meli_category_id}>
+                    {c.meli_category_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {editScope === 'categoria' && categories.length === 0 && (
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mt-1.5">
+              No hay categorías detectadas en productos sincronizados. Sincronizá productos desde Mercado Libre para habilitar artículos por categoría.
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
           <Label className="text-xs font-medium text-muted-foreground">Contenido</Label>
           <Textarea
             value={editContent}
@@ -289,7 +397,11 @@ const KnowledgePage = () => {
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button onClick={handleSave} disabled={saving} className="flex-1 gap-1.5">
+          <Button
+            onClick={handleSave}
+            disabled={saving || (editScope === 'categoria' && categories.length === 0)}
+            className="flex-1 gap-1.5"
+          >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Guardar
           </Button>
