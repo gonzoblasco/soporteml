@@ -11,6 +11,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Corregido
 - **Contexto CRM en ingesta**: `sync-meli-questions` ahora enriquece el contexto del producto con datos CRM (`support_summary`, `key_points`, `faq_bullets`, `do_not_say`, `shipping_notes`, `returns_notes`, `warranty_notes`) y variantes del catálogo interno antes de generar la respuesta IA. Esto unifica la calidad entre la respuesta de ingesta y la del copiloto.
 - **Auto-respuesta con placeholder**: Autopilot ahora publica respuestas generadas con contexto CRM completo en lugar de respuestas genéricas sin datos del producto.
+- **Copilot no sobrescribe respuesta de ingesta**: Si `ai_suggested_answer` ya fue generada durante el sync, el Copiloto IA ya no auto-dispara una nueva generación al abrir la consulta. El textarea muestra la respuesta de ingesta directamente. El copiloto sigue disponible para regenerar manualmente.
 
 ---
 
