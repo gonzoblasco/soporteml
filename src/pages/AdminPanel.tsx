@@ -62,18 +62,18 @@ const AdminPanel = () => {
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+    <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full h-full overflow-y-auto">
       <div className="flex items-center gap-3 mb-6">
         <Shield className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold text-foreground">Panel de Administración</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Panel de Administración</h1>
       </div>
 
       <Tabs defaultValue="metrics">
-        <TabsList className="mb-4">
-          <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="w-4 h-4" />Métricas</TabsTrigger>
-          <TabsTrigger value="inquiries" className="gap-2"><Mail className="w-4 h-4" />Consultas</TabsTrigger>
-          <TabsTrigger value="companies" className="gap-2"><Building2 className="w-4 h-4" />Companies</TabsTrigger>
-          <TabsTrigger value="users" className="gap-2"><UserCircle className="w-4 h-4" />Usuarios</TabsTrigger>
+        <TabsList className="mb-4 w-full sm:w-auto overflow-x-auto flex-nowrap">
+          <TabsTrigger value="metrics" className="gap-1.5 text-xs sm:text-sm"><BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Métricas</span><span className="sm:hidden">Métr.</span></TabsTrigger>
+          <TabsTrigger value="inquiries" className="gap-1.5 text-xs sm:text-sm"><Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Consultas</span><span className="sm:hidden">Cons.</span></TabsTrigger>
+          <TabsTrigger value="companies" className="gap-1.5 text-xs sm:text-sm"><Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Companies</span><span className="sm:hidden">Emp.</span></TabsTrigger>
+          <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm"><UserCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Usuarios</span><span className="sm:hidden">Users</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="metrics"><MetricsTab /></TabsContent>
