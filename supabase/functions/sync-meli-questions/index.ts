@@ -772,9 +772,10 @@ async function processQuestion(
 
   console.log(`Processing question ${meliQuestionId}: item_id=${q.item_id}, product_id=${productId}, buyer=${buyerNickname || q.from?.id}, productTitle=${productTitle}`);
 
-  // Generate AI answer (with confidence)
+  // Generate AI answer (with full copilot-grade context)
+  const productObj = product || null;
   const { answer, category, requires_human, requires_human_reason, confidence } = aiSuggestionsEnabled
-    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules)
+    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules, buyerNickname, productTitle, productObj?.price ?? null)
     : { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
 
   // ─── Autopilot Decision Engine ───
