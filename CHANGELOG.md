@@ -6,6 +6,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ---
 
+## [1.0.6] — 2026-03-12
+
+### Corregido
+- **Generación IA unificada en ingesta**: `sync-meli-questions` ahora usa la misma calidad de prompt, modelo (`gemini-3-flash-preview`), temperatura (0.4) y contexto estructurado que el Copiloto IA. Incluye buyer_nickname, product_price, y el contexto CRM completo como campos explícitos en el prompt.
+- **Modelo actualizado**: La generación en ingesta pasó de `gemini-2.5-flash` a `gemini-3-flash-preview` para igualar la calidad del copiloto manual.
+- **Prompt mejorado**: El prompt de ingesta ahora usa español rioplatense, estructura de copiloto, e instrucciones refinadas — eliminando la diferencia de calidad entre respuesta de sync y respuesta manual.
+- **UI respeta respuesta de ingesta**: `AICopilotPanel` no auto-genera si ya existe `ai_suggested_answer` de alta calidad generada durante el sync. El copiloto sigue disponible para regenerar manualmente.
+
+---
+
 ## [1.0.5] — 2026-03-12
 
 ### Corregido
