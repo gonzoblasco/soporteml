@@ -683,6 +683,14 @@ async function processQuestion(
     }
   }
 
+  // ─── Enrich product context with CRM data ───
+  if (productId) {
+    const crmContext = await fetchCrmContext(supabase, productId, companyId);
+    if (crmContext) {
+      productContext += '\n\n' + crmContext;
+    }
+  }
+
   // Fetch buyer nickname
   let buyerNickname: string | null = null;
   if (q.from?.id) {
