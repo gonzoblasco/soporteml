@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { QuestionRow } from '@/types/question';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Bot, Sparkles, RotateCcw, Loader2, AlertCircle, ClipboardList, BookOpen } from 'lucide-react';
+import { Bot, Sparkles, RotateCcw, Loader2, AlertCircle, ClipboardList, BookOpen, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
