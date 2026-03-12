@@ -116,7 +116,7 @@ serve(async (req) => {
     if (product_id) {
       const { data: crmProduct } = await serviceClient
         .from("products")
-        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, meli_category_id")
+        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, meli_category_id, meli_category_name")
         .eq("id", product_id)
         .eq("company_id", callerCompanyId)
         .maybeSingle();
