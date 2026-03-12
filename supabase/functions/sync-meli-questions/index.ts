@@ -505,6 +505,65 @@ async function fetchAndStoreProduct(
   return null;
 }
 
+// ─── Fetch CRM context from products + variants ───
+async function fetchCrmContext(supabase: any, productId: string, companyId: string): Promise<string> {
+  try {
+    const [productRes, variantsRes] = await Promise.all([
+      supabase
+        .from("products")
+        .select("support_summary, key_points, faq_bullets, do_not_say, shipping_notes, returns_notes, warranty_notes")
+        .eq("id", productId)
+        .eq("company_id", companyId)
+        .maybeSingle(),
+      supabase
+        .from("product_variants")
+        .select("variant_name, variant_sku, attributes, support_notes")
+        .eq("product_id", productId)
+        .eq("company_id", companyId)
+        .is("archived_at", null),
+    ]);
+
+    const parts: string[] = [];
+    const p = productRes.data;
+
+    if (p) {
+      if (p.support_summary) parts.push(`Resumen de soporte: ${p.support_summary}`);
+      if (Array.isArray(p.key_points) && p.key_points.length > 0) {
+        parts.push(`Puntos clave:\n${p.key_points.map((k: string) => `- ${k}`).join('\n')}`);
+      }
+      if (Array.isArray(p.faq_bullets) && p.faq_bullets.length > 0) {
+        parts.push(`FAQ:\n${p.faq_bullets.map((f: string) => `- ${f}`).join('\n')}`);
+      }
+      if (Array.isArray(p.do_not_say) && p.do_not_say.length > 0) {
+        parts.push(`NO decir:\n${p.do_not_say.map((d: string) => `- ${d}`).join('\n')}`);
+      }
+      if (p.shipping_notes) parts.push(`Notas de envío: ${p.shipping_notes}`);
+      if (p.returns_notes) parts.push(`Política de devoluciones: ${p.returns_notes}`);
+      if (p.warranty_notes) parts.push(`Garantía del vendedor: ${p.warranty_notes}`);
+    }
+
+    const variants = variantsRes.data;
+    if (variants?.length) {
+      const varLines = variants.map((v: any) => {
+        let line = `- ${v.variant_name}`;
+        if (v.variant_sku) line += ` (SKU: ${v.variant_sku})`;
+        if (v.support_notes) line += ` — ${v.support_notes}`;
+        const attrs = v.attributes;
+        if (attrs && typeof attrs === 'object' && Object.keys(attrs).length > 0) {
+          line += ` [${Object.entries(attrs).map(([k, val]) => `${k}: ${val}`).join(', ')}]`;
+        }
+        return line;
+      });
+      parts.push(`Variantes del catálogo interno:\n${varLines.join('\n')}`);
+    }
+
+    return parts.join('\n');
+  } catch (e) {
+    console.error("Error fetching CRM context:", e);
+    return "";
+  }
+}
+
 async function processQuestion(
   supabase: any,
   q: any,
@@ -680,6 +739,14 @@ async function processQuestion(
     // If item lookup failed, keep question without product_id instead of storing placeholder titles
     if (!productId && q.item_id) {
       console.error(`Could not resolve real title for item ${q.item_id} while processing question ${meliQuestionId}.`);
+    }
+  }
+
+  // ─── Enrich product context with CRM data ───
+  if (productId) {
+    const crmContext = await fetchCrmContext(supabase, productId, companyId);
+    if (crmContext) {
+      productContext += '\n\n' + crmContext;
     }
   }
 
