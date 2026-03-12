@@ -215,14 +215,14 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
             <div className="flex items-center gap-2 flex-wrap">
               {question.status === 'archived' ? (
                 <>
-                  <Button onClick={handleRestore} className="gap-2">
+                  <Button onClick={handleRestore} className="gap-2" size="sm">
                     <RotateCcw className="w-4 h-4" />
                     Restaurar a Pendientes
                   </Button>
                   {isAdmin && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                        <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                           Eliminar
                         </Button>
@@ -243,24 +243,25 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
               ) : question.status === 'published' ? null : (
                 <>
                   <TemplatePicker onSelect={(text) => setAnswer(text)} variables={templateVars} />
-                  <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2 flex-1 sm:flex-none">
+                  <Button onClick={handlePublish} disabled={publishing || !answer.trim()} className="gap-2 flex-1 sm:flex-none" size="sm">
                     <Send className="w-4 h-4" />
                     Publicar respuesta
                   </Button>
                   {isAdmin && answer.trim() && (
                     <Button variant="outline" size="sm" onClick={handleSaveAsTemplate} disabled={savingTemplate} className="gap-1.5 text-xs">
                       <Save className="w-3.5 h-3.5" />
-                      Guardar como plantilla
+                      <span className="hidden sm:inline">Guardar como plantilla</span>
+                      <span className="sm:hidden">Plantilla</span>
                     </Button>
                   )}
-                  <Button variant="outline" onClick={handleDiscard} className="gap-2">
+                  <Button variant="outline" size="sm" onClick={handleDiscard} className="gap-2">
                     <X className="w-4 h-4" />
                     Archivar
                   </Button>
                   {isAdmin && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                        <Button variant="outline" size="sm" className="gap-2 text-destructive hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                           Eliminar
                         </Button>

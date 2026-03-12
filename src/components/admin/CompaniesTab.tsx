@@ -286,67 +286,116 @@ const CompaniesTab = () => {
             {companies.length > 0 && <SearchInput value={companyQuery} onChange={setCompanyQuery} placeholder="Buscar company..." />}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 sm:px-6">
           {companies.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-4">No hay companies aún.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Invite Code</TableHead>
-                  <TableHead className="hidden md:table-cell">Miembros</TableHead>
-                  <TableHead className="hidden md:table-cell">MeLi</TableHead>
-                  <TableHead>Creada</TableHead>
-                  <TableHead className="w-20" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: cards */}
+              <div className="sm:hidden space-y-2 px-4">
                 {filteredCompanies.map(c => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">
-                      {c.name}
-                      {c.member_count === 0 && (
-                        <Badge variant="outline" className="ml-2 text-[10px] border-amber-300 text-amber-600 dark:text-amber-400">Sin usuarios</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
+                  <div key={c.id} className="border border-border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {c.name}
+                          {c.member_count === 0 && (
+                            <Badge variant="outline" className="ml-2 text-[10px] border-amber-300 text-amber-600 dark:text-amber-400">Sin usuarios</Badge>
+                          )}
+                        </p>
+                      </div>
+                      <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${c.has_meli ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         onClick={() => copyCode(c.invite_code)}
-                        className="inline-flex items-center gap-1.5 font-mono text-xs bg-muted px-2 py-1 rounded hover:bg-accent transition-colors"
+                        className="inline-flex items-center gap-1 font-mono text-[10px] bg-muted px-2 py-0.5 rounded hover:bg-accent transition-colors"
                       >
                         {c.invite_code}
                         <Copy className="w-3 h-3" />
                       </button>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <span className="inline-flex items-center gap-1 text-muted-foreground">
-                        <Users className="w-3.5 h-3.5" />{c.member_count}
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Users className="w-3 h-3" />{c.member_count}
                       </span>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <span className={`inline-block w-2 h-2 rounded-full ${c.has_meli ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                      {new Date(c.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => copyInviteLink(c.invite_code)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Copiar link de invitación">
-                          <Link2 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id, c.name)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(c.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => copyInviteLink(c.invite_code)} className="h-7 w-7 text-muted-foreground hover:text-primary" title="Copiar link">
+                        <Link2 className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id, c.name)} className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
                 {filteredCompanies.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sin resultados para "{companyQuery}"</TableCell></TableRow>
+                  <p className="text-center text-muted-foreground py-6 text-sm">Sin resultados para "{companyQuery}"</p>
                 )}
-              </TableBody>
-            </Table>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Invite Code</TableHead>
+                      <TableHead className="hidden md:table-cell">Miembros</TableHead>
+                      <TableHead className="hidden md:table-cell">MeLi</TableHead>
+                      <TableHead>Creada</TableHead>
+                      <TableHead className="w-20" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCompanies.map(c => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-medium">
+                          {c.name}
+                          {c.member_count === 0 && (
+                            <Badge variant="outline" className="ml-2 text-[10px] border-amber-300 text-amber-600 dark:text-amber-400">Sin usuarios</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            onClick={() => copyCode(c.invite_code)}
+                            className="inline-flex items-center gap-1.5 font-mono text-xs bg-muted px-2 py-1 rounded hover:bg-accent transition-colors"
+                          >
+                            {c.invite_code}
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Users className="w-3.5 h-3.5" />{c.member_count}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <span className={`inline-block w-2 h-2 rounded-full ${c.has_meli ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                          {new Date(c.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => copyInviteLink(c.invite_code)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Copiar link de invitación">
+                              <Link2 className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id, c.name)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredCompanies.length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Sin resultados para "{companyQuery}"</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -169,8 +169,8 @@ const Landing = () => {
             <button onClick={() => scrollTo('faq')} className="hover:text-foreground transition-colors">FAQ</button>
             <button onClick={() => scrollTo('contact')} className="hover:text-foreground transition-colors">Contacto</button>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-full">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="rounded-full h-8 w-8">
               <Sun className="w-4 h-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute w-4 h-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Cambiar tema</span>
@@ -178,7 +178,7 @@ const Landing = () => {
             <Button variant="ghost" size="sm" asChild>
               <Link to="/login">Ingresar</Link>
             </Button>
-            <Button size="sm" asChild className="hidden sm:inline-flex">
+            <Button size="sm" asChild>
               <Link to="/signup">Empezar</Link>
             </Button>
           </div>
