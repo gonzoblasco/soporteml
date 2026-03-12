@@ -61,6 +61,7 @@ async function generateAiAnswer(
   buyerNickname: string | null = null,
   productTitle: string | null = null,
   productPrice: number | null = null,
+  crmKnowledge: string = "",
 ): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -102,6 +103,11 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
     systemPrompt += `\n\nREGLAS ADICIONALES DE EXCLUSIÓN (marcá requires_human = true si aplican):\n${exclusionRules}`;
   }
 
+  // Inject CRM knowledge into system prompt (same position as Copilot)
+  if (crmKnowledge) {
+    systemPrompt += crmKnowledge;
+  }
+
   systemPrompt += `\n\nRespondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
 {"answer": "tu respuesta lista para publicar, corta y clara", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
 
@@ -109,7 +115,7 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
 Comprador: ${buyerNickname || "desconocido"}
 Producto: ${productTitle || "sin título"}${productPrice != null ? ` — $${productPrice}` : ""}
 
-Datos del producto:
+Datos del producto (publicación MeLi):
 ${productContext}`;
 
   try {
