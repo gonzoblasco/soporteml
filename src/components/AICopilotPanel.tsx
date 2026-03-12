@@ -51,7 +51,18 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
   const [activeTone, setActiveTone] = useState<ToneValue | null>(null);
   const autoApplyRef = useRef(false);
   const lastQuestionIdRef = useRef<string | null>(null);
-  const seenKnowledgeSuggestionsRef = useRef<Set<string>>(new Set());
+  // Session-scoped dedup via sessionStorage to survive component remounts
+  const getSeenKnowledgeTypes = (): Set<string> => {
+    try {
+      const stored = sessionStorage.getItem('copilot_seen_knowledge');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  };
+  const markKnowledgeTypeSeen = (type: string) => {
+    const seen = getSeenKnowledgeTypes();
+    seen.add(type);
+    sessionStorage.setItem('copilot_seen_knowledge', JSON.stringify([...seen]));
+  };
 
   const fetchCopilot = async (toneOverride?: ToneValue, isAutoTrigger = false) => {
     setLoading(true);
