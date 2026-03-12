@@ -62,18 +62,18 @@ const AdminPanel = () => {
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+    <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full h-full overflow-y-auto">
       <div className="flex items-center gap-3 mb-6">
         <Shield className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold text-foreground">Panel de Administración</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Panel de Administración</h1>
       </div>
 
       <Tabs defaultValue="metrics">
-        <TabsList className="mb-4">
-          <TabsTrigger value="metrics" className="gap-2"><BarChart3 className="w-4 h-4" />Métricas</TabsTrigger>
-          <TabsTrigger value="inquiries" className="gap-2"><Mail className="w-4 h-4" />Consultas</TabsTrigger>
-          <TabsTrigger value="companies" className="gap-2"><Building2 className="w-4 h-4" />Companies</TabsTrigger>
-          <TabsTrigger value="users" className="gap-2"><UserCircle className="w-4 h-4" />Usuarios</TabsTrigger>
+        <TabsList className="mb-4 w-full sm:w-auto overflow-x-auto flex-nowrap">
+          <TabsTrigger value="metrics" className="gap-1.5 text-xs sm:text-sm"><BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Métricas</span><span className="sm:hidden">Métr.</span></TabsTrigger>
+          <TabsTrigger value="inquiries" className="gap-1.5 text-xs sm:text-sm"><Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Consultas</span><span className="sm:hidden">Cons.</span></TabsTrigger>
+          <TabsTrigger value="companies" className="gap-1.5 text-xs sm:text-sm"><Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Companies</span><span className="sm:hidden">Emp.</span></TabsTrigger>
+          <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm"><UserCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /><span className="hidden sm:inline">Usuarios</span><span className="sm:hidden">Users</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="metrics"><MetricsTab /></TabsContent>
@@ -127,38 +127,64 @@ const InquiriesTab = () => {
           <SearchInput value={query} onChange={setQuery} placeholder="Buscar por nombre, email..." />
         </div>
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead className="hidden md:table-cell">Mensaje</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(inq => (
-              <TableRow key={inq.id}>
-                <TableCell className="font-medium">{inq.name}</TableCell>
-                <TableCell className="text-muted-foreground">{inq.email}</TableCell>
-                <TableCell className="hidden md:table-cell max-w-xs truncate text-muted-foreground">{inq.message}</TableCell>
-                <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                  {new Date(inq.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(inq.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </TableCell>
+      <CardContent className="px-0 sm:px-6">
+        {/* Mobile: card list */}
+        <div className="sm:hidden space-y-2 px-4">
+          {filtered.map(inq => (
+            <div key={inq.id} className="border border-border rounded-lg p-3 space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{inq.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{inq.email}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(inq.id)} className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">{inq.message}</p>
+              <p className="text-[10px] text-muted-foreground/60">
+                {new Date(inq.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+              </p>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-center text-muted-foreground py-6 text-sm">Sin resultados para "{query}"</p>
+          )}
+        </div>
+        {/* Desktop: table */}
+        <div className="hidden sm:block overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead className="hidden md:table-cell">Mensaje</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead className="w-12" />
               </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sin resultados para "{query}"</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filtered.map(inq => (
+                <TableRow key={inq.id}>
+                  <TableCell className="font-medium">{inq.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{inq.email}</TableCell>
+                  <TableCell className="hidden md:table-cell max-w-xs truncate text-muted-foreground">{inq.message}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                    {new Date(inq.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(inq.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sin resultados para "{query}"</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

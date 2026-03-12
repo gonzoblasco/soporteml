@@ -123,14 +123,14 @@ const TemplatesPage = () => {
   });
 
   return (
-    <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full">
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex-1 flex flex-col p-4 sm:p-6 max-w-4xl mx-auto w-full overflow-y-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Plantillas</h1>
-          <p className="text-sm text-muted-foreground mt-1">Respuestas rápidas reutilizables para tus consultas</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Plantillas</h1>
+          <p className="text-sm text-muted-foreground mt-1">Respuestas rápidas reutilizables</p>
         </div>
         {isAdmin && (
-          <Button onClick={openCreate} className="gap-2">
+          <Button onClick={openCreate} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             Nueva plantilla
           </Button>
@@ -138,8 +138,8 @@ const TemplatesPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-4">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
+        <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar plantillas…"
@@ -149,7 +149,7 @@ const TemplatesPage = () => {
           />
         </div>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[140px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

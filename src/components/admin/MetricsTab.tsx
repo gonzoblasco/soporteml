@@ -85,61 +85,86 @@ const MetricsTab = () => {
           </div>
           <CardDescription>{metrics.length} empresa{metrics.length !== 1 ? 's' : ''} registrada{metrics.length !== 1 ? 's' : ''}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 sm:px-6">
           {metrics.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-4">No hay datos aún.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead className="text-center">Miembros</TableHead>
-                  <TableHead className="text-center">Preguntas</TableHead>
-                  <TableHead className="text-center hidden md:table-cell">Auto</TableHead>
-                  <TableHead className="text-center hidden md:table-cell">Humanas</TableHead>
-                  <TableHead className="text-center hidden md:table-cell">Pendientes</TableHead>
-                  <TableHead className="text-center hidden md:table-cell">Productos</TableHead>
-                  <TableHead className="text-center">MeLi</TableHead>
-                  <TableHead className="hidden lg:table-cell">Última pregunta</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile: cards */}
+              <div className="sm:hidden space-y-2 px-4">
                 {metrics.map(m => {
                   const rate = m.total_questions > 0 ? Math.round((m.auto_answered / m.total_questions) * 100) : 0;
                   return (
-                    <TableRow key={m.company_id}>
-                      <TableCell className="font-medium">{m.company_name}</TableCell>
-                      <TableCell className="text-center">{m.member_count}</TableCell>
-                      <TableCell className="text-center">
-                        <span className="font-semibold">{m.total_questions}</span>
-                      </TableCell>
-                      <TableCell className="text-center hidden md:table-cell">
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          {m.auto_answered} <span className="text-muted-foreground ml-0.5">({rate}%)</span>
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center hidden md:table-cell">{m.human_answered}</TableCell>
-                      <TableCell className="text-center hidden md:table-cell">
-                        {m.pending_questions > 0 ? (
-                          <Badge variant="destructive" className="text-xs">{m.pending_questions}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center hidden md:table-cell">{m.total_products}</TableCell>
-                      <TableCell className="text-center">
+                    <div key={m.company_id} className="border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground">{m.company_name}</p>
                         <span className={`inline-block w-2 h-2 rounded-full ${m.has_meli ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-xs whitespace-nowrap">
-                        {m.last_question_at
-                          ? new Date(m.last_question_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })
-                          : '—'}
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Preguntas:</span> <span className="font-semibold">{m.total_questions}</span></div>
+                        <div><span className="text-muted-foreground">Auto:</span> {m.auto_answered} ({rate}%)</div>
+                        <div><span className="text-muted-foreground">Humanas:</span> {m.human_answered}</div>
+                        <div><span className="text-muted-foreground">Pendientes:</span> {m.pending_questions > 0 ? <Badge variant="destructive" className="text-[10px] px-1">{m.pending_questions}</Badge> : '0'}</div>
+                        <div><span className="text-muted-foreground">Miembros:</span> {m.member_count}</div>
+                        <div><span className="text-muted-foreground">Productos:</span> {m.total_products}</div>
+                      </div>
+                    </div>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Empresa</TableHead>
+                      <TableHead className="text-center">Miembros</TableHead>
+                      <TableHead className="text-center">Preguntas</TableHead>
+                      <TableHead className="text-center hidden md:table-cell">Auto</TableHead>
+                      <TableHead className="text-center hidden md:table-cell">Humanas</TableHead>
+                      <TableHead className="text-center hidden md:table-cell">Pendientes</TableHead>
+                      <TableHead className="text-center hidden md:table-cell">Productos</TableHead>
+                      <TableHead className="text-center">MeLi</TableHead>
+                      <TableHead className="hidden lg:table-cell">Última pregunta</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {metrics.map(m => {
+                      const rate = m.total_questions > 0 ? Math.round((m.auto_answered / m.total_questions) * 100) : 0;
+                      return (
+                        <TableRow key={m.company_id}>
+                          <TableCell className="font-medium">{m.company_name}</TableCell>
+                          <TableCell className="text-center">{m.member_count}</TableCell>
+                          <TableCell className="text-center"><span className="font-semibold">{m.total_questions}</span></TableCell>
+                          <TableCell className="text-center hidden md:table-cell">
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {m.auto_answered} <span className="text-muted-foreground ml-0.5">({rate}%)</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center hidden md:table-cell">{m.human_answered}</TableCell>
+                          <TableCell className="text-center hidden md:table-cell">
+                            {m.pending_questions > 0 ? (
+                              <Badge variant="destructive" className="text-xs">{m.pending_questions}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">0</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center hidden md:table-cell">{m.total_products}</TableCell>
+                          <TableCell className="text-center">
+                            <span className={`inline-block w-2 h-2 rounded-full ${m.has_meli ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-muted-foreground text-xs whitespace-nowrap">
+                            {m.last_question_at
+                              ? new Date(m.last_question_at).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' })
+                              : '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

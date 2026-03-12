@@ -389,12 +389,12 @@ const MeliConnectionSection = () => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link className="w-4 h-4 text-muted-foreground" />
-            <div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link className="w-4 h-4 text-muted-foreground shrink-0" />
+            <div className="min-w-0">
               <CardTitle className="text-sm">MercadoLibre</CardTitle>
-              <CardDescription>Conectá tu cuenta para sincronizar preguntas automáticamente</CardDescription>
+              <CardDescription className="hidden sm:block">Conectá tu cuenta para sincronizar preguntas automáticamente</CardDescription>
             </div>
           </div>
           {healthBadge()}
@@ -1468,7 +1468,7 @@ const SettingsPage = () => {
     <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-xl font-semibold text-foreground mb-1">Settings</h1>
-        <p className="text-sm text-muted-foreground mb-6">Configuración de la cuenta y preferencias</p>
+        <p className="text-sm text-muted-foreground mb-4 sm:mb-6">Configuración de la cuenta y preferencias</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-4">

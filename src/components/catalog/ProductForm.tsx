@@ -241,13 +241,15 @@ export function ProductForm({ product, onRefresh, onClose, defaultTab }: Props) 
 
       {/* Tabs */}
       <Tabs defaultValue={defaultTab || "resumen"} className="flex-1 overflow-hidden flex flex-col">
-        <TabsList className="mx-4 mt-3 w-fit">
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
-          <TabsTrigger value="conocimiento">Conocimiento IA</TabsTrigger>
-          <TabsTrigger value="variantes">Variantes</TabsTrigger>
-          <TabsTrigger value="politicas">Políticas</TabsTrigger>
-          <TabsTrigger value="actividad">Actividad</TabsTrigger>
-        </TabsList>
+        <div className="mx-4 mt-3 overflow-x-auto">
+          <TabsList className="w-fit">
+            <TabsTrigger value="resumen" className="text-xs sm:text-sm">Resumen</TabsTrigger>
+            <TabsTrigger value="conocimiento" className="text-xs sm:text-sm">Conocimiento</TabsTrigger>
+            <TabsTrigger value="variantes" className="text-xs sm:text-sm">Variantes</TabsTrigger>
+            <TabsTrigger value="politicas" className="text-xs sm:text-sm">Políticas</TabsTrigger>
+            <TabsTrigger value="actividad" className="text-xs sm:text-sm">Actividad</TabsTrigger>
+          </TabsList>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {/* Tab 1 — Resumen */}

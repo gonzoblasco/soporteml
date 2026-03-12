@@ -214,7 +214,7 @@ const Home = () => {
   }
 
   return (
-    <div className="p-6 overflow-y-auto h-full space-y-6">
+    <div className="p-4 sm:p-6 overflow-y-auto h-full space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
