@@ -57,26 +57,27 @@ async function generateAiAnswer(
   productContext: string,
   aiTone: string = "profesional",
   aiCustomInstructions: string | null = null,
-  exclusionRules: string | null = null
+  exclusionRules: string | null = null,
+  buyerNickname: string | null = null,
+  productTitle: string | null = null,
+  productPrice: number | null = null,
 ): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
   }
 
-  const toneMap: Record<string, string> = {
-    profesional: "de forma profesional y cordial",
-    casual: "de forma casual, cercana y amigable",
-    tecnico: "de forma técnica y precisa",
-  };
-  const toneInstruction = toneMap[aiTone] || toneMap["profesional"];
+  const customInstructions = aiCustomInstructions ? `\nInstrucciones adicionales del vendedor: ${aiCustomInstructions}` : "";
 
-  let systemPrompt = `Sos un asistente de ventas en MercadoLibre. Respondé preguntas de compradores ${toneInstruction}.
+  let systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
+Tu trabajo es analizar la pregunta de un comprador y generar una respuesta precisa.
+
+Tono: ${aiTone}. Escribí en español rioplatense neutro, sin tutear.${customInstructions}
 
 REGLAS IMPORTANTES:
-- NUNCA le digas al comprador que consulte la publicación, que mire la página, o que revise los detalles del producto. Vos tenés toda la información disponible y debés responder directamente.
-- Si la información solicitada está en los datos del producto que te doy, respondé con esa información concreta.
-- Si la información NO está disponible en los datos del producto, decí honestamente que no tenés esa información y ofrecé ayuda alternativa.
+- NUNCA le digas al comprador que consulte la publicación, que mire la página, o que revise los detalles del producto.
+- Si la información solicitada está en los datos del producto, respondé con esa información concreta.
+- Si la información NO está disponible, decí honestamente que no tenés esa información y ofrecé ayuda alternativa.
 - Respondé de forma directa y útil, con datos concretos (colores, medidas, precios, etc.).
 - No uses más de 350 caracteres en la respuesta (límite de MeLi).
 
@@ -101,11 +102,15 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
     systemPrompt += `\n\nREGLAS ADICIONALES DE EXCLUSIÓN (marcá requires_human = true si aplican):\n${exclusionRules}`;
   }
 
-  systemPrompt += `\n\nRespondé en JSON con este formato: {"answer": "tu respuesta", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
+  systemPrompt += `\n\nRespondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
+{"answer": "tu respuesta lista para publicar, corta y clara", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
 
-  if (aiCustomInstructions) {
-    systemPrompt += `\n\nInstrucciones adicionales del vendedor:\n${aiCustomInstructions}`;
-  }
+  const userPrompt = `Pregunta del comprador: "${questionText}"
+Comprador: ${buyerNickname || "desconocido"}
+Producto: ${productTitle || "sin título"}${productPrice != null ? ` — $${productPrice}` : ""}
+
+Datos del producto:
+${productContext}`;
 
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -115,15 +120,12 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Datos del producto:\n${productContext}\n\nPregunta del comprador: "${questionText}"`,
-          },
+          { role: "user", content: userPrompt },
         ],
-        temperature: 0.7,
+        temperature: 0.4,
       }),
     });
 
@@ -135,7 +137,9 @@ Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content ?? "";
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    // Parse JSON (strip markdown fences if present)
+    const cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
