@@ -29,7 +29,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [crmDrawerOpen, setCrmDrawerOpen] = useState(false);
   const [crmDrawerTab, setCrmDrawerTab] = useState<string | undefined>();
-  const { userRole, companyId } = useAuth();
+  const { userRole, currentCompanyId } = useAuth();
   const isAdmin = userRole === 'admin';
   const isMobile = useIsMobile();
 
@@ -110,12 +110,12 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   };
 
   const handleSaveAsTemplate = async () => {
-    if (!companyId || !answer.trim()) return;
+    if (!currentCompanyId || !answer.trim()) return;
     setSavingTemplate(true);
     const { error } = await supabase
       .from('templates')
       .insert({
-        company_id: companyId,
+        company_id: currentCompanyId,
         title: (question.question_text ?? '').slice(0, 60) || 'Sin título',
         category: (question.ai_category ?? 'general').toLowerCase(),
         content: answer.trim(),

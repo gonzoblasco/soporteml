@@ -4,7 +4,13 @@ Todos los cambios notables de SoporteML se documentan en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.3.2] — 2026-03-14
+
+### Fixed
+- Migrados `OnboardingWizard` y `QuestionDetail` de `companyId` (deprecado) a `currentCompanyId` para alinearse con la arquitectura multi-tenant actual.
+
 ---
+
 
 ## [1.3.1] — 2026-03-12
 

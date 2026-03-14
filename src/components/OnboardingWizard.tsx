@@ -13,27 +13,27 @@ interface OnboardingWizardProps {
 }
 
 const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
-  const { user, profileName, companyId } = useAuth();
+  const { user, profileName, currentCompanyId } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [meliConnected, setMeliConnected] = useState(false);
   const [checkingMeli, setCheckingMeli] = useState(true);
 
   const checkMeliConnection = useCallback(async () => {
-    if (!companyId) { setCheckingMeli(false); return; }
+    if (!currentCompanyId) { setCheckingMeli(false); return; }
     const { data } = await supabase
       .from('meli_connection_status')
       .select('id')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .maybeSingle();
     setMeliConnected(!!data);
     setCheckingMeli(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => { checkMeliConnection(); }, [checkMeliConnection]);
 
   const handleConnectMeli = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
 
     const generateCodeVerifier = () => {
       const array = new Uint8Array(32);
@@ -52,7 +52,7 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
 
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const statePayload = `${companyId}|${codeVerifier}`;
+    const statePayload = `${currentCompanyId}|${codeVerifier}`;
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meli-oauth-callback`;
     const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(statePayload)}&scope=offline_access%20read%20write&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
