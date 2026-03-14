@@ -9,6 +9,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Fixed
 - Migrados `OnboardingWizard` y `QuestionDetail` de `companyId` (deprecado) a `currentCompanyId` para alinearse con la arquitectura multi-tenant actual.
 
+### Changed
+- Refactorizado `SettingsPage.tsx` (1496 líneas) en 10 sub-componentes independientes bajo `src/components/settings/`: ProfileSection, JoinCompanySection, CompanySection, MeliConnectionSection, TeamSection, AiConfigSection, AutoReplySection, TrashSection, NotificationsSection, BillingSection.
+
 ---
 
 
