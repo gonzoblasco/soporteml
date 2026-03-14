@@ -33,7 +33,7 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
   useEffect(() => { checkMeliConnection(); }, [checkMeliConnection]);
 
   const handleConnectMeli = async () => {
-    if (!companyId) return;
+    if (!currentCompanyId) return;
 
     const generateCodeVerifier = () => {
       const array = new Uint8Array(32);
