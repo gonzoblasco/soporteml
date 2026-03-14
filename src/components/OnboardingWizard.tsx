@@ -20,15 +20,15 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
   const [checkingMeli, setCheckingMeli] = useState(true);
 
   const checkMeliConnection = useCallback(async () => {
-    if (!companyId) { setCheckingMeli(false); return; }
+    if (!currentCompanyId) { setCheckingMeli(false); return; }
     const { data } = await supabase
       .from('meli_connection_status')
       .select('id')
-      .eq('company_id', companyId)
+      .eq('company_id', currentCompanyId)
       .maybeSingle();
     setMeliConnected(!!data);
     setCheckingMeli(false);
-  }, [companyId]);
+  }, [currentCompanyId]);
 
   useEffect(() => { checkMeliConnection(); }, [checkMeliConnection]);
 
