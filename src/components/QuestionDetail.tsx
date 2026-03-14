@@ -29,7 +29,7 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [crmDrawerOpen, setCrmDrawerOpen] = useState(false);
   const [crmDrawerTab, setCrmDrawerTab] = useState<string | undefined>();
-  const { userRole, companyId } = useAuth();
+  const { userRole, currentCompanyId } = useAuth();
   const isAdmin = userRole === 'admin';
   const isMobile = useIsMobile();
 
