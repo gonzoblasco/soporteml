@@ -13,7 +13,7 @@ interface OnboardingWizardProps {
 }
 
 const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
-  const { user, profileName, companyId } = useAuth();
+  const { user, profileName, currentCompanyId } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [meliConnected, setMeliConnected] = useState(false);
