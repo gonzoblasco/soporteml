@@ -181,6 +181,20 @@ export function ProductList({ products, selectedId, onSelect, onNew, pagination,
           </div>
         )}
       </ScrollArea>
+
+      {pagination && (
+        <PaginationBar
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          canPrev={pagination.canPrev}
+          canNext={pagination.canNext}
+          onPrev={pagination.goPrev}
+          onNext={pagination.goNext}
+          totalCount={totalCount}
+          from={pagination.from}
+          to={pagination.to}
+        />
+      )}
     </div>
   );
 }
