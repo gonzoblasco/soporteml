@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Package, SlidersHorizontal } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CompletenessIndicator } from './CompletenessIndicator';
+import { PaginationBar } from '@/components/PaginationBar';
 
 interface Product {
   id: string;
