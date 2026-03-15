@@ -38,9 +38,8 @@ serve(async (req) => {
     logStep("Caller authenticated", { userId: userData.user.id });
 
     // Verify super admin
-    const { data: isSA } = await supabaseAdmin.rpc("is_super_admin");
-    // Since we're using service role, we need to check manually
-    if (userData.user.email !== "gonzoblasco@icloud.com") {
+    const superAdminEmail = Deno.env.get("SUPER_ADMIN_EMAIL");
+    if (!superAdminEmail || userData.user.email !== superAdminEmail) {
       throw new Error("Unauthorized: super admin access required");
     }
 

@@ -1,68 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-// ─── Build knowledge context with category-aware ordering ───
-function buildKnowledgePrompt(entries: any[]): { positive: string; restrictions: string } {
-  if (!entries?.length) return { positive: "", restrictions: "" };
-
-  // Separate by type and scope
-  const catRestrictions: any[] = [];
-  const globalRestrictions: any[] = [];
-  const catPositive: any[] = [];
-  const globalPositive: any[] = [];
-
-  for (const e of entries) {
-    if (e.type === "restriccion") {
-      (e.scope === "categoria" ? catRestrictions : globalRestrictions).push(e);
-    } else {
-      (e.scope === "categoria" ? catPositive : globalPositive).push(e);
-    }
-  }
-
-  // Build in priority order: restrictions first, then category positive, then global positive
-  const MAX_CHARS = 4000;
-  let totalChars = 0;
-
-  const restrictionLines: string[] = [];
-  for (const e of [...catRestrictions, ...globalRestrictions]) {
-    const line = `• ${e.title}: ${e.content}`;
-    if (totalChars + line.length > MAX_CHARS) break;
-    totalChars += line.length;
-    restrictionLines.push(line);
-  }
-
-  const catPositiveLines: string[] = [];
-  for (const e of catPositive) {
-    const line = `• ${e.title}: ${e.content}`;
-    if (totalChars + line.length > MAX_CHARS) break;
-    totalChars += line.length;
-    catPositiveLines.push(line);
-  }
-
-  const globalPositiveLines: string[] = [];
-  for (const e of globalPositive) {
-    const line = `• ${e.title}: ${e.content}`;
-    if (totalChars + line.length > MAX_CHARS) break;
-    totalChars += line.length;
-    globalPositiveLines.push(line);
-  }
-
-  let positive = "";
-  if (catPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DE CATEGORÍA ---\n${catPositiveLines.join('\n')}`;
-  if (globalPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${globalPositiveLines.join('\n')}`;
-
-  const restrictions = restrictionLines.length
-    ? `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionLines.join('\n')}`
-    : "";
-
-  return { positive, restrictions };
-}
+import { generateCopilotDraft } from "../_shared/ai-service.ts";
+import { corsHeaders } from "../_shared/utils.ts";
+import { fetchKnowledgeContext } from "../_shared/knowledge-service.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -90,8 +30,8 @@ serve(async (req) => {
 
     const { question_text, product_title, product_price, buyer_nickname, ai_category, ai_suggested_answer, ai_tone, ai_custom_instructions, product_id } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
 
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
@@ -168,24 +108,8 @@ serve(async (req) => {
     }
 
     const { data: kEntries } = await knowledgeQuery;
-    const { positive: businessKnowledgePositive, restrictions: businessKnowledgeRestrictions } = buildKnowledgePrompt(kEntries || []);
-
-    const systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
-Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
-
-Tono: ${toneLabel}. Escribí en español rioplatense neutro, sin tutear.${customInstructions}
-
-Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
-{
-  "summary": "Resumen en 1-2 oraciones de qué pide o necesita el comprador",
-  "draft": "Borrador de respuesta listo para publicar, corto y claro",
-  "missing_data": ["lista de datos que faltan para dar una respuesta completa, ej: talle, color, dirección"]
-}
-
-Si no falta ningún dato, devolvé "missing_data": [].
-Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}${businessKnowledgeRestrictions}${businessKnowledgePositive}`;
-
-    // Deterministic CRM suggestions
+    
+    // CRM suggestions
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
     if (product_id) {
       const { data: crmCheck } = await serviceClient
@@ -206,85 +130,49 @@ Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${pro
       crmSuggestions.push({ message: "Creá una ficha CRM para este producto y mejorá las respuestas automáticas" });
     }
 
-    const userPrompt = `Pregunta del comprador: "${question_text}"
-Comprador: ${buyer_nickname || "desconocido"}
-Producto: ${product_title || "sin título"}${product_price != null ? ` — $${product_price}` : ""}
-Categoría IA: ${ai_category || "sin categorizar"}
-${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No hay sugerencia previa."}`;
+    // ─── Fetch knowledge entries (global + category) using shared service ───
+    const { positive: knowledgePositive, restrictions: knowledgeRestrictions } = await fetchKnowledgeContext(
+      serviceClient,
+      callerCompanyId,
+      productCategoryId
+    );
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.4,
-      }),
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Esperá un momento y volvé a intentar." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    const parsed = await generateCopilotDraft(
+      question_text,
+      productKnowledge,
+      {
+        aiTone: toneLabel,
+        aiCustomInstructions: customInstructions,
+        buyerNickname: buyer_nickname,
+        productTitle: product_title,
+        productPrice: product_price,
+        crmKnowledge: productKnowledge,
+        businessKnowledge: knowledgeRestrictions + knowledgePositive,
+        aiCategory: ai_category,
+        previousAnswer: ai_suggested_answer,
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA agotados. Recargá desde la configuración del workspace." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", status, t);
-      return new Response(JSON.stringify({ error: "Error del servicio de IA" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const aiData = await response.json();
-    const raw = aiData.choices?.[0]?.message?.content ?? "";
-
-    let parsed;
-    try {
-      const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      console.error("Failed to parse AI response:", raw);
-      parsed = {
-        summary: "No pude analizar la pregunta automáticamente.",
-        draft: raw || "",
-        missing_data: [],
-      };
-    }
+    );
 
     if (crmSuggestions.length > 0) {
-      parsed.crm_suggestions = crmSuggestions;
+      (parsed as any).crm_suggestions = crmSuggestions;
     }
 
-    // Knowledge gap suggestions (global + category)
+    // Knowledge gap suggestions
     const globalTypes = new Set((kEntries || []).filter((e: any) => e.scope === 'global').map((e: any) => e.type));
     const knowledgeSuggestions: Array<{message: string; type: string}> = [];
     if (!globalTypes.has('politica')) knowledgeSuggestions.push({ message: "Podrías agregar una política de envíos o devoluciones para mejorar las respuestas", type: "politica" });
     if (!globalTypes.has('restriccion')) knowledgeSuggestions.push({ message: "Definí qué no prometer a los compradores para evitar respuestas riesgosas", type: "restriccion" });
     if (!globalTypes.has('faq')) knowledgeSuggestions.push({ message: "Agregá preguntas frecuentes para respuestas más completas", type: "faq" });
 
-    // Category-specific gap suggestion
     if (productCategoryId) {
       const hasCategoryEntries = (kEntries || []).some((e: any) => e.scope === 'categoria' && e.scope_ref === productCategoryId);
       if (!hasCategoryEntries) {
-        const catLabel = productCategoryName || productCategoryId;
-        knowledgeSuggestions.push({ message: `No hay conocimiento específico para la categoría "${catLabel}". Agregá artículos para respuestas más precisas en esta categoría`, type: "categoria" });
+        knowledgeSuggestions.push({ message: `No hay conocimiento específico para la categoría "${productCategoryName || productCategoryId}". Agregá artículos para respuestas más precisas`, type: "categoria" });
       }
     }
 
     if (knowledgeSuggestions.length > 0) {
-      parsed.knowledge_suggestions = knowledgeSuggestions.slice(0, 2);
+      (parsed as any).knowledge_suggestions = knowledgeSuggestions.slice(0, 2);
     }
 
     return new Response(JSON.stringify(parsed), {

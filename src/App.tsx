@@ -21,6 +21,7 @@ import CatalogPage from "./pages/CatalogPage";
 import KnowledgePage from "./pages/KnowledgePage";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { Loader2 } from "lucide-react";
+import { SUPER_ADMIN_EMAIL } from "@/lib/constants";
 import { useState, useEffect } from "react";
 
 const queryClient = new QueryClient();
@@ -33,7 +34,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!isLoading && user) {
       const done = localStorage.getItem('onboarding_complete');
-      const isSuperAdmin = user.email === 'gonzoblasco@icloud.com';
+      const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
       // Show onboarding only for new admin users in a company, never for super admin
       if (!done && !isSuperAdmin && companyId && userRole === 'admin') {
         setShowOnboarding(true);

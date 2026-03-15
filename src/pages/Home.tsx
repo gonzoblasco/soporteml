@@ -52,7 +52,9 @@ const Home = () => {
         supabase
           .from('questions')
           .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)')
-          .eq('company_id', currentCompanyId),
+          .eq('company_id', currentCompanyId)
+          .order('created_at', { ascending: false })
+          .limit(1000),
         supabase
           .from('questions')
           .select('id, question_text, buyer_nickname, requires_human, created_at')

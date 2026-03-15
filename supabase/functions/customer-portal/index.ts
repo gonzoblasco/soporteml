@@ -35,7 +35,7 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     if (customers.data.length === 0) throw new Error("No Stripe customer found");
 
-    const origin = req.headers.get("origin") || "https://soporteml.lovable.app";
+    const origin = req.headers.get("origin") || Deno.env.get("PUBLIC_APP_URL") || "http://localhost:5173";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customers.data[0].id,
       return_url: `${origin}/settings`,

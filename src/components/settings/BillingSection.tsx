@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Info, CreditCard, Crown } from 'lucide-react';
+import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 
 const PLANS = {
@@ -32,7 +33,8 @@ const BillingSection = () => {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [subscription, setSubscription] = useState<{ subscribed: boolean; product_id?: string; subscription_end?: string } | null>(null);
 
-  const isSuperAdmin = user?.email === 'gonzoblasco@icloud.com';
+  // Consider moving this to an environment variable or a more robust admin check
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
 
   const checkSubscription = useCallback(async () => {
     if (isSuperAdmin) {
