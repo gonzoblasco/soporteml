@@ -48,7 +48,7 @@ interface Props {
   totalCount?: number;
 }
 
-export function ProductList({ products, selectedId, onSelect, onNew }: Props) {
+export function ProductList({ products, selectedId, onSelect, onNew, pagination, totalCount }: Props) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('active');
   const [sort, setSort] = useState<Sort>('updated');
