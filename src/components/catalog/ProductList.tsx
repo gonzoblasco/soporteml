@@ -28,11 +28,24 @@ interface Product {
 type Filter = 'active' | 'archived' | 'incomplete';
 type Sort = 'alpha' | 'updated';
 
+interface PaginationData {
+  page: number;
+  totalPages: number;
+  from: number;
+  to: number;
+  canPrev: boolean;
+  canNext: boolean;
+  goNext: () => void;
+  goPrev: () => void;
+}
+
 interface Props {
   products: Product[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  pagination?: PaginationData;
+  totalCount?: number;
 }
 
 export function ProductList({ products, selectedId, onSelect, onNew }: Props) {
