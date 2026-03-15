@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Package, SlidersHorizontal } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CompletenessIndicator } from './CompletenessIndicator';
+import { PaginationBar } from '@/components/PaginationBar';
 
 interface Product {
   id: string;
@@ -27,14 +28,27 @@ interface Product {
 type Filter = 'active' | 'archived' | 'incomplete';
 type Sort = 'alpha' | 'updated';
 
+interface PaginationData {
+  page: number;
+  totalPages: number;
+  from: number;
+  to: number;
+  canPrev: boolean;
+  canNext: boolean;
+  goNext: () => void;
+  goPrev: () => void;
+}
+
 interface Props {
   products: Product[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  pagination?: PaginationData;
+  totalCount?: number;
 }
 
-export function ProductList({ products, selectedId, onSelect, onNew }: Props) {
+export function ProductList({ products, selectedId, onSelect, onNew, pagination, totalCount }: Props) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('active');
   const [sort, setSort] = useState<Sort>('updated');
@@ -167,6 +181,20 @@ export function ProductList({ products, selectedId, onSelect, onNew }: Props) {
           </div>
         )}
       </ScrollArea>
+
+      {pagination && (
+        <PaginationBar
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          canPrev={pagination.canPrev}
+          canNext={pagination.canNext}
+          onPrev={pagination.goPrev}
+          onNext={pagination.goNext}
+          totalCount={totalCount}
+          from={pagination.from}
+          to={pagination.to}
+        />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Package } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Product {
   id: string;
@@ -35,31 +36,37 @@ interface Product {
   meli_category_name: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 const CatalogPage = () => {
   const { user, currentCompanyId } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('product'));
   const isMobile = useIsMobile();
   const [showForm, setShowForm] = useState(false);
 
+  const pag = usePagination(totalCount, PAGE_SIZE);
+
   const fetchProducts = useCallback(async () => {
     if (!currentCompanyId) return;
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from('products')
-      .select('id, company_id, title, meli_item_id, sku, permalink, status, source, external_id, external_url, support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, updated_at, meli_cache_fetched_at, meli_cache, price, meli_category_name')
+      .select('id, company_id, title, meli_item_id, sku, permalink, status, source, external_id, external_url, support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, updated_at, meli_cache_fetched_at, meli_cache, price, meli_category_name', { count: 'exact' })
       .eq('company_id', currentCompanyId)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .range(pag.from, pag.to);
 
     setProducts((data ?? []) as unknown as Product[]);
+    setTotalCount(count ?? 0);
     setLoading(false);
-  }, [currentCompanyId]);
+  }, [currentCompanyId, pag.from, pag.to]);
 
   useEffect(() => {
     fetchProducts();
 
-    // Realtime subscription
     const channel = supabase
       .channel('catalog-products')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
@@ -123,7 +130,6 @@ const CatalogPage = () => {
 
   const selectedProduct = products.find((p) => p.id === selectedId) || null;
 
-  // Mobile: toggle between list and form
   const handleSelect = (id: string) => {
     setSelectedId(id);
     if (isMobile) setShowForm(true);
@@ -137,7 +143,6 @@ const CatalogPage = () => {
     );
   }
 
-  // Mobile layout
   if (isMobile) {
     if (showForm && selectedProduct) {
       return (
@@ -153,16 +158,15 @@ const CatalogPage = () => {
     }
     return (
       <div className="h-full">
-        <ProductList products={products} selectedId={selectedId} onSelect={handleSelect} onNew={handleNew} />
+        <ProductList products={products} selectedId={selectedId} onSelect={handleSelect} onNew={handleNew} pagination={pag} totalCount={totalCount} />
       </div>
     );
   }
 
-  // Desktop split view
   return (
     <div className="h-full flex">
       <div className="w-80 shrink-0 border-r border-border">
-        <ProductList products={products} selectedId={selectedId} onSelect={handleSelect} onNew={handleNew} />
+        <ProductList products={products} selectedId={selectedId} onSelect={handleSelect} onNew={handleNew} pagination={pag} totalCount={totalCount} />
       </div>
       <div className="flex-1 overflow-hidden">
         {selectedProduct ? (

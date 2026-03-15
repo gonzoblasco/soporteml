@@ -4,6 +4,13 @@ Todos los cambios notables de SoporteML se documentan en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.4.0] — 2026-03-15
+
+### Added
+- Paginación server-side en Inbox y Catálogo (50 registros por página) para soportar más de 1000 registros.
+- Componente reutilizable `PaginationBar` y hook `usePagination`.
+- Contador total real desde la base de datos en ambas vistas.
+
 ## [1.3.2] — 2026-03-14
 
 ### Fixed

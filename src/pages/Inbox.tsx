@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { QuestionRow } from '@/types/question';
 import QuestionDetail from '@/components/QuestionDetail';
 import GroupedQuestionCard from '@/components/GroupedQuestionCard';
 import { groupQuestions } from '@/lib/groupQuestions';
-import { Search, Loader2, ArrowLeft, Inbox as InboxIcon, Link2, Settings } from 'lucide-react';
+import { Search, Loader2, ArrowLeft, Inbox as InboxIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import MeliConnectionStatus from '@/components/MeliConnectionStatus';
@@ -12,9 +12,9 @@ import EmptyState from '@/components/EmptyState';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
-
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationBar } from '@/components/PaginationBar';
 
 type StatusFilter = 'pending' | 'published' | 'archived' | 'auto_published' | 'needs_human';
 
@@ -25,9 +25,12 @@ const TABS: { label: string; value: StatusFilter }[] = [
   { label: 'Archivadas', value: 'archived' },
 ];
 
+const PAGE_SIZE = 50;
+
 const Inbox = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -35,22 +38,26 @@ const Inbox = () => {
   const isMobile = useIsMobile();
   const { currentCompanyId } = useAuth();
 
+  const pag = usePagination(totalCount, PAGE_SIZE);
+
   const fetchQuestions = useCallback(async () => {
     if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
+
     let query = supabase
       .from('questions')
-      .select('*, products(title, meli_item_id, permalink, price)')
+      .select('*, products(title, meli_item_id, permalink, price)', { count: 'exact' })
       .eq('company_id', currentCompanyId)
       .eq('status', statusFilter)
       .order('created_at', { ascending: false });
 
-    // Exclude questions flagged for human review — those belong in Priority Inbox
     if (statusFilter === 'pending') {
       query = query.eq('requires_human', false);
     }
 
-    const { data, error } = await query;
+    query = query.range(pag.from, pag.to);
+
+    const { data, error, count } = await query;
 
     if (!error && data) {
       const mapped: QuestionRow[] = data.map((q: any) => ({
@@ -62,30 +69,30 @@ const Inbox = () => {
         buyer_nickname: q.buyer_nickname ?? null,
       }));
       setQuestions(mapped);
+      setTotalCount(count ?? 0);
     }
     setLoading(false);
-  }, [statusFilter, currentCompanyId]);
+  }, [statusFilter, currentCompanyId, pag.from, pag.to]);
 
   useEffect(() => {
     setSelectedId(null);
     fetchQuestions();
   }, [fetchQuestions]);
 
-  // Realtime: auto-refresh when new questions arrive for current company
+  // Reset page when filter changes
+  useEffect(() => {
+    pag.reset();
+  }, [statusFilter, search]);
+
+  // Realtime
   useEffect(() => {
     if (!currentCompanyId) return;
     const channel = supabase
       .channel('inbox-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'questions' },
-        (payload) => {
-          const row = (payload.new || payload.old) as any;
-          if (row?.company_id === currentCompanyId) {
-            fetchQuestions();
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, (payload) => {
+        const row = (payload.new || payload.old) as any;
+        if (row?.company_id === currentCompanyId) fetchQuestions();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [currentCompanyId, fetchQuestions]);
@@ -99,29 +106,25 @@ const Inbox = () => {
   );
 
   const groups = useMemo(() => groupQuestions(filtered), [filtered]);
-
   const selected = questions.find((q) => q.id === selectedId) ?? null;
 
-  // Mobile: show detail view or list view
   const showDetail = isMobile && selectedId;
   const showList = !isMobile || !selectedId;
 
   return (
     <div className="flex h-full">
-      {/* Left Column - List */}
       {showList && (
         <div className={`${isMobile ? 'w-full' : 'w-96 shrink-0'} border-r border-border/50 flex flex-col`}>
           <div className="h-14 flex items-center justify-between px-4 border-b border-border/50">
             <div className="flex items-center">
               <h1 className="text-sm font-semibold text-foreground mr-3">Inbox</h1>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                {filtered.length}
+                {totalCount}
               </span>
             </div>
             <MeliConnectionStatus />
           </div>
 
-          {/* Status Tabs */}
           <div className="flex border-b border-border/50">
             {TABS.map((tab) => (
               <button
@@ -149,16 +152,12 @@ const Inbox = () => {
               />
             </div>
           </div>
+
           <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1.5" tabIndex={0} onKeyDown={(e) => {
             const ids = filtered.map(q => q.id);
             const idx = selectedId ? ids.indexOf(selectedId) : -1;
-            if (e.key === 'ArrowDown' && idx < ids.length - 1) {
-              e.preventDefault();
-              setSelectedId(ids[idx + 1]);
-            } else if (e.key === 'ArrowUp' && idx > 0) {
-              e.preventDefault();
-              setSelectedId(ids[idx - 1]);
-            }
+            if (e.key === 'ArrowDown' && idx < ids.length - 1) { e.preventDefault(); setSelectedId(ids[idx + 1]); }
+            else if (e.key === 'ArrowUp' && idx > 0) { e.preventDefault(); setSelectedId(ids[idx - 1]); }
           }}>
             {loading ? (
               <QuestionListSkeleton />
@@ -170,22 +169,27 @@ const Inbox = () => {
                 actionLabel={statusFilter === 'pending' ? 'Ir a Configuración' : undefined}
                 onAction={statusFilter === 'pending' ? () => navigate('/settings') : undefined}
               />
-              
             ) : (
               groups.map((g) => (
-                <GroupedQuestionCard
-                  key={g.key}
-                  group={g}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                />
+                <GroupedQuestionCard key={g.key} group={g} selectedId={selectedId} onSelect={setSelectedId} />
               ))
             )}
           </div>
+
+          <PaginationBar
+            page={pag.page}
+            totalPages={pag.totalPages}
+            canPrev={pag.canPrev}
+            canNext={pag.canNext}
+            onPrev={pag.goPrev}
+            onNext={pag.goNext}
+            totalCount={totalCount}
+            from={pag.from}
+            to={pag.to}
+          />
         </div>
       )}
 
-      {/* Right Column - Detail */}
       {isMobile && showDetail ? (
         <div className="w-full flex flex-col">
           <div className="h-14 flex items-center px-4 border-b border-border/50">
@@ -195,23 +199,11 @@ const Inbox = () => {
             <span className="text-sm font-medium text-foreground">Detalle</span>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <QuestionDetail
-              question={selected}
-              onUpdated={() => {
-                setSelectedId(null);
-                fetchQuestions();
-              }}
-            />
+            <QuestionDetail question={selected} onUpdated={() => { setSelectedId(null); fetchQuestions(); }} />
           </div>
         </div>
       ) : !isMobile ? (
-        <QuestionDetail
-          question={selected}
-          onUpdated={() => {
-            setSelectedId(null);
-            fetchQuestions();
-          }}
-        />
+        <QuestionDetail question={selected} onUpdated={() => { setSelectedId(null); fetchQuestions(); }} />
       ) : null}
     </div>
   );
