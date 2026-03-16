@@ -42,7 +42,7 @@ const TONE_OPTIONS = [
 type ToneValue = typeof TONE_OPTIONS[number]['value'];
 
 const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
-  const { currentCompanyId } = useAuth();
+  const { currentCompanyId, user } = useAuth();
   const navigate = useNavigate();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -69,6 +69,19 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
     setError(null);
     setCheckedItems(new Set());
     if (isAutoTrigger) autoApplyRef.current = true;
+
+    // Verify user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user || !session?.access_token) {
+      const errorMsg = 'Debes estar autenticado para usar el Copiloto';
+      setError(errorMsg);
+      if (!isAutoTrigger) {
+        toast.error(errorMsg);
+      }
+      setLoading(false);
+      autoApplyRef.current = false;
+      return;
+    }
 
     // Fetch AI settings for tone/instructions
     let aiTone = 'profesional';
@@ -102,6 +115,10 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
         ai_tone: aiTone,
         ai_custom_instructions: aiCustomInstructions,
         product_id: question.product_id || undefined,
+      },
+      // Explicitly pass the auth token to ensure it's sent with the request
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
       },
     });
 
@@ -149,9 +166,15 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
         return;
       }
 
+      // Don't auto-trigger if user is not authenticated yet
+      if (!user) {
+        console.log("AICopilot: Skipping auto-trigger - user not authenticated yet");
+        return;
+      }
+
       fetchCopilot(undefined, true);
     }
-  }, [question.id]);
+  }, [question.id, user]);
 
   const toggleCheck = (idx: number) => {
     setCheckedItems(prev => {

@@ -68,13 +68,13 @@ describe('fetchCopilotSuggestion', () => {
     await expect(fetchCopilotSuggestion(basePayload)).rejects.toThrow('Fallo');
   });
 
-  it('lanza error cuando la función devuelve un campo error en el body', async () => {
+  it('lanza error cuando la respuesta es null', async () => {
     mockedInvoke.mockResolvedValueOnce({
-      data: { error: 'Mensaje de error' },
+      data: null,
       error: null,
     });
 
-    await expect(fetchCopilotSuggestion(basePayload)).rejects.toThrow('Mensaje de error');
+    await expect(fetchCopilotSuggestion(basePayload)).rejects.toThrow('Respuesta vacía del copiloto');
   });
 });
 

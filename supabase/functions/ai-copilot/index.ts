@@ -10,10 +10,18 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
+      console.error("ai-copilot: Missing or invalid Bearer token");
+      return new Response(JSON.stringify({ 
+        error: "No autorizado - Token requerido", 
+        code: "AUTH_MISSING_BEARER" 
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Extract the token for logging
+    const token = authHeader.substring(7);
+    console.log("ai-copilot: Received Authorization header with token length:", token.length);
 
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -22,16 +30,51 @@ serve(async (req) => {
     );
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
+    if (userError) {
+      console.error("ai-copilot: Auth verification failed with error:", userError.message);
+      return new Response(JSON.stringify({ 
+        error: `No autorizado - ${userError.message}`, 
+        code: "AUTH_INVALID_USER", 
+        details: userError.message 
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    if (!user) {
+      console.error("ai-copilot: No user found in session");
+      return new Response(JSON.stringify({ 
+        error: "No autorizado - Usuario no encontrado", 
+        code: "AUTH_NO_USER" 
+      }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("ai-copilot: ✓ Auth successful for user", user.id);
+
     const { question_text, product_title, product_price, buyer_nickname, ai_category, ai_suggested_answer, ai_tone, ai_custom_instructions, product_id } = await req.json();
 
+    // Input validation
+    if (!question_text || typeof question_text !== 'string' || question_text.trim().length === 0) {
+      console.error("ai-copilot: Invalid question_text:", { provided: question_text, type: typeof question_text });
+      return new Response(JSON.stringify({ error: "question_text es requerido", code: "VALIDATION_EMPTY_QUESTION" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (product_id && (typeof product_id !== 'string' || product_id.trim().length === 0)) {
+      console.error("ai-copilot: Invalid product_id:", { provided: product_id, type: typeof product_id });
+      return new Response(JSON.stringify({ error: "product_id debe ser un string válido", code: "VALIDATION_INVALID_PRODUCT_ID" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const AI_API_KEY = Deno.env.get("AI_API_KEY");
-    if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
+    if (!AI_API_KEY) {
+      console.error("ai-copilot: AI_API_KEY not configured");
+      throw new Error("AI_API_KEY not configured");
+    }
 
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
@@ -40,10 +83,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-    const { data: callerCompanyId } = await serviceClient.rpc("get_user_company_id", { _user_id: user.id });
+    const { data: callerCompanyId, error: rpcError } = await serviceClient.rpc("get_user_company_id", { _user_id: user.id });
+
+    if (rpcError) {
+      console.error("ai-copilot: RPC get_user_company_id failed:", rpcError.message);
+      throw new Error(`Failed to get user company: ${rpcError.message}`);
+    }
 
     if (!callerCompanyId) {
-      return new Response(JSON.stringify({ error: "No active membership found" }), {
+      console.error("ai-copilot: No active company found for user", user.id);
+      return new Response(JSON.stringify({ error: "No active membership found", code: "USER_NO_COMPANY" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -112,19 +161,14 @@ serve(async (req) => {
     // CRM suggestions
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
     if (product_id) {
-      const { data: crmCheck } = await serviceClient
-        .from("products")
-        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets")
-        .eq("id", product_id)
-        .eq("company_id", callerCompanyId)
-        .maybeSingle();
-
-      if (crmCheck) {
-        if (!crmCheck.support_summary) crmSuggestions.push({ message: "Completá el resumen de soporte para respuestas más precisas", tab: "conocimiento" });
-        if (!(crmCheck.key_points as string[])?.length) crmSuggestions.push({ message: "Agregá puntos clave del producto", tab: "conocimiento" });
-        if (!crmCheck.shipping_notes) crmSuggestions.push({ message: "Completá las notas de envío", tab: "politicas" });
-        if (!crmCheck.returns_notes) crmSuggestions.push({ message: "Agregá la política de devoluciones", tab: "politicas" });
-        if (!crmCheck.warranty_notes) crmSuggestions.push({ message: "Completá los datos de garantía", tab: "politicas" });
+      if (!crmProduct) {
+        crmSuggestions.push({ message: "El producto especificado no existe o no tienes acceso" });
+      } else {
+        if (!crmProduct.support_summary) crmSuggestions.push({ message: "Completá el resumen de soporte para respuestas más precisas", tab: "conocimiento" });
+        if (!(crmProduct.key_points as string[])?.length) crmSuggestions.push({ message: "Agregá puntos clave del producto", tab: "conocimiento" });
+        if (!crmProduct.shipping_notes) crmSuggestions.push({ message: "Completá las notas de envío", tab: "politicas" });
+        if (!crmProduct.returns_notes) crmSuggestions.push({ message: "Agregá la política de devoluciones", tab: "politicas" });
+        if (!crmProduct.warranty_notes) crmSuggestions.push({ message: "Completá los datos de garantía", tab: "politicas" });
       }
     } else {
       crmSuggestions.push({ message: "Creá una ficha CRM para este producto y mejorá las respuestas automáticas" });
@@ -179,8 +223,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("ai-copilot error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Error desconocido" }), {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    const errorCode = e instanceof Error ? e.name : "UNKNOWN_ERROR";
+    console.error("ai-copilot error:", { message: errorMsg, code: errorCode, stack: e instanceof Error ? e.stack : undefined });
+    return new Response(JSON.stringify({ error: errorMsg, code: errorCode }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
