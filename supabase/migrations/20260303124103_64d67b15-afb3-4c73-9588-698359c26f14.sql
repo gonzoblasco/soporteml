@@ -9,7 +9,7 @@ ALTER TABLE public.products
 
 -- Create GIN index on title for trigram similarity searches
 CREATE INDEX IF NOT EXISTS idx_products_title_trgm
-  ON public.products USING gin (title extensions.gin_trgm_ops);
+  ON public.products USING gin (title gin_trgm_ops);
 
 -- Create index on external_id for fast dedupe lookups
 CREATE INDEX IF NOT EXISTS idx_products_external_id

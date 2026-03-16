@@ -17,13 +17,13 @@ RETURNS TABLE(id uuid, title text, similarity double precision)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
-  SELECT p.id, p.title, extensions.similarity(p.title, _title)::float AS similarity
+  SELECT p.id, p.title, similarity(p.title, _title)::float AS similarity
   FROM public.products p
   WHERE p.company_id = _company_id
     AND p.company_id = public.get_user_company_id(auth.uid())
     AND p.id != _product_id
     AND p.status = 'active'
-    AND extensions.similarity(p.title, _title) > _threshold
+    AND similarity(p.title, _title) > _threshold
   ORDER BY similarity DESC
   LIMIT _limit
 $$;

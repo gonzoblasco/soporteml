@@ -11,9 +11,9 @@ project_id = "ropbkdqhqdeiwrenrmjt"
     verify_jwt = true
   [functions.enrich-product]
     verify_jwt = true
-  [functions.meli-oauth-callback]
+  [functions.health-check]
     verify_jwt = false
-  [functions.meli-webhook]
+  [functions.meli-oauth-callback]
     verify_jwt = false
   [functions.publish-meli-answer]
     verify_jwt = true
