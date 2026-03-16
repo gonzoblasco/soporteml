@@ -21,9 +21,18 @@ export async function logAuditEntry({
   before?: Record<string, unknown> | null;
   after?: Record<string, unknown> | null;
 }) {
-  // Use edge function to insert (service role) since users don't have INSERT on audit_logs
-  const { error } = await supabase.functions.invoke('audit-log', {
-    body: { company_id: companyId, entity_type: entityType, entity_id: entityId, action, before_snapshot: before ?? null, after_snapshot: after ?? null },
-  });
-  if (error) console.error('Audit log error:', error);
+  try {
+    // Use edge function to insert (service role) since users don't have INSERT on audit_logs
+    const { error } = await supabase.functions.invoke('audit-log', {
+      body: { company_id: companyId, entity_type: entityType, entity_id: entityId, action, before_snapshot: before ?? null, after_snapshot: after ?? null },
+    });
+
+    if (error) {
+      console.error('Audit log error:', error);
+      throw new Error(`Audit log failed: ${error.message || 'Unknown error'}`);
+    }
+  } catch (err) {
+    console.error('Audit log error:', err);
+    throw err; // Re-throw to ensure calling code knows audit failed
+  }
 }
