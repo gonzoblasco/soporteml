@@ -2,7 +2,7 @@ project_id = "ropbkdqhqdeiwrenrmjt"
 
 [functions]
   [functions.ai-copilot]
-    verify_jwt = true
+    verify_jwt = false
   [functions.auth-email-hook]
     verify_jwt = false
   [functions.detect-duplicates]

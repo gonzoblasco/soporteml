@@ -5,22 +5,59 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
 // Mock Supabase
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    auth: {
-      onAuthStateChange: vi.fn(),
-      getSession: vi.fn(),
+vi.mock("@/integrations/supabase/client", () => {
+  const createQueryBuilder = (table: string) => {
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      order: () => builder,
+      limit: () => builder,
+      update: () => builder,
+      in: () => builder,
+    };
+
+    builder.single = async () => {
+      if (table === 'profiles') {
+        return { data: { full_name: 'Test User', company_id: 'comp123' } };
+      }
+      return { data: null };
+    };
+
+    builder.maybeSingle = async () => {
+      if (table === 'user_roles') {
+        return { data: { role: 'admin' } };
+      }
+      return { data: null };
+    };
+
+    builder.then = async (resolve: any) => {
+      // allow await on builder
+      if (table === 'memberships') {
+        return resolve({
+          data: [
+            { company_id: 'comp123', role: 'admin', is_default: true },
+            { company_id: 'comp456', role: 'agent', is_default: false },
+          ],
+        });
+      }
+      return resolve({ data: null });
+    };
+
+    return builder;
+  };
+
+  return {
+    supabase: {
+      auth: {
+        onAuthStateChange: vi.fn(),
+        getSession: vi.fn(async () => ({ data: { session: null } })),
+      },
+      from: (table: string) => createQueryBuilder(table),
+      channel: () => ({ on: () => ({ subscribe: () => ({}) }) }),
+      removeChannel: () => {},
     },
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn(),
-          maybeSingle: vi.fn(),
-        })),
-      })),
-    })),
-  },
-}));
+  };
+});
 
 // Test component that uses the auth context
 const TestComponent = ({ onAuth }: { onAuth: (auth: any) => void }) => {
@@ -34,18 +71,26 @@ describe("AuthContext", () => {
   let mockGetSession: any;
 
   beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
 
-    mockOnAuthStateChange = vi.fn();
-    mockGetSession = vi.fn();
+    mockOnAuthStateChange = vi.fn((callback) => {
+      // Call callback asynchronously to mimic Supabase behavior
+      setTimeout(() => callback('SIGNED_OUT', null), 0);
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    });
+    mockGetSession = vi.fn(async () => ({ data: { session: null } }));
 
-    (supabase.auth.onAuthStateChange as any).mockReturnValue({
-      data: { subscription: { unsubscribe: vi.fn() } },
-    });
-    (supabase.auth.getSession as any).mockResolvedValue({
-      data: { session: null },
-    });
+    (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
+    (supabase.auth.getSession as any).mockImplementation(mockGetSession);
   });
 
   afterEach(() => {
@@ -78,35 +123,8 @@ describe("AuthContext", () => {
 
     (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
 
-    // Mock profile query
-    const mockProfileQuery = vi.fn(() => Promise.resolve({
-      data: { full_name: "Test User", company_id: "comp123" },
-    }));
-    (supabase.from as any).mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: mockProfileQuery,
-        })),
-      })),
-    });
-
-    // Mock memberships query
-    const mockMembershipsQuery = vi.fn(() => Promise.resolve({
-      data: [{ company_id: "comp123", role: "admin", is_default: true }],
-    }));
-    (supabase.from as any).mockReturnValueOnce({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: mockMembershipsQuery,
-              })),
-            })),
-          })),
-        })),
-      })),
-    });
+    // Ensure getSession returns our logged-in session so it doesn't overwrite state
+    mockGetSession.mockResolvedValue({ data: { session: mockSession } });
 
     let capturedAuth: any = null;
 
@@ -115,6 +133,11 @@ describe("AuthContext", () => {
         <TestComponent onAuth={(auth) => (capturedAuth = auth)} />
       </AuthProvider>
     );
+
+    // Flush any pending setTimeouts used by AuthProvider
+    await act(async () => {
+      vi.runAllTimers();
+    });
 
     // Wait for async operations to complete
     await waitFor(() => {
@@ -155,14 +178,17 @@ describe("AuthContext", () => {
     // Simulate rapid auth changes
     act(() => {
       authCallback("SIGNED_IN", mockSession1);
+      vi.runAllTimers();
     });
 
     act(() => {
       authCallback("SIGNED_OUT", null);
+      vi.runAllTimers();
     });
 
     act(() => {
       authCallback("SIGNED_IN", mockSession2);
+      vi.runAllTimers();
     });
 
     // Wait for stabilization
@@ -188,35 +214,8 @@ describe("AuthContext", () => {
 
     (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
 
-    // Mock profile and memberships
-    (supabase.from as any)
-      .mockReturnValueOnce({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() => Promise.resolve({
-              data: { full_name: "Test User", company_id: "comp123" },
-            })),
-          })),
-        })),
-      })
-      .mockReturnValueOnce({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  eq: vi.fn(() => Promise.resolve({
-                    data: [
-                      { company_id: "comp123", role: "admin", is_default: true },
-                      { company_id: "comp456", role: "agent", is_default: false },
-                    ],
-                  })),
-                })),
-              })),
-            })),
-          })),
-        })),
-      });
+    // Ensure getSession returns our logged-in session to keep state consistent
+    mockGetSession.mockResolvedValue({ data: { session: mockSession } });
 
     let capturedAuth: any = null;
 

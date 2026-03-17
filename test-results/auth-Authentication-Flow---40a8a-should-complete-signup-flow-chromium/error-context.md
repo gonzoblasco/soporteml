@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - link [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img [ref=e7]
+      - heading "SoporteML" [level=1] [ref=e9]
+      - paragraph [ref=e10]: Creá tu cuenta gratis
+    - generic [ref=e11]:
+      - button "Iniciar Sesión" [ref=e12] [cursor=pointer]
+      - button "Registrarse" [ref=e13] [cursor=pointer]
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - text: Nombre completo
+        - textbox "Nombre completo" [ref=e16]:
+          - /placeholder: Juan Pérez
+          - text: Test User
+      - generic [ref=e17]:
+        - text: Email
+        - textbox "Email" [ref=e18]:
+          - /placeholder: tu@empresa.com
+          - text: test-1773702132701@example.com
+      - generic [ref=e19]:
+        - text: Contraseña
+        - textbox "Contraseña" [ref=e20]:
+          - /placeholder: ••••••••
+          - text: testpass123
+      - generic [ref=e22]:
+        - tablist [ref=e23]:
+          - tab "Crear empresa" [active] [selected] [ref=e24] [cursor=pointer]:
+            - img [ref=e25]
+            - text: Crear empresa
+          - tab "Unirme a una" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+            - text: Unirme a una
+        - tabpanel "Crear empresa" [ref=e35]:
+          - generic [ref=e36]:
+            - text: Nombre de tu empresa
+            - textbox "Nombre de tu empresa" [ref=e37]:
+              - /placeholder: Mi Tienda Online
+      - button "Crear Cuenta" [disabled]
+    - paragraph [ref=e38]:
+      - text: ¿Ya tenés cuenta?
+      - button "Iniciá sesión" [ref=e39] [cursor=pointer]
+```

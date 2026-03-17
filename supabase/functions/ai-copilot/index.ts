@@ -22,16 +22,28 @@ serve(async (req) => {
     // Extract the token for logging
     const token = authHeader.substring(7);
     console.log("ai-copilot: Received Authorization header with token length:", token.length);
+    console.log("ai-copilot: Token starts with:", token.substring(0, 20));
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    console.log("ai-copilot: Using Supabase URL:", supabaseUrl);
+    console.log("ai-copilot: Anon key length:", supabaseAnonKey?.length);
 
     const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      supabaseUrl!,
+      supabaseAnonKey!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    
     if (userError) {
-      console.error("ai-copilot: Auth verification failed with error:", userError.message);
+      console.error("ai-copilot: Auth verification failed:", {
+        message: userError.message,
+        status: (userError as any).status,
+        name: userError.name,
+        fullError: userError
+      });
       return new Response(JSON.stringify({ 
         error: `No autorizado - ${userError.message}`, 
         code: "AUTH_INVALID_USER", 
@@ -101,14 +113,17 @@ serve(async (req) => {
     let productKnowledge = "";
     let productCategoryId: string | null = null;
     let productCategoryName: string | null = null;
+    let crmProduct: any = null;
 
     if (product_id) {
-      const { data: crmProduct } = await serviceClient
+      const { data: product } = await serviceClient
         .from("products")
         .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, meli_category_id, meli_category_name")
         .eq("id", product_id)
         .eq("company_id", callerCompanyId)
         .maybeSingle();
+
+      crmProduct = product;
 
       if (crmProduct) {
         productCategoryId = crmProduct.meli_category_id;
@@ -226,6 +241,47 @@ serve(async (req) => {
     const errorMsg = e instanceof Error ? e.message : String(e);
     const errorCode = e instanceof Error ? e.name : "UNKNOWN_ERROR";
     console.error("ai-copilot error:", { message: errorMsg, code: errorCode, stack: e instanceof Error ? e.stack : undefined });
+
+    // Handle specific AI API errors
+    if (errorMsg.startsWith('AI_API_ERROR:')) {
+      const parts = errorMsg.split(':');
+      const statusCode = parseInt(parts[1]);
+      const errorDetails = parts.slice(2).join(':');
+
+      let userFriendlyMessage = 'Error en el servicio de IA';
+      let httpStatus = 500;
+
+      switch (statusCode) {
+        case 401:
+          userFriendlyMessage = 'Error de autenticación con el servicio de IA. Verifica la configuración de la API key.';
+          httpStatus = 503; // Service Unavailable
+          break;
+        case 429:
+          userFriendlyMessage = 'Límite de uso del servicio de IA alcanzado. Intenta nuevamente en unos minutos.';
+          httpStatus = 503; // Service Unavailable
+          break;
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          userFriendlyMessage = 'El servicio de IA no está disponible temporalmente. Intenta nuevamente.';
+          httpStatus = 503; // Service Unavailable
+          break;
+        default:
+          userFriendlyMessage = `Error del servicio de IA (${statusCode}): ${errorDetails}`;
+          httpStatus = 500;
+      }
+
+      return new Response(JSON.stringify({
+        error: userFriendlyMessage,
+        code: `AI_API_ERROR_${statusCode}`,
+        details: errorDetails
+      }), {
+        status: httpStatus,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: errorMsg, code: errorCode }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

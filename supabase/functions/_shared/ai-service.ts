@@ -203,9 +203,9 @@ ${productContext}`;
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      console.error("AI gateway error:", error);
-      throw new Error(`AI error: ${res.status}`);
+      const errorText = await res.text();
+      console.error("AI gateway error:", { status: res.status, statusText: res.statusText, error: errorText });
+      throw new Error(`AI_API_ERROR:${res.status}:${errorText}`);
     }
 
     const data = await res.json();

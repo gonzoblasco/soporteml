@@ -1,0 +1,396 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - link "SoporteML" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - generic [ref=e10]: SoporteML
+        - generic [ref=e11]:
+          - button "Funciones" [ref=e12] [cursor=pointer]
+          - button "Precios" [ref=e13] [cursor=pointer]
+          - button "FAQ" [ref=e14] [cursor=pointer]
+          - button "Contacto" [ref=e15] [cursor=pointer]
+        - generic [ref=e16]:
+          - button "Cambiar tema" [ref=e17] [cursor=pointer]:
+            - img
+            - img
+            - generic [ref=e18]: Cambiar tema
+          - link "Ingresar" [ref=e19] [cursor=pointer]:
+            - /url: /login
+          - link "Empezar" [ref=e20] [cursor=pointer]:
+            - /url: /signup
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - img [ref=e24]
+        - text: Plataforma profesional para vendedores de Mercado Libre
+      - heading "Respondé preguntas de MeLi en segundos, no en horas" [level=1] [ref=e26]
+      - paragraph [ref=e27]: SoporteML centraliza todas tus preguntas, sugiere respuestas con IA y puede responder automáticamente según tus reglas. Para vendedores que no quieren perder ventas por responder tarde.
+      - generic [ref=e28]:
+        - link "Probar SoporteML" [ref=e29] [cursor=pointer]:
+          - /url: /signup
+          - text: Probar SoporteML
+          - img
+        - button "Agendar demo" [ref=e30] [cursor=pointer]
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - img [ref=e33]
+          - text: Conexión segura con API oficial
+        - generic [ref=e35]:
+          - img [ref=e36]
+          - text: Multi-usuario y multi-empresa
+        - generic [ref=e41]:
+          - img [ref=e42]
+          - text: Métricas en tiempo real
+    - generic [ref=e45]:
+      - generic [ref=e46]:
+        - generic [ref=e47]: "+0"
+        - paragraph [ref=e48]: preguntas gestionadas
+      - generic [ref=e49]:
+        - generic [ref=e50]: < 0 min
+        - paragraph [ref=e51]: tiempo de respuesta
+      - generic [ref=e52]:
+        - generic [ref=e53]: 0%
+        - paragraph [ref=e54]: precisión IA
+      - generic [ref=e55]:
+        - generic [ref=e56]: 0%
+        - paragraph [ref=e57]: ahorro de tiempo
+    - generic [ref=e59]:
+      - heading "¿SoporteML es para vos?" [level=2] [ref=e60]
+      - paragraph [ref=e61]: Si te identificás con alguno de estos perfiles, SoporteML te va a ahorrar horas de trabajo.
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - generic [ref=e64]: 📦
+          - heading "Vendedores de alto volumen" [level=3] [ref=e65]
+          - paragraph [ref=e66]: Más de 50 preguntas diarias que no podés responder a tiempo
+        - generic [ref=e67]:
+          - generic [ref=e68]: 👥
+          - heading "Equipos de atención" [level=3] [ref=e69]
+          - paragraph [ref=e70]: Múltiples personas respondiendo sin coordinación
+        - generic [ref=e71]:
+          - generic [ref=e72]: 🏢
+          - heading "Agencias y operadores" [level=3] [ref=e73]
+          - paragraph [ref=e74]: Gestionás varias cuentas de Mercado Libre de distintos clientes
+    - generic [ref=e76]:
+      - heading "Todo lo que necesitás para escalar tu atención" [level=2] [ref=e77]
+      - paragraph [ref=e78]: Un sistema completo para gestionar preguntas, equipos y múltiples empresas desde un solo lugar.
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]: Core
+          - img [ref=e83]
+          - heading "CRM de preguntas" [level=3] [ref=e86]
+          - paragraph [ref=e87]: Todas las preguntas de tus publicaciones en una bandeja unificada. Filtrá por categoría, estado y producto.
+        - generic [ref=e88]:
+          - generic [ref=e89]: IA
+          - img [ref=e91]
+          - heading "Respuestas con IA" [level=3] [ref=e94]
+          - paragraph [ref=e95]: La IA analiza cada pregunta y sugiere la mejor respuesta según el contexto del producto. Vos aprobás o editás.
+        - generic [ref=e96]:
+          - generic [ref=e97]: Pro
+          - img [ref=e99]
+          - heading "Autopilot con guardrails" [level=3] [ref=e101]
+          - paragraph [ref=e102]: Dejá que la IA responda automáticamente según tus reglas. Configurá umbrales de confianza y horarios.
+        - generic [ref=e103]:
+          - generic [ref=e104]: Core
+          - img [ref=e106]
+          - heading "Bandeja prioritaria" [level=3] [ref=e108]
+          - paragraph [ref=e109]: Las preguntas que necesitan atención humana se destacan automáticamente. No pierdas ninguna venta.
+        - generic [ref=e110]:
+          - generic [ref=e111]: Equipos
+          - img [ref=e113]
+          - heading "Equipos y roles" [level=3] [ref=e118]
+          - paragraph [ref=e119]: Invitá a tu equipo, asigná roles (admin, agente) y colaborá en la atención sin pisarte.
+        - generic [ref=e120]:
+          - generic [ref=e121]: Agencias
+          - img [ref=e123]
+          - heading "Multi-empresa" [level=3] [ref=e127]
+          - paragraph [ref=e128]: Gestioná múltiples empresas desde una sola cuenta. Ideal para agencias o vendedores con varias operaciones.
+        - generic [ref=e129]:
+          - generic [ref=e130]: IA
+          - img [ref=e132]
+          - heading "Catálogo inteligente" [level=3] [ref=e134]
+          - paragraph [ref=e135]: "Cargá contexto de cada producto: puntos clave, FAQ, notas de envío. La IA lo usa para responder mejor."
+        - generic [ref=e136]:
+          - generic [ref=e137]: Analytics
+          - img [ref=e139]
+          - heading "Métricas por empresa" [level=3] [ref=e141]
+          - paragraph [ref=e142]: Dashboard con tiempo de respuesta, categorías frecuentes y rendimiento del equipo. Todo en tiempo real.
+    - generic [ref=e144]:
+      - heading "Así se ve tu panel" [level=2] [ref=e145]
+      - paragraph [ref=e146]: Bandeja unificada, sugerencias de IA y métricas en tiempo real.
+      - generic [ref=e148]:
+        - tablist [ref=e149]:
+          - tab "Bandeja" [selected] [ref=e150] [cursor=pointer]:
+            - img [ref=e151]
+            - text: Bandeja
+          - tab "Copiloto" [ref=e154] [cursor=pointer]:
+            - img [ref=e155]
+            - text: Copiloto
+          - tab "Equipo" [ref=e158] [cursor=pointer]:
+            - img [ref=e159]
+            - text: Equipo
+          - tab "Métricas" [ref=e164] [cursor=pointer]:
+            - img [ref=e165]
+            - text: Métricas
+        - tabpanel "Bandeja" [ref=e167]:
+          - generic [ref=e168]:
+            - generic [ref=e169]:
+              - generic [ref=e170]: Preguntas pendientes
+              - generic [ref=e171]:
+                - generic [ref=e172]: 12 sin responder
+                - generic [ref=e173]: "Empresa: TechStore"
+            - generic [ref=e174]:
+              - generic [ref=e175]:
+                - generic [ref=e176]: Precio
+                - generic [ref=e177]:
+                  - generic [ref=e178]: ¿Hacen descuento por 3 unidades?
+                  - generic [ref=e179]: comprador_123 · Hace 2 min
+                - generic [ref=e180]: Prioritaria
+                - generic [ref=e181]: Pendiente
+              - generic [ref=e182]:
+                - generic [ref=e183]: Envío
+                - generic [ref=e184]:
+                  - generic [ref=e185]: ¿Llega antes del viernes a Córdoba?
+                  - generic [ref=e186]: maria_cba · Hace 5 min
+                - generic [ref=e187]: Pendiente
+              - generic [ref=e188]:
+                - generic [ref=e189]: Técnico
+                - generic [ref=e190]:
+                  - generic [ref=e191]: ¿Es compatible con iPhone 15?
+                  - generic [ref=e192]: tech_buyer · Hace 12 min
+                - generic [ref=e193]: Respondida
+              - generic [ref=e194]:
+                - generic [ref=e195]: Garantía
+                - generic [ref=e196]:
+                  - generic [ref=e197]: ¿Tiene garantía oficial de 12 meses?
+                  - generic [ref=e198]: juan_bsas · Hace 18 min
+                - generic [ref=e199]: Respondida
+              - generic [ref=e200]:
+                - generic [ref=e201]: Stock
+                - generic [ref=e202]:
+                  - generic [ref=e203]: ¿Tienen stock del color negro?
+                  - generic [ref=e204]: user_456 · Hace 25 min
+                - generic [ref=e205]: Prioritaria
+                - generic [ref=e206]: Pendiente
+    - generic [ref=e209]:
+      - generic [ref=e210]:
+        - generic [ref=e211]:
+          - img [ref=e212]
+          - text: Feature destacada
+        - 'heading "Autopilot: respuestas automáticas con control total" [level=2] [ref=e214]'
+        - paragraph [ref=e215]: Configurá la IA para que responda automáticamente fuera del horario laboral o cuando la confianza sea alta. Definí umbrales, categorías y reglas de exclusión. Vos ponés los límites.
+        - list [ref=e216]:
+          - listitem [ref=e217]:
+            - img [ref=e218]
+            - text: Respondé 24/7 sin estar online
+          - listitem [ref=e220]:
+            - img [ref=e221]
+            - text: Configurable por categoría y horario
+          - listitem [ref=e223]:
+            - img [ref=e224]
+            - text: Umbral de confianza ajustable (70-95%)
+          - listitem [ref=e226]:
+            - img [ref=e227]
+            - text: Reglas de exclusión personalizadas
+      - generic [ref=e230]:
+        - generic [ref=e232]: Autopilot
+        - generic [ref=e236]:
+          - text: Confianza mínima
+          - generic [ref=e240]: 80%
+        - generic [ref=e241]:
+          - text: Categorías habilitadas
+          - generic [ref=e242]:
+            - generic [ref=e243]: Precio
+            - generic [ref=e244]: Stock
+            - generic [ref=e245]: Envío
+        - generic [ref=e246]:
+          - text: Horario autopilot
+          - paragraph [ref=e247]: Fuera de horario laboral (20:00 - 09:00)
+    - generic [ref=e249]:
+      - heading "Empezá en 3 pasos" [level=2] [ref=e250]
+      - generic [ref=e251]:
+        - generic [ref=e253]:
+          - generic [ref=e254]: "1"
+          - img [ref=e256]
+          - heading "Conectá tu cuenta" [level=3] [ref=e259]
+          - paragraph [ref=e260]: Vinculá Mercado Libre en un clic. Conexión segura con la API oficial.
+        - generic [ref=e261]:
+          - generic [ref=e262]: "2"
+          - img [ref=e264]
+          - heading "Cargá tu catálogo" [level=3] [ref=e266]
+          - paragraph [ref=e267]: Agregá contexto a tus productos para que la IA responda con precisión.
+        - generic [ref=e268]:
+          - generic [ref=e269]: "3"
+          - img [ref=e271]
+          - heading "Activá el copiloto" [level=3] [ref=e274]
+          - paragraph [ref=e275]: La IA sugiere respuestas. Vos aprobás, editás o activás autopilot.
+    - generic [ref=e277]:
+      - heading "¿Por qué SoporteML?" [level=2] [ref=e278]
+      - paragraph [ref=e279]: No es otro chatbot genérico. Es una plataforma diseñada desde cero para Mercado Libre.
+      - generic [ref=e280]:
+        - generic [ref=e281]:
+          - img [ref=e283]
+          - generic [ref=e285]:
+            - heading "Especializado en MeLi" [level=3] [ref=e286]
+            - paragraph [ref=e287]: No es un chatbot genérico. Está diseñado específicamente para las dinámicas de Mercado Libre.
+        - generic [ref=e288]:
+          - img [ref=e290]
+          - generic [ref=e292]:
+            - heading "IA con contexto de producto" [level=3] [ref=e293]
+            - paragraph [ref=e294]: La IA lee tu catálogo y usa esa información para responder con precisión, no inventa.
+        - generic [ref=e295]:
+          - img [ref=e297]
+          - generic [ref=e299]:
+            - heading "Control total" [level=3] [ref=e300]
+            - paragraph [ref=e301]: Vos decidís cuándo la IA responde sola y cuándo pide aprobación. Guardrails configurables.
+        - generic [ref=e302]:
+          - img [ref=e304]
+          - generic [ref=e306]:
+            - heading "Multi-tenant real" [level=3] [ref=e307]
+            - paragraph [ref=e308]: Cada empresa tiene su configuración, equipo y métricas aisladas. Datos nunca se mezclan.
+    - generic [ref=e310]:
+      - heading "Planes claros, sin sorpresas" [level=2] [ref=e311]
+      - paragraph [ref=e312]: Sin contratos. Cancelá cuando quieras. Facturación mensual en USD.
+      - generic [ref=e313]:
+        - generic [ref=e314]:
+          - generic [ref=e316]: Recomendado
+          - generic [ref=e317]:
+            - heading "Base" [level=3] [ref=e318]
+            - paragraph [ref=e319]: Todo lo que necesitás para empezar
+          - generic [ref=e320]: $100USD / mes
+          - list [ref=e321]:
+            - listitem [ref=e322]:
+              - img [ref=e323]
+              - text: CRM de preguntas unificado
+            - listitem [ref=e325]:
+              - img [ref=e326]
+              - text: Copiloto IA (sugerencias)
+            - listitem [ref=e328]:
+              - img [ref=e329]
+              - text: Bandeja prioritaria
+            - listitem [ref=e331]:
+              - img [ref=e332]
+              - text: Catálogo de productos
+            - listitem [ref=e334]:
+              - img [ref=e335]
+              - text: Plantillas de respuesta
+            - listitem [ref=e337]:
+              - img [ref=e338]
+              - text: Métricas en tiempo real
+            - listitem [ref=e340]:
+              - img [ref=e341]
+              - text: Conexión con Mercado Libre
+            - listitem [ref=e343]:
+              - img [ref=e344]
+              - text: Hasta 3 usuarios
+            - listitem [ref=e346]:
+              - img [ref=e347]
+              - text: Soporte por email
+          - link "Empezar ahora" [ref=e349] [cursor=pointer]:
+            - /url: /signup
+        - generic [ref=e350]:
+          - generic [ref=e352]:
+            - img [ref=e353]
+            - text: Próximamente
+          - generic [ref=e355]:
+            - heading "Pro" [level=3] [ref=e356]
+            - paragraph [ref=e357]: Para equipos que necesitan escalar
+          - generic [ref=e358]: $200USD / mes
+          - list [ref=e359]:
+            - listitem [ref=e360]:
+              - img [ref=e361]
+              - text: Todo lo del plan Base
+            - listitem [ref=e363]:
+              - img [ref=e364]
+              - text: Usuarios ilimitados
+            - listitem [ref=e366]:
+              - img [ref=e367]
+              - text: Autopilot con guardrails
+            - listitem [ref=e369]:
+              - img [ref=e370]
+              - text: Reglas de exclusión avanzadas
+            - listitem [ref=e372]:
+              - img [ref=e373]
+              - text: Asignación y SLA por equipo
+            - listitem [ref=e375]:
+              - img [ref=e376]
+              - text: CRM de clientes y órdenes
+            - listitem [ref=e378]:
+              - img [ref=e379]
+              - text: Base de conocimiento global
+            - listitem [ref=e381]:
+              - img [ref=e382]
+              - text: Soporte prioritario
+          - button "Reservar acceso" [ref=e384] [cursor=pointer]:
+            - img
+            - text: Reservar acceso
+    - generic [ref=e386]:
+      - heading "Preguntas frecuentes" [level=2] [ref=e387]
+      - generic [ref=e388]:
+        - generic [ref=e389]:
+          - heading "¿Cuántas cuentas de Mercado Libre puedo conectar?" [level=3] [ref=e390]:
+            - img [ref=e391]
+            - text: ¿Cuántas cuentas de Mercado Libre puedo conectar?
+          - paragraph [ref=e393]: En esta versión, cada empresa puede conectar 1 cuenta de Mercado Libre. Si gestionás múltiples cuentas, podés crear una empresa por cada una.
+        - generic [ref=e394]:
+          - heading "¿La IA puede responder cualquier pregunta?" [level=3] [ref=e395]:
+            - img [ref=e396]
+            - text: ¿La IA puede responder cualquier pregunta?
+          - paragraph [ref=e398]: La IA responde preguntas de precio, stock, envío, garantía y técnicas. Si detecta una pregunta compleja o fuera de su alcance, la marca como "requiere humano".
+        - generic [ref=e399]:
+          - heading "¿Puedo tener varios usuarios en mi empresa?" [level=3] [ref=e400]:
+            - img [ref=e401]
+            - text: ¿Puedo tener varios usuarios en mi empresa?
+          - paragraph [ref=e403]: Sí. El plan Base incluye hasta 3 usuarios. Podés asignar roles de admin o agente a cada uno.
+        - generic [ref=e404]:
+          - heading "¿Qué pasa si no me convence?" [level=3] [ref=e405]:
+            - img [ref=e406]
+            - text: ¿Qué pasa si no me convence?
+          - paragraph [ref=e408]: No hay contratos. Cancelás cuando quieras. Podés probar el producto antes de decidir.
+    - generic [ref=e411]:
+      - generic [ref=e412]:
+        - heading "¿Querés saber más?" [level=2] [ref=e413]
+        - paragraph [ref=e414]: Contanos sobre tu operación y te mostramos cómo SoporteML puede ayudarte a responder más rápido y no perder ventas.
+        - generic [ref=e415]:
+          - generic [ref=e416]:
+            - img [ref=e417]
+            - generic [ref=e420]: Demo personalizada de 15 minutos
+          - generic [ref=e421]:
+            - img [ref=e422]
+            - generic [ref=e425]: Te ayudamos con la configuración inicial
+          - generic [ref=e426]:
+            - img [ref=e427]
+            - generic [ref=e429]: Sin compromisos, cancelá cuando quieras
+      - generic [ref=e431]:
+        - generic [ref=e432]:
+          - text: Nombre
+          - textbox "Nombre" [ref=e433]:
+            - /placeholder: Tu nombre
+        - generic [ref=e434]:
+          - text: Email
+          - textbox "Email" [ref=e435]:
+            - /placeholder: tu@email.com
+        - generic [ref=e436]:
+          - text: Mensaje
+          - textbox "Mensaje" [ref=e437]:
+            - /placeholder: ¿En qué podemos ayudarte?
+        - button "Enviar consulta" [ref=e438] [cursor=pointer]:
+          - text: Enviar consulta
+          - img
+    - contentinfo [ref=e439]:
+      - generic [ref=e440]:
+        - generic [ref=e441]:
+          - img [ref=e443]
+          - generic [ref=e445]: © 2026 SoporteML
+        - generic [ref=e446]:
+          - button "FAQ" [ref=e447] [cursor=pointer]
+          - button "Contacto" [ref=e448] [cursor=pointer]
+          - link "Acceder" [ref=e449] [cursor=pointer]:
+            - /url: /login
+```
