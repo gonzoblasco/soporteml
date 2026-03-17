@@ -4,6 +4,16 @@ Todos los cambios notables de SoporteML se documentan en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.4.1] — 2026-03-17
+
+### Fixed
+- Edge Functions: reemplazados todos los imports `npm:@supabase/supabase-js@2.57.2` por `https://esm.sh/@supabase/supabase-js@2` (4 funciones: admin-create-user, create-checkout, customer-portal, check-subscription).
+- Edge Functions: casteados todos los `catch(error)` de tipo `unknown` con `error instanceof Error ? error.message : String(error)` (8 funciones).
+- Tests: corregidos mocks de `QuestionRow` con todas las propiedades requeridas en AICopilotPanel.test y QuestionCard.test.
+- Tests: corregido import path de `QuestionRow` en groupQuestions.test.
+- Tests: corregido action type inválido `"delete"` → `"archive"` en auditLog.test.
+- Declaración de tipo `Deno` en `_shared/ai-service.ts` para compatibilidad con TypeScript de Vite.
+
 ## [1.4.0] — 2026-03-15
 
 ### Added
