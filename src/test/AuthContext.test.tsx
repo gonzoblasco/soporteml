@@ -30,17 +30,16 @@ vi.mock("@/integrations/supabase/client", () => {
       return { data: null };
     };
 
-    builder.then = async (resolve: any) => {
-      // allow await on builder
+    builder.then = (resolve: any) => {
       if (table === 'memberships') {
-        return resolve({
+        return Promise.resolve({
           data: [
             { company_id: 'comp123', role: 'admin', is_default: true },
             { company_id: 'comp456', role: 'agent', is_default: false },
           ],
-        });
+        }).then(resolve);
       }
-      return resolve({ data: null });
+      return Promise.resolve({ data: null }).then(resolve);
     };
 
     return builder;
@@ -66,17 +65,11 @@ const TestComponent = ({ onAuth }: { onAuth: (auth: any) => void }) => {
   return null;
 };
 
+const tick = () => new Promise(r => setTimeout(r, 0));
+
 describe("AuthContext", () => {
   let mockOnAuthStateChange: any;
   let mockGetSession: any;
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,15 +108,12 @@ describe("AuthContext", () => {
     const mockUser = { id: "user123" } as User;
     const mockSession = { user: mockUser } as Session;
 
-    // Mock the auth state change
-    mockOnAuthStateChange.mockImplementation((callback) => {
+    mockOnAuthStateChange.mockImplementation((callback: any) => {
       callback("SIGNED_IN", mockSession);
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
 
     (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
-
-    // Ensure getSession returns our logged-in session so it doesn't overwrite state
     mockGetSession.mockResolvedValue({ data: { session: mockSession } });
 
     let capturedAuth: any = null;
@@ -134,18 +124,15 @@ describe("AuthContext", () => {
       </AuthProvider>
     );
 
-    // Flush any pending setTimeouts used by AuthProvider
-    await act(async () => {
-      vi.runAllTimers();
-    });
-
-    // Wait for async operations to complete
+    // Wait for async operations (setTimeout(0) + DB queries) to complete
     await waitFor(() => {
       expect(capturedAuth.isLoading).toBe(false);
     });
 
-    expect(capturedAuth.user).toBe(mockUser);
-    expect(capturedAuth.session).toBe(mockSession);
+    await waitFor(() => {
+      expect(capturedAuth.user).toBe(mockUser);
+      expect(capturedAuth.session).toBe(mockSession);
+    });
   });
 
   // Bug exposure test: race condition with rapid auth state changes
@@ -156,7 +143,7 @@ describe("AuthContext", () => {
     const mockSession2 = { user: mockUser2 } as Session;
 
     let authCallback: any = null;
-    mockOnAuthStateChange.mockImplementation((callback) => {
+    mockOnAuthStateChange.mockImplementation((callback: any) => {
       authCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
@@ -164,41 +151,36 @@ describe("AuthContext", () => {
     (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
 
     let capturedAuth: any = null;
-    let authUpdates: any[] = [];
 
     render(
       <AuthProvider>
         <TestComponent onAuth={(auth) => {
           capturedAuth = auth;
-          authUpdates.push({ ...auth });
         }} />
       </AuthProvider>
     );
 
     // Simulate rapid auth changes
-    act(() => {
+    await act(async () => {
       authCallback("SIGNED_IN", mockSession1);
-      vi.runAllTimers();
+      await tick();
     });
 
-    act(() => {
+    await act(async () => {
       authCallback("SIGNED_OUT", null);
-      vi.runAllTimers();
+      await tick();
     });
 
-    act(() => {
+    await act(async () => {
       authCallback("SIGNED_IN", mockSession2);
-      vi.runAllTimers();
+      await tick();
     });
 
     // Wait for stabilization
     await waitFor(() => {
-      expect(authUpdates.length).toBeGreaterThan(1);
+      expect(capturedAuth.user).toBe(mockUser2);
+      expect(capturedAuth.session).toBe(mockSession2);
     });
-
-    // The final state should be consistent (last auth state)
-    expect(capturedAuth.user).toBe(mockUser2);
-    expect(capturedAuth.session).toBe(mockSession2);
   });
 
   // Bug exposure test: setCurrentCompanyId fallback logic
@@ -206,20 +188,17 @@ describe("AuthContext", () => {
     const mockUser = { id: "user123" } as User;
     const mockSession = { user: mockUser } as Session;
 
-    // Setup initial auth state with memberships
-    mockOnAuthStateChange.mockImplementation((callback) => {
+    mockOnAuthStateChange.mockImplementation((callback: any) => {
       callback("SIGNED_IN", mockSession);
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
 
     (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
-
-    // Ensure getSession returns our logged-in session to keep state consistent
     mockGetSession.mockResolvedValue({ data: { session: mockSession } });
 
     let capturedAuth: any = null;
 
-    const { rerender } = render(
+    render(
       <AuthProvider>
         <TestComponent onAuth={(auth) => (capturedAuth = auth)} />
       </AuthProvider>
@@ -245,7 +224,7 @@ describe("AuthContext", () => {
     const mockSession = { user: mockUser } as Session;
 
     let authCallback: any = null;
-    mockOnAuthStateChange.mockImplementation((callback) => {
+    mockOnAuthStateChange.mockImplementation((callback: any) => {
       authCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
@@ -261,8 +240,9 @@ describe("AuthContext", () => {
     );
 
     // Login
-    act(() => {
+    await act(async () => {
       authCallback("SIGNED_IN", mockSession);
+      await tick();
     });
 
     await waitFor(() => {
@@ -270,8 +250,9 @@ describe("AuthContext", () => {
     });
 
     // Logout
-    act(() => {
+    await act(async () => {
       authCallback("SIGNED_OUT", null);
+      await tick();
     });
 
     await waitFor(() => {
