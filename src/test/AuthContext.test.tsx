@@ -223,27 +223,31 @@ describe("AuthContext", () => {
     const mockUser = { id: "user123" } as User;
     const mockSession = { user: mockUser } as Session;
 
-    let authCallback: any = null;
+    // Start already signed in
     mockOnAuthStateChange.mockImplementation((callback: any) => {
-      authCallback = callback;
+      callback("SIGNED_IN", mockSession);
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
 
     (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
+    mockGetSession.mockResolvedValue({ data: { session: mockSession } });
 
     let capturedAuth: any = null;
+    let authCallback: any = null;
+
+    // Capture the callback for later use
+    mockOnAuthStateChange.mockImplementation((callback: any) => {
+      authCallback = callback;
+      callback("SIGNED_IN", mockSession);
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    });
+    (supabase.auth.onAuthStateChange as any).mockImplementation(mockOnAuthStateChange);
 
     render(
       <AuthProvider>
         <TestComponent onAuth={(auth) => (capturedAuth = auth)} />
       </AuthProvider>
     );
-
-    // Login
-    await act(async () => {
-      authCallback("SIGNED_IN", mockSession);
-      await tick();
-    });
 
     await waitFor(() => {
       expect(capturedAuth.user).toBe(mockUser);
