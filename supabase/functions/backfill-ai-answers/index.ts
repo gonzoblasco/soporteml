@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateCopilotDraft } from "../_shared/ai-service.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,8 +20,8 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -121,63 +122,18 @@ Deno.serve(async (req) => {
         const cachedDesc = (product.meli_cache as any)?.description;
         if (cachedDesc) productContext += `\nDescripción del producto: ${cachedDesc}`;
 
-        // Build system prompt (identical to sync/copilot)
-        let systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
-Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
-
-Tono: ${aiTone}. Escribí en español rioplatense neutro, sin tutear.${customInstructions}${crmKnowledge}
-
-Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
-{
-  "summary": "Resumen en 1-2 oraciones de qué pide o necesita el comprador",
-  "draft": "Borrador de respuesta listo para publicar, corto y claro (máx 350 caracteres)",
-  "missing_data": ["lista de datos que faltan para dar una respuesta completa"]
-}
-
-Si no falta ningún dato, devolvé "missing_data": [].`;
-
-        const userPrompt = `Pregunta del comprador: "${q.question_text}"
-Comprador: ${q.buyer_nickname || "desconocido"}
-Producto: ${product.title}${product.price ? ` — $${product.price}` : ""}
-
-Datos del producto (publicación MeLi):
-${productContext}`;
-
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.4,
-          }),
-        });
-
-        if (!res.ok) {
-          console.error(`AI error for question ${q.id}: ${res.status}`);
-          errors++;
-          // Rate limit: wait before next request
-          if (res.status === 429) await new Promise(r => setTimeout(r, 5000));
-          continue;
-        }
-
-        const aiData = await res.json();
-        const raw = aiData.choices?.[0]?.message?.content ?? "";
-        const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-
-        let draft = "";
-        try {
-          const parsed = JSON.parse(cleaned);
-          draft = parsed.draft || "";
-        } catch {
-          draft = raw.slice(0, 350);
-        }
+        const { draft } = await generateCopilotDraft(
+          q.question_text,
+          productContext,
+          {
+            aiTone,
+            aiCustomInstructions: customInstructions,
+            buyerNickname: q.buyer_nickname,
+            productTitle: product.title,
+            productPrice: product.price,
+            crmKnowledge,
+          }
+        );
 
         if (draft) {
           await supabase

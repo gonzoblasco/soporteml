@@ -1,68 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-// ─── Build knowledge context with category-aware ordering ───
-function buildKnowledgePrompt(entries: any[]): { positive: string; restrictions: string } {
-  if (!entries?.length) return { positive: "", restrictions: "" };
-
-  // Separate by type and scope
-  const catRestrictions: any[] = [];
-  const globalRestrictions: any[] = [];
-  const catPositive: any[] = [];
-  const globalPositive: any[] = [];
-
-  for (const e of entries) {
-    if (e.type === "restriccion") {
-      (e.scope === "categoria" ? catRestrictions : globalRestrictions).push(e);
-    } else {
-      (e.scope === "categoria" ? catPositive : globalPositive).push(e);
-    }
-  }
-
-  // Build in priority order: restrictions first, then category positive, then global positive
-  const MAX_CHARS = 4000;
-  let totalChars = 0;
-
-  const restrictionLines: string[] = [];
-  for (const e of [...catRestrictions, ...globalRestrictions]) {
-    const line = `• ${e.title}: ${e.content}`;
-    if (totalChars + line.length > MAX_CHARS) break;
-    totalChars += line.length;
-    restrictionLines.push(line);
-  }
-
-  const catPositiveLines: string[] = [];
-  for (const e of catPositive) {
-    const line = `• ${e.title}: ${e.content}`;
-    if (totalChars + line.length > MAX_CHARS) break;
-    totalChars += line.length;
-    catPositiveLines.push(line);
-  }
-
-  const globalPositiveLines: string[] = [];
-  for (const e of globalPositive) {
-    const line = `• ${e.title}: ${e.content}`;
-    if (totalChars + line.length > MAX_CHARS) break;
-    totalChars += line.length;
-    globalPositiveLines.push(line);
-  }
-
-  let positive = "";
-  if (catPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DE CATEGORÍA ---\n${catPositiveLines.join('\n')}`;
-  if (globalPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${globalPositiveLines.join('\n')}`;
-
-  const restrictions = restrictionLines.length
-    ? `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionLines.join('\n')}`
-    : "";
-
-  return { positive, restrictions };
-}
+import { generateCopilotDraft } from "../_shared/ai-service.ts";
+import { corsHeaders } from "../_shared/utils.ts";
+import { fetchKnowledgeContext } from "../_shared/knowledge-service.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -70,28 +10,83 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
+      console.error("ai-copilot: Missing or invalid Bearer token");
+      return new Response(JSON.stringify({ 
+        error: "No autorizado - Token requerido", 
+        code: "AUTH_MISSING_BEARER" 
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Extract the token for logging
+    const token = authHeader.substring(7);
+    console.log("ai-copilot: Received Authorization header with token length:", token.length);
+    console.log("ai-copilot: Token starts with:", token.substring(0, 20));
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    console.log("ai-copilot: Using Supabase URL:", supabaseUrl);
+    console.log("ai-copilot: Anon key length:", supabaseAnonKey?.length);
+
     const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      supabaseUrl!,
+      supabaseAnonKey!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "No autorizado" }), {
+    
+    if (userError) {
+      console.error("ai-copilot: Auth verification failed:", {
+        message: userError.message,
+        status: (userError as any).status,
+        name: userError.name,
+        fullError: userError
+      });
+      return new Response(JSON.stringify({ 
+        error: `No autorizado - ${userError.message}`, 
+        code: "AUTH_INVALID_USER", 
+        details: userError.message 
+      }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    if (!user) {
+      console.error("ai-copilot: No user found in session");
+      return new Response(JSON.stringify({ 
+        error: "No autorizado - Usuario no encontrado", 
+        code: "AUTH_NO_USER" 
+      }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("ai-copilot: ✓ Auth successful for user", user.id);
+
     const { question_text, product_title, product_price, buyer_nickname, ai_category, ai_suggested_answer, ai_tone, ai_custom_instructions, product_id } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // Input validation
+    if (!question_text || typeof question_text !== 'string' || question_text.trim().length === 0) {
+      console.error("ai-copilot: Invalid question_text:", { provided: question_text, type: typeof question_text });
+      return new Response(JSON.stringify({ error: "question_text es requerido", code: "VALIDATION_EMPTY_QUESTION" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (product_id && (typeof product_id !== 'string' || product_id.trim().length === 0)) {
+      console.error("ai-copilot: Invalid product_id:", { provided: product_id, type: typeof product_id });
+      return new Response(JSON.stringify({ error: "product_id debe ser un string válido", code: "VALIDATION_INVALID_PRODUCT_ID" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    if (!AI_API_KEY) {
+      console.error("ai-copilot: AI_API_KEY not configured");
+      throw new Error("AI_API_KEY not configured");
+    }
 
     const toneLabel = ai_tone || "profesional";
     const customInstructions = ai_custom_instructions ? `\nInstrucciones adicionales del vendedor: ${ai_custom_instructions}` : "";
@@ -100,10 +95,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-    const { data: callerCompanyId } = await serviceClient.rpc("get_user_company_id", { _user_id: user.id });
+    const { data: callerCompanyId, error: rpcError } = await serviceClient.rpc("get_user_company_id", { _user_id: user.id });
+
+    if (rpcError) {
+      console.error("ai-copilot: RPC get_user_company_id failed:", rpcError.message);
+      throw new Error(`Failed to get user company: ${rpcError.message}`);
+    }
 
     if (!callerCompanyId) {
-      return new Response(JSON.stringify({ error: "No active membership found" }), {
+      console.error("ai-copilot: No active company found for user", user.id);
+      return new Response(JSON.stringify({ error: "No active membership found", code: "USER_NO_COMPANY" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -112,14 +113,17 @@ serve(async (req) => {
     let productKnowledge = "";
     let productCategoryId: string | null = null;
     let productCategoryName: string | null = null;
+    let crmProduct: any = null;
 
     if (product_id) {
-      const { data: crmProduct } = await serviceClient
+      const { data: product } = await serviceClient
         .from("products")
         .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets, do_not_say, meli_category_id, meli_category_name")
         .eq("id", product_id)
         .eq("company_id", callerCompanyId)
         .maybeSingle();
+
+      crmProduct = product;
 
       if (crmProduct) {
         productCategoryId = crmProduct.meli_category_id;
@@ -168,131 +172,117 @@ serve(async (req) => {
     }
 
     const { data: kEntries } = await knowledgeQuery;
-    const { positive: businessKnowledgePositive, restrictions: businessKnowledgeRestrictions } = buildKnowledgePrompt(kEntries || []);
-
-    const systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
-Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
-
-Tono: ${toneLabel}. Escribí en español rioplatense neutro, sin tutear.${customInstructions}
-
-Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
-{
-  "summary": "Resumen en 1-2 oraciones de qué pide o necesita el comprador",
-  "draft": "Borrador de respuesta listo para publicar, corto y claro",
-  "missing_data": ["lista de datos que faltan para dar una respuesta completa, ej: talle, color, dirección"]
-}
-
-Si no falta ningún dato, devolvé "missing_data": [].
-Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}${businessKnowledgeRestrictions}${businessKnowledgePositive}`;
-
-    // Deterministic CRM suggestions
+    
+    // CRM suggestions
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
     if (product_id) {
-      const { data: crmCheck } = await serviceClient
-        .from("products")
-        .select("support_summary, key_points, shipping_notes, returns_notes, warranty_notes, faq_bullets")
-        .eq("id", product_id)
-        .eq("company_id", callerCompanyId)
-        .maybeSingle();
-
-      if (crmCheck) {
-        if (!crmCheck.support_summary) crmSuggestions.push({ message: "Completá el resumen de soporte para respuestas más precisas", tab: "conocimiento" });
-        if (!(crmCheck.key_points as string[])?.length) crmSuggestions.push({ message: "Agregá puntos clave del producto", tab: "conocimiento" });
-        if (!crmCheck.shipping_notes) crmSuggestions.push({ message: "Completá las notas de envío", tab: "politicas" });
-        if (!crmCheck.returns_notes) crmSuggestions.push({ message: "Agregá la política de devoluciones", tab: "politicas" });
-        if (!crmCheck.warranty_notes) crmSuggestions.push({ message: "Completá los datos de garantía", tab: "politicas" });
+      if (!crmProduct) {
+        crmSuggestions.push({ message: "El producto especificado no existe o no tienes acceso" });
+      } else {
+        if (!crmProduct.support_summary) crmSuggestions.push({ message: "Completá el resumen de soporte para respuestas más precisas", tab: "conocimiento" });
+        if (!(crmProduct.key_points as string[])?.length) crmSuggestions.push({ message: "Agregá puntos clave del producto", tab: "conocimiento" });
+        if (!crmProduct.shipping_notes) crmSuggestions.push({ message: "Completá las notas de envío", tab: "politicas" });
+        if (!crmProduct.returns_notes) crmSuggestions.push({ message: "Agregá la política de devoluciones", tab: "politicas" });
+        if (!crmProduct.warranty_notes) crmSuggestions.push({ message: "Completá los datos de garantía", tab: "politicas" });
       }
     } else {
       crmSuggestions.push({ message: "Creá una ficha CRM para este producto y mejorá las respuestas automáticas" });
     }
 
-    const userPrompt = `Pregunta del comprador: "${question_text}"
-Comprador: ${buyer_nickname || "desconocido"}
-Producto: ${product_title || "sin título"}${product_price != null ? ` — $${product_price}` : ""}
-Categoría IA: ${ai_category || "sin categorizar"}
-${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No hay sugerencia previa."}`;
+    // ─── Fetch knowledge entries (global + category) using shared service ───
+    const { positive: knowledgePositive, restrictions: knowledgeRestrictions } = await fetchKnowledgeContext(
+      serviceClient,
+      callerCompanyId,
+      productCategoryId
+    );
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.4,
-      }),
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Esperá un momento y volvé a intentar." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    const parsed = await generateCopilotDraft(
+      question_text,
+      productKnowledge,
+      {
+        aiTone: toneLabel,
+        aiCustomInstructions: customInstructions,
+        buyerNickname: buyer_nickname,
+        productTitle: product_title,
+        productPrice: product_price,
+        crmKnowledge: productKnowledge,
+        businessKnowledge: knowledgeRestrictions + knowledgePositive,
+        aiCategory: ai_category,
+        previousAnswer: ai_suggested_answer,
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA agotados. Recargá desde la configuración del workspace." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", status, t);
-      return new Response(JSON.stringify({ error: "Error del servicio de IA" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const aiData = await response.json();
-    const raw = aiData.choices?.[0]?.message?.content ?? "";
-
-    let parsed;
-    try {
-      const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      console.error("Failed to parse AI response:", raw);
-      parsed = {
-        summary: "No pude analizar la pregunta automáticamente.",
-        draft: raw || "",
-        missing_data: [],
-      };
-    }
+    );
 
     if (crmSuggestions.length > 0) {
-      parsed.crm_suggestions = crmSuggestions;
+      (parsed as any).crm_suggestions = crmSuggestions;
     }
 
-    // Knowledge gap suggestions (global + category)
+    // Knowledge gap suggestions
     const globalTypes = new Set((kEntries || []).filter((e: any) => e.scope === 'global').map((e: any) => e.type));
     const knowledgeSuggestions: Array<{message: string; type: string}> = [];
     if (!globalTypes.has('politica')) knowledgeSuggestions.push({ message: "Podrías agregar una política de envíos o devoluciones para mejorar las respuestas", type: "politica" });
     if (!globalTypes.has('restriccion')) knowledgeSuggestions.push({ message: "Definí qué no prometer a los compradores para evitar respuestas riesgosas", type: "restriccion" });
     if (!globalTypes.has('faq')) knowledgeSuggestions.push({ message: "Agregá preguntas frecuentes para respuestas más completas", type: "faq" });
 
-    // Category-specific gap suggestion
     if (productCategoryId) {
       const hasCategoryEntries = (kEntries || []).some((e: any) => e.scope === 'categoria' && e.scope_ref === productCategoryId);
       if (!hasCategoryEntries) {
-        const catLabel = productCategoryName || productCategoryId;
-        knowledgeSuggestions.push({ message: `No hay conocimiento específico para la categoría "${catLabel}". Agregá artículos para respuestas más precisas en esta categoría`, type: "categoria" });
+        knowledgeSuggestions.push({ message: `No hay conocimiento específico para la categoría "${productCategoryName || productCategoryId}". Agregá artículos para respuestas más precisas`, type: "categoria" });
       }
     }
 
     if (knowledgeSuggestions.length > 0) {
-      parsed.knowledge_suggestions = knowledgeSuggestions.slice(0, 2);
+      (parsed as any).knowledge_suggestions = knowledgeSuggestions.slice(0, 2);
     }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("ai-copilot error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Error desconocido" }), {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    const errorCode = e instanceof Error ? e.name : "UNKNOWN_ERROR";
+    console.error("ai-copilot error:", { message: errorMsg, code: errorCode, stack: e instanceof Error ? e.stack : undefined });
+
+    // Handle specific AI API errors
+    if (errorMsg.startsWith('AI_API_ERROR:')) {
+      const parts = errorMsg.split(':');
+      const statusCode = parseInt(parts[1]);
+      const errorDetails = parts.slice(2).join(':');
+
+      let userFriendlyMessage = 'Error en el servicio de IA';
+      let httpStatus = 500;
+
+      switch (statusCode) {
+        case 401:
+          userFriendlyMessage = 'Error de autenticación con el servicio de IA. Verifica la configuración de la API key.';
+          httpStatus = 503; // Service Unavailable
+          break;
+        case 429:
+          userFriendlyMessage = 'Límite de uso del servicio de IA alcanzado. Intenta nuevamente en unos minutos.';
+          httpStatus = 503; // Service Unavailable
+          break;
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          userFriendlyMessage = 'El servicio de IA no está disponible temporalmente. Intenta nuevamente.';
+          httpStatus = 503; // Service Unavailable
+          break;
+        default:
+          userFriendlyMessage = `Error del servicio de IA (${statusCode}): ${errorDetails}`;
+          httpStatus = 500;
+      }
+
+      return new Response(JSON.stringify({
+        error: userFriendlyMessage,
+        code: `AI_API_ERROR_${statusCode}`,
+        details: errorDetails
+      }), {
+        status: httpStatus,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: errorMsg, code: errorCode }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

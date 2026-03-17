@@ -50,12 +50,19 @@ export function groupQuestions(questions: QuestionRow[]): QuestionGroup[] {
     // Keep latest_at updated
     if (q.created_at > group.latest_at) {
       group.latest_at = q.created_at;
-      group.buyer_nickname = q.buyer_nickname ?? group.buyer_nickname;
+      group.buyer_nickname = q.buyer_nickname;
     }
   }
 
   // Sort groups by latest activity
-  return Array.from(map.values()).sort(
-    (a, b) => new Date(b.latest_at).getTime() - new Date(a.latest_at).getTime()
-  );
+  return Array.from(map.values()).sort((a, b) => {
+    const aTime = new Date(a.latest_at).getTime();
+    const bTime = new Date(b.latest_at).getTime();
+
+    // Handle invalid dates: treat NaN as very old (epoch 0)
+    const aValid = !isNaN(aTime) ? aTime : 0;
+    const bValid = !isNaN(bTime) ? bTime : 0;
+
+    return bValid - aValid;
+  });
 }

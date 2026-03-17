@@ -33,21 +33,30 @@ export const NotificationBell = ({ collapsed }: { collapsed?: boolean }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
 
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const isTest = import.meta.env.VITEST === true;
+
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (data) {
-      setNotifications(data as Notification[]);
-      setUnreadCount(data.filter((n: any) => !n.read).length);
+    if (!user || !SUPABASE_URL || isTest) return;
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (data) {
+        setNotifications(data as Notification[]);
+        setUnreadCount(data.filter((n: any) => !n.read).length);
+      }
+    } catch {
+      // Ignore network errors in development/testing
     }
-  }, [user]);
+  }, [user, SUPABASE_URL, isTest]);
 
   useEffect(() => {
     fetchNotifications();
+
+    if (!SUPABASE_URL || isTest || !user) return;
 
     const channel = supabase
       .channel('notifications-bell')
@@ -57,7 +66,7 @@ export const NotificationBell = ({ collapsed }: { collapsed?: boolean }) => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, SUPABASE_URL, isTest, user]);
 
   const markAsRead = async (id: string) => {
     await supabase.from('notifications').update({ read: true }).eq('id', id);

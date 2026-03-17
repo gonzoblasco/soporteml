@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
           const accessToken = await refreshTokenIfNeeded(supabase, tokenRow as TokenRow, appId, secretKey);
           headers.Authorization = `Bearer ${accessToken}`;
         } catch (e) {
-          console.warn("Token refresh failed, trying public fetch:", e.message);
+          console.warn("Token refresh failed, trying public fetch:", (e as Error).message);
         }
       }
 
@@ -177,10 +177,10 @@ Deno.serve(async (req) => {
     }
 
     // ── AI Enrichment: generate suggestions from MeLi data ──
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY");
     let aiSuggestions: Record<string, unknown> | null = null;
 
-    if (LOVABLE_API_KEY && meliCache) {
+    if (AI_API_KEY && meliCache) {
       try {
         const mc = meliCache as any;
         const contextParts: string[] = [];
@@ -196,14 +196,15 @@ Deno.serve(async (req) => {
         }
         if (mc.description) contextParts.push(`Descripción MeLi:\n${mc.description.slice(0, 2000)}`);
 
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiUrl = Deno.env.get("AI_API_URL") || "https://api.openai.com/v1/chat/completions";
+        const aiRes = await fetch(aiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${AI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: Deno.env.get("AI_MODEL") || "gpt-4o-mini",
             messages: [
               {
                 role: "system",
@@ -270,7 +271,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
           console.warn("AI enrichment failed:", aiRes.status, errText);
         }
       } catch (e) {
-        console.warn("AI enrichment error:", e.message);
+        console.warn("AI enrichment error:", (e as Error).message);
       }
     }
 
@@ -339,7 +340,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
     });
   } catch (error) {
     console.error("enrich-product error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

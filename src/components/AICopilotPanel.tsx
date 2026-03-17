@@ -42,7 +42,7 @@ const TONE_OPTIONS = [
 type ToneValue = typeof TONE_OPTIONS[number]['value'];
 
 const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
-  const { currentCompanyId } = useAuth();
+  const { currentCompanyId, user } = useAuth();
   const navigate = useNavigate();
   const [result, setResult] = useState<CopilotResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,6 +70,21 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
     setCheckedItems(new Set());
     if (isAutoTrigger) autoApplyRef.current = true;
 
+    // Verify user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log("AICopilot: Session check", { hasSession: !!session, hasUser: !!session?.user, hasToken: !!session?.access_token });
+    
+    if (!session?.user || !session?.access_token) {
+      const errorMsg = 'Debes estar autenticado para usar el Copiloto';
+      setError(errorMsg);
+      if (!isAutoTrigger) {
+        toast.error(errorMsg);
+      }
+      setLoading(false);
+      autoApplyRef.current = false;
+      return;
+    }
+
     // Fetch AI settings for tone/instructions
     let aiTone = 'profesional';
     let aiCustomInstructions: string | null = null;
@@ -91,8 +106,17 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
       setActiveTone(toneOverride);
     }
 
-    const { data, error: fnError } = await supabase.functions.invoke('ai-copilot', {
-      body: {
+    // Call AI copilot edge function using fetch for reliable auth header passing
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const functionUrl = `${supabaseUrl}/functions/v1/ai-copilot`;
+    
+    const response = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
         question_text: question.question_text,
         product_title: question.product_title,
         product_price: question.product_price,
@@ -102,22 +126,52 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
         ai_tone: aiTone,
         ai_custom_instructions: aiCustomInstructions,
         product_id: question.product_id || undefined,
-      },
+      }),
     });
+
+    let data: CopilotResult | null = null;
+    let fnError: any = null;
+
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+        fnError = { message: errorData.error || `HTTP ${response.status}`, status: response.status, details: errorData };
+        console.log("AI Copilot detailed error response:", errorData);
+      } catch {
+        const text = await response.text();
+        fnError = { message: `HTTP ${response.status}: ${response.statusText}`, status: response.status, rawText: text };
+        console.log("AI Copilot error (raw text):", text);
+      }
+    } else {
+      try {
+        data = await response.json();
+      } catch (e) {
+        fnError = { message: 'Failed to parse response', error: e };
+      }
+    }
 
     setLoading(false);
 
     if (fnError) {
-      const msg = fnError.message || 'Error al consultar el copiloto';
-      setError(msg);
-      toast.error(msg);
+      let errorMessage = fnError.message || 'Error al consultar el copiloto';
+      
+      // Use details if available (from error responses)
+      if (fnError.details?.error) {
+        errorMessage = fnError.details.error;
+      } else if (fnError.details?.code === 'AUTH_MISSING_BEARER') {
+        errorMessage = 'Error de autenticación: Token no disponible';
+      }
+
+      console.error('AI Copilot error:', fnError);
+      setError(errorMessage);
+      toast.error(errorMessage);
       autoApplyRef.current = false;
       return;
     }
 
-    if (data?.error) {
-      setError(data.error);
-      toast.error(data.error);
+    if ((data as any)?.error) {
+      setError((data as any).error);
+      toast.error((data as any).error);
       autoApplyRef.current = false;
       return;
     }
@@ -149,9 +203,15 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
         return;
       }
 
+      // Don't auto-trigger if user is not authenticated yet
+      if (!user) {
+        console.log("AICopilot: Skipping auto-trigger - user not authenticated yet");
+        return;
+      }
+
       fetchCopilot(undefined, true);
     }
-  }, [question.id]);
+  }, [question.id, user]);
 
   const toggleCheck = (idx: number) => {
     setCheckedItems(prev => {

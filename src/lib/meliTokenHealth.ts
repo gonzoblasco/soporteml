@@ -26,8 +26,18 @@ export interface MeliHealthUI {
 export function computeHealth(token: { expires_at: string; refresh_token?: string | null; has_refresh_token?: boolean } | null): MeliHealthInfo {
   if (!token) return { status: 'disconnected' };
 
+  // Check if expires_at is missing or null
+  if (!token.expires_at) return { status: 'disconnected' };
+
   const now = Date.now();
   const expiresAt = new Date(token.expires_at).getTime();
+
+  // Validate that the date is valid
+  if (isNaN(expiresAt)) {
+    // Invalid date string - treat as expired/disconnected
+    return { status: 'disconnected' };
+  }
+
   const minutesLeft = Math.max(0, Math.round((expiresAt - now) / 60000));
   const isExpired = expiresAt <= now;
   const hasRefresh = token.has_refresh_token ?? !!token.refresh_token;

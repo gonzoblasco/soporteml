@@ -1,4 +1,5 @@
 import { Inbox, LayoutDashboard, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield, ChevronsLeft, ChevronsRight, FileText, Package, Users, ShoppingCart, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
 import { useTheme } from 'next-themes';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,7 +26,6 @@ const crmSubItems = [
   { title: 'Conocimiento', url: '/knowledge', icon: BookOpen, enabled: true },
 ];
 
-const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
 
 // Context to share collapsed state
 export const SidebarContext = createContext({ collapsed: false });

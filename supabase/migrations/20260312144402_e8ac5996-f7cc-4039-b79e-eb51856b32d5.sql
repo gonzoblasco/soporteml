@@ -19,6 +19,26 @@ CREATE TABLE public.knowledge_entries (
 -- RLS
 ALTER TABLE public.knowledge_entries ENABLE ROW LEVEL SECURITY;
 
+create or replace function public.has_membership_role(
+  _user_id uuid,
+  _company_id uuid,
+  _role public.app_role
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.memberships m
+    where m.user_id = _user_id
+      and m.company_id = _company_id
+      and m.role = _role
+  );
+$$;
+
 CREATE POLICY "Members can view knowledge entries" ON public.knowledge_entries
   FOR SELECT TO authenticated
   USING (user_belongs_to_company(auth.uid(), company_id));

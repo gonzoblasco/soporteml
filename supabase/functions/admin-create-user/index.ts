@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,9 +38,8 @@ serve(async (req) => {
     logStep("Caller authenticated", { userId: userData.user.id });
 
     // Verify super admin
-    const { data: isSA } = await supabaseAdmin.rpc("is_super_admin");
-    // Since we're using service role, we need to check manually
-    if (userData.user.email !== "gonzoblasco@icloud.com") {
+    const superAdminEmail = Deno.env.get("SUPER_ADMIN_EMAIL");
+    if (!superAdminEmail || userData.user.email !== superAdminEmail) {
       throw new Error("Unauthorized: super admin access required");
     }
 

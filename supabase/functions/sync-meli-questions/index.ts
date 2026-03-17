@@ -1,248 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { refreshTokenIfNeeded } from "../_shared/refreshMeliToken.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-// ─── Event Logger ───
-async function logEvent(
-  supabase: any,
-  companyId: string,
-  type: string,
-  entityType?: string,
-  entityId?: string,
-  payload: Record<string, unknown> = {}
-) {
-  try {
-    await supabase.from("events").insert({
-      company_id: companyId,
-      type,
-      entity_type: entityType ?? null,
-      entity_id: entityId ?? null,
-      payload,
-    });
-  } catch (e) {
-    console.error("Event log error:", e);
-  }
-}
-
-// ─── Business Hours Evaluator ───
-function isOutsideBusinessHours(businessHours: { days: string[]; start_time: string; end_time: string }): boolean {
-  // Use Argentina timezone (UTC-3)
-  const now = new Date();
-  const argentinaOffset = -3 * 60; // minutes
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  const argNow = new Date(utcMs + argentinaOffset * 60000);
-
-  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-  const currentDay = dayNames[argNow.getDay()];
-
-  // If today is not a business day, we're outside hours
-  if (!businessHours.days.includes(currentDay)) return true;
-
-  const currentMinutes = argNow.getHours() * 60 + argNow.getMinutes();
-  const [startH, startM] = businessHours.start_time.split(':').map(Number);
-  const [endH, endM] = businessHours.end_time.split(':').map(Number);
-  const startMinutes = startH * 60 + startM;
-  const endMinutes = endH * 60 + endM;
-
-  return currentMinutes < startMinutes || currentMinutes >= endMinutes;
-}
-
-// ─── Fetch Knowledge Entries (category-aware) ───
-async function fetchKnowledgeContext(supabase: any, companyId: string, categoryId: string | null = null): Promise<{ positive: string; restrictions: string }> {
-  try {
-    let query = supabase
-      .from("knowledge_entries")
-      .select("title, content, type, priority, scope, scope_ref")
-      .eq("company_id", companyId)
-      .eq("ai_visible", true)
-      .eq("is_active", true)
-      .order("priority", { ascending: false });
-
-    if (categoryId) {
-      query = query.or(`scope.eq.global,and(scope.eq.categoria,scope_ref.eq.${categoryId})`);
-    } else {
-      query = query.eq("scope", "global");
-    }
-
-    const { data: entries } = await query;
-    if (!entries?.length) return { positive: "", restrictions: "" };
-
-    // Separate by type and scope, ordered: restrictions first, then category positive, then global positive
-    const catRestrictions: any[] = [];
-    const globalRestrictions: any[] = [];
-    const catPositive: any[] = [];
-    const globalPositive: any[] = [];
-
-    for (const e of entries) {
-      if (e.type === "restriccion") {
-        (e.scope === "categoria" ? catRestrictions : globalRestrictions).push(e);
-      } else {
-        (e.scope === "categoria" ? catPositive : globalPositive).push(e);
-      }
-    }
-
-    const MAX_CHARS = 4000;
-    let totalChars = 0;
-
-    const restrictionLines: string[] = [];
-    for (const e of [...catRestrictions, ...globalRestrictions]) {
-      const line = `• ${e.title}: ${e.content}`;
-      if (totalChars + line.length > MAX_CHARS) break;
-      totalChars += line.length;
-      restrictionLines.push(line);
-    }
-
-    const catPositiveLines: string[] = [];
-    for (const e of catPositive) {
-      const line = `• ${e.title}: ${e.content}`;
-      if (totalChars + line.length > MAX_CHARS) break;
-      totalChars += line.length;
-      catPositiveLines.push(line);
-    }
-
-    const globalPositiveLines: string[] = [];
-    for (const e of globalPositive) {
-      const line = `• ${e.title}: ${e.content}`;
-      if (totalChars + line.length > MAX_CHARS) break;
-      totalChars += line.length;
-      globalPositiveLines.push(line);
-    }
-
-    let positive = "";
-    if (catPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DE CATEGORÍA ---\n${catPositiveLines.join('\n')}`;
-    if (globalPositiveLines.length) positive += `\n\n--- CONOCIMIENTO DEL NEGOCIO ---\n${globalPositiveLines.join('\n')}`;
-
-    return {
-      positive,
-      restrictions: restrictionLines.length ? `\n\n--- RESTRICCIONES (NO PROMETER / NO AFIRMAR) ---\n${restrictionLines.join('\n')}` : "",
-    };
-  } catch (e) {
-    console.error("Error fetching knowledge entries:", e);
-    return { positive: "", restrictions: "" };
-  }
-}
-
-async function generateAiAnswer(
-  questionText: string,
-  productContext: string,
-  aiTone: string = "profesional",
-  aiCustomInstructions: string | null = null,
-  exclusionRules: string | null = null,
-  buyerNickname: string | null = null,
-  productTitle: string | null = null,
-  productPrice: number | null = null,
-  crmKnowledge: string = "",
-  businessKnowledge: string = "",
-): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
-    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
-  }
-
-  const customInstructions = aiCustomInstructions ? `\nInstrucciones adicionales del vendedor: ${aiCustomInstructions}` : "";
-
-  let systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
-Tu trabajo es analizar la pregunta de un comprador y generar una respuesta precisa.
-
-Tono: ${aiTone}. Escribí en español rioplatense neutro, sin tutear.${customInstructions}
-
-REGLAS IMPORTANTES:
-- NUNCA le digas al comprador que consulte la publicación, que mire la página, o que revise los detalles del producto.
-- Si la información solicitada está en los datos del producto, respondé con esa información concreta.
-- Si la información NO está disponible, decí honestamente que no tenés esa información y ofrecé ayuda alternativa.
-- Respondé de forma directa y útil, con datos concretos (colores, medidas, precios, etc.).
-- No uses más de 350 caracteres en la respuesta (límite de MeLi).
-
-Clasificá cada pregunta en UNA de estas categorías: Precio, Stock, Técnico, Envío, Garantía, Otro.
-
-EVALUACIÓN DE INTERVENCIÓN HUMANA:
-Determiná si esta pregunta requiere intervención humana. Marcá requires_human = true cuando:
-- Sea una negociación de precio, oferta o contraoferta
-- Involucre compra/venta/trueque de vehículos, motos, o bienes de alto valor
-- El comprador pida contacto directo, teléfono o comunicación fuera de MeLi
-- Sea una queja seria o conflicto que necesite atención personal
-- Involucre temas legales, financiamiento, o condiciones especiales de pago
-
-CONFIDENCE SCORE:
-Evaluá tu nivel de confianza en la respuesta con un número entre 0 y 1:
-- 0.9-1.0: La respuesta está directamente en los datos del producto, es factual y segura
-- 0.7-0.89: La respuesta es razonable pero requiere algo de inferencia
-- 0.5-0.69: Hay incertidumbre significativa
-- 0.0-0.49: No tenés suficiente información para responder con confianza`;
-
-  if (exclusionRules) {
-    systemPrompt += `\n\nREGLAS ADICIONALES DE EXCLUSIÓN (marcá requires_human = true si aplican):\n${exclusionRules}`;
-  }
-
-  // Inject CRM knowledge into system prompt (same position as Copilot)
-  if (crmKnowledge) {
-    systemPrompt += crmKnowledge;
-  }
-
-  // Inject business knowledge entries
-  if (businessKnowledge) {
-    systemPrompt += businessKnowledge;
-  }
-
-  systemPrompt += `\n\nRespondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estructura exacta:
-{"answer": "tu respuesta lista para publicar, corta y clara", "category": "categoría", "requires_human": true/false, "requires_human_reason": "razón breve si aplica", "confidence": 0.85}`;
-
-  const userPrompt = `Pregunta del comprador: "${questionText}"
-Comprador: ${buyerNickname || "desconocido"}
-Producto: ${productTitle || "sin título"}${productPrice != null ? ` — $${productPrice}` : ""}
-
-Datos del producto (publicación MeLi):
-${productContext}`;
-
-  try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.4,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("AI gateway error:", await res.text());
-      return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
-    }
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
-
-    // Parse JSON (strip markdown fences if present)
-    const cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        answer: parsed.answer || "",
-        category: parsed.category || "Otro",
-        requires_human: parsed.requires_human ?? false,
-        requires_human_reason: parsed.requires_human_reason || "",
-        confidence: typeof parsed.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5,
-      };
-    }
-    return { answer: content.slice(0, 350), category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0.5 };
-  } catch (e) {
-    console.error("AI generation error:", e);
-    return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
-  }
-}
+import { generateAiAnswer } from "../_shared/ai-service.ts";
+import { corsHeaders, logEvent } from "../_shared/utils.ts";
+import { isOutsideBusinessHours } from "../_shared/business-hours.ts";
+import { fetchKnowledgeContext } from "../_shared/knowledge-service.ts";
+import { autoPublishMeliAnswer } from "../_shared/meli-service.ts";
 
 async function fetchMeliCategoryName(categoryId: string): Promise<string> {
   try {
@@ -257,34 +19,37 @@ async function fetchMeliCategoryName(categoryId: string): Promise<string> {
   return categoryId;
 }
 
-async function autoPublishAnswer(
-  accessToken: string,
-  meliQuestionId: string,
-  answerText: string
-): Promise<boolean> {
-  try {
-    const res = await fetch("https://api.mercadolibre.com/answers", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        question_id: Number(meliQuestionId),
-        text: answerText,
-      }),
-    });
+interface MeliItem {
+  id: string;
+  title: string;
+  price?: number;
+  currency_id?: string;
+  available_quantity?: number;
+  condition?: string;
+  warranty?: string;
+  permalink?: string;
+  category_id?: string;
+  shipping?: { free_shipping: boolean };
+  attributes?: Array<{ id: string; name: string; value_name: string }>;
+  variations?: Array<{
+    attribute_combinations?: Array<{ name: string; value_name: string }>;
+    available_quantity?: number;
+  }>;
+}
 
-    if (!res.ok) {
-      console.error("Auto-publish failed:", await res.text());
-      return false;
-    }
-    console.log("Auto-published answer for question:", meliQuestionId);
-    return true;
-  } catch (e) {
-    console.error("Auto-publish error:", e);
-    return false;
-  }
+interface CompanySettings {
+  ai_tone?: string;
+  ai_custom_instructions?: string;
+  auto_reply_enabled?: boolean;
+  auto_reply_exclusion_rules?: string;
+  auto_reply_mode?: string;
+  business_hours?: { days: string[]; start_time: string; end_time: string };
+  sync_interval_minutes?: number;
+  last_synced_at?: string;
+  features_ai_suggestions?: boolean;
+  features_autopilot_after_hours?: boolean;
+  features_autopilot_in_hours?: boolean;
+  autopilot_confidence_threshold?: number;
 }
 
 Deno.serve(async (req) => {
@@ -480,7 +245,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ synced: totalSynced, message: `Synced ${totalSynced} questions` }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (err: any) {
+    const error = err as Error;
     console.error("Sync error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
@@ -489,7 +255,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchItemFromMeli(itemId: string, accessToken: string): Promise<any | null> {
+async function fetchItemFromMeli(itemId: string, accessToken: string): Promise<MeliItem | null> {
   try {
     console.log(`Fetching item from MeLi: /items/${itemId}`);
 
@@ -891,7 +657,16 @@ async function processQuestion(
   // Generate AI answer (CRM injected into system prompt, product data in user prompt)
   const productObj = product || null;
   const { answer, category, requires_human, requires_human_reason, confidence } = aiSuggestionsEnabled
-    ? await generateAiAnswer(q.text, productContext, aiTone, aiCustomInstructions, exclusionRules, buyerNickname, productTitle, productObj?.price ?? null, crmKnowledge, businessKnowledge)
+    ? await generateAiAnswer(q.text, productContext, {
+        aiTone,
+        aiCustomInstructions,
+        exclusionRules,
+        buyerNickname,
+        productTitle,
+        productPrice: productObj?.price ?? null,
+        crmKnowledge,
+        businessKnowledge,
+      })
     : { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
 
   // ─── Autopilot Decision Engine ───
@@ -958,7 +733,7 @@ async function processQuestion(
   };
 
   if (autoAction === 'auto_reply' && answer) {
-    const published = await autoPublishAnswer(accessToken, meliQuestionId, answer);
+    const published = await autoPublishMeliAnswer(accessToken, meliQuestionId, answer);
 
     if (published) {
       await logEvent(supabase, companyId, "AUTO_REPLY_SENT", "question", meliQuestionId, { answer_length: answer.length, confidence });

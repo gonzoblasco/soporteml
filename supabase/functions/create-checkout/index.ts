@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,12 +32,12 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    const origin = req.headers.get("origin") || "https://soporteml.lovable.app";
+    const origin = req.headers.get("origin") || Deno.env.get("PUBLIC_APP_URL") || "http://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: "price_1T7faRHxJMYe1KhU6WFMGZBE", quantity: 1 }],
+      line_items: [{ price: Deno.env.get("STRIPE_PLAN_BASE_PRICE_ID") || "price_1T7faRHxJMYe1KhU6WFMGZBE", quantity: 1 }],
       mode: "subscription",
       success_url: `${origin}/settings?checkout=success`,
       cancel_url: `${origin}/settings?checkout=cancel`,
