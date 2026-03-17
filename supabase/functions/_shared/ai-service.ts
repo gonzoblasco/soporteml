@@ -1,3 +1,6 @@
+// deno-lint-ignore-file
+declare const Deno: { env: { get(key: string): string | undefined } };
+
 export async function generateAiAnswer(
   questionText: string,
   productContext: string,
