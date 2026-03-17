@@ -6,6 +6,7 @@ const fetchMock = vi.fn();
 global.fetch = fetchMock;
 
 // Mock Deno
+// @ts-ignore virtual module mock
 vi.mock('https://deno.land/std@0.168.0/http/server.ts', () => ({}), { virtual: true });
 
 const mockDenoEnv = vi.fn((key: string) => {
