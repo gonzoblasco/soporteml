@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AICopilotPanel from './AICopilotPanel';
+import type { QuestionRow } from '@/types/question';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -33,7 +34,7 @@ vi.mock('sonner', () => ({
   },
 }));
 
-const mockQuestion = {
+const mockQuestion: QuestionRow = {
   id: 'q1',
   question_text: '¿Cuánto cuesta?',
   product_title: 'Test Product',
@@ -41,17 +42,23 @@ const mockQuestion = {
   buyer_nickname: 'buyer123',
   ai_category: 'precio',
   ai_suggested_answer: null,
+  ai_confidence: null,
+  ai_decision_reason: null,
+  auto_action: null,
+  answered_by_ai: false,
   product_id: 'prod1',
   status: 'pending',
   created_at: '2026-01-01',
   company_id: 'comp1',
   meli_question_id: 'mq1',
   buyer_id: 'b1',
-  listing_id: 'l1',
-  response_status: null,
-  seller_response: null,
-  is_archived: false,
-  archived_at: null,
+  final_answer: null,
+  answered_by: null,
+  answered_at: null,
+  requires_human: false,
+  requires_human_reason: null,
+  meli_status: null,
+  meli_permalink: null,
 };
 
 describe('AICopilotPanel - AI Function Call', () => {

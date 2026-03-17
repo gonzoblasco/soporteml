@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     );
   } catch (e) {
     return new Response(
-      JSON.stringify({ status: "error", error: e.message, latency_ms: Date.now() - start, timestamp: new Date().toISOString() }),
+      JSON.stringify({ status: "error", error: e instanceof Error ? e.message : String(e), latency_ms: Date.now() - start, timestamp: new Date().toISOString() }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

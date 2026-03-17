@@ -71,7 +71,7 @@ describe("auditLog", () => {
       actorUserId: "user123",
       entityType: "product",
       entityId: "prod123",
-      action: "delete",
+      action: "archive",
     })).rejects.toThrow("Network error");
   });
 
