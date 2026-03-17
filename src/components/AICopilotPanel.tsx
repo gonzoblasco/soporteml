@@ -169,9 +169,9 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
       return;
     }
 
-    if (data?.error) {
-      setError(data.error);
-      toast.error(data.error);
+    if ((data as any)?.error) {
+      setError((data as any).error);
+      toast.error((data as any).error);
       autoApplyRef.current = false;
       return;
     }

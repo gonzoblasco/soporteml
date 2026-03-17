@@ -33,7 +33,7 @@ vi.mock('sonner', () => ({
   },
 }));
 
-const mockQuestion = {
+const mockQuestion: QuestionRow = {
   id: 'q1',
   question_text: '¿Cuánto cuesta?',
   product_title: 'Test Product',
@@ -51,8 +51,6 @@ const mockQuestion = {
   company_id: 'comp1',
   meli_question_id: 'mq1',
   buyer_id: 'b1',
-  buyer_nickname: 'buyer123',
-  question_text: 'Test question',
   final_answer: null,
   answered_by: null,
   answered_at: null,

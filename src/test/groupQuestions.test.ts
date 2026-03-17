@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { groupQuestions } from "../lib/groupQuestions";
-import type { QuestionRow } from "../../types/question";
+import type { QuestionRow } from "../types/question";
 
 describe("groupQuestions", () => {
   const createMockQuestion = (overrides: Partial<QuestionRow>): QuestionRow => ({
