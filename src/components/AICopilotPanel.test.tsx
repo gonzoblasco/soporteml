@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AICopilotPanel from './AICopilotPanel';
@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // Mock dependencies
 vi.mock('@/integrations/supabase/client', () => {
-  const invoke = vi.fn();
   const auth = {
     getSession: vi.fn(),
   };
@@ -16,7 +15,6 @@ vi.mock('@/integrations/supabase/client', () => {
   
   return {
     supabase: {
-      functions: { invoke },
       auth,
       from,
     },
@@ -62,13 +60,20 @@ const mockQuestion: QuestionRow = {
 };
 
 describe('AICopilotPanel - AI Function Call', () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it('should not call the AI function if user is not authenticated', async () => {
-    const mockInvoke = vi.fn();
-    (supabase.functions.invoke as any) = mockInvoke;
+    const mockFetch = vi.fn();
+    globalThis.fetch = mockFetch;
+
     (supabase.auth.getSession as any).mockResolvedValue({
       data: { session: null },
     });
@@ -92,22 +97,22 @@ describe('AICopilotPanel - AI Function Call', () => {
 
     // Wait a bit to ensure the effect doesn't trigger
     await waitFor(() => {
-      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     }, { timeout: 1000 });
   });
 
-  it('should pass the access token explicitly to the function', async () => {
+  it('should pass the access token explicitly via fetch', async () => {
     const mockAccessToken = 'test-access-token-123';
-    const mockInvoke = vi.fn().mockResolvedValue({
-      data: {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
         summary: 'Test summary',
         draft: 'Test draft',
         missing_data: [],
-      },
-      error: null,
+      }),
     });
+    globalThis.fetch = mockFetch;
 
-    (supabase.functions.invoke as any) = mockInvoke;
     (supabase.auth.getSession as any).mockResolvedValue({
       data: {
         session: {
@@ -139,15 +144,13 @@ describe('AICopilotPanel - AI Function Call', () => {
       </BrowserRouter>
     );
 
-    // Wait for the function to be called
+    // Wait for fetch to be called
     await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalled();
     });
 
     // Verify the Authorization header is passed
-    const callArgs = mockInvoke.mock.calls[0];
-    expect(callArgs[1].headers).toEqual({
-      Authorization: `Bearer ${mockAccessToken}`,
-    });
+    const callArgs = mockFetch.mock.calls[0];
+    expect(callArgs[1].headers.Authorization).toBe(`Bearer ${mockAccessToken}`);
   });
 });
