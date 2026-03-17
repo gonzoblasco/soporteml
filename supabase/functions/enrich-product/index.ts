@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
           const accessToken = await refreshTokenIfNeeded(supabase, tokenRow as TokenRow, appId, secretKey);
           headers.Authorization = `Bearer ${accessToken}`;
         } catch (e) {
-          console.warn("Token refresh failed, trying public fetch:", e.message);
+          console.warn("Token refresh failed, trying public fetch:", (e as Error).message);
         }
       }
 
