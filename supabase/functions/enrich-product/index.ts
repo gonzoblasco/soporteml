@@ -271,7 +271,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
           console.warn("AI enrichment failed:", aiRes.status, errText);
         }
       } catch (e) {
-        console.warn("AI enrichment error:", e.message);
+        console.warn("AI enrichment error:", (e as Error).message);
       }
     }
 
