@@ -12,9 +12,7 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  optimizeDeps: {
-    force: true,
-  },
+  
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     dedupe: ["react", "react-dom"],
