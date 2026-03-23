@@ -1,41 +1,36 @@
 
 
-## Auditoría de conexión Supabase ↔ Sistema
+## Two Issues to Fix
 
-### Diagnóstico
+### 1. Security: Backfill function lacks super admin enforcement (CRITICAL)
 
-El error `supabaseUrl is required` ocurre en el **sitio publicado** (`index-B-L9H9yS.js` = bundle de producción). Significa que `import.meta.env.VITE_SUPABASE_URL` quedó `undefined` cuando se generó el último build de producción. El preview de desarrollo no muestra este error porque Vite inyecta las variables en tiempo real.
+**Problem**: `backfill-ai-answers/index.ts` line 39 fetches `isSuperAdmin` but never checks it. Any authenticated user can trigger cross-company AI backfill.
 
-**Causa raíz:** El último publish se hizo antes o durante el reset de Git, por lo que el bundle estático no tiene las variables de entorno embebidas.
+**Fix**: Add guard after line 39 — if `!isSuperAdmin`, return 403 Forbidden. Also remove the unused `callerCompanyId` RPC call on line 41.
 
-### Mapa de puntos de conexión auditados
-
-```text
-PUNTO DE CONEXIÓN                         ESTADO    NOTAS
-─────────────────────────────────────────────────────────────────
-1. client.ts (createClient)                ✅ OK     Usa VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY
-2. .env (variables)                        ✅ OK     Valores correctos presentes
-3. AuthContext.tsx (auth + memberships)    ✅ OK     Importa desde client.ts
-4. AICopilotPanel.tsx (fetch directo)     ✅ OK     Usa import.meta.env.VITE_SUPABASE_URL
-5. MeliConnectionSection (OAuth redirect) ✅ OK     Usa import.meta.env.VITE_SUPABASE_URL  
-6. OnboardingWizard (OAuth redirect)      ✅ OK     Usa import.meta.env.VITE_SUPABASE_URL
-7. NotificationBell (realtime)            ✅ OK     Usa import.meta.env.VITE_SUPABASE_URL
-8. supabase.functions.invoke (11 usos)    ✅ OK     SDK construye URL internamente
-9. Edge Functions (14 funciones)          ✅ OK     Usan Deno.env SUPABASE_URL
-10. Secrets configurados                  ✅ OK     Todos presentes en Cloud
+```typescript
+// After line 39:
+if (!isSuperAdmin) {
+  return new Response(JSON.stringify({ error: "Forbidden: super admin only" }), {
+    status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 ```
 
-**Todos los puntos de conexión en código están correctos.** El problema es exclusivamente que el sitio publicado necesita re-publicarse para que Vite embeba las env vars en el bundle.
+Note: `is_super_admin()` uses `auth.uid()` internally, but here it's called via the service-role client which has no `auth.uid()`. Need to use the `anonClient` instead so the RPC resolves the caller's identity, OR check the user email directly. Will use the same pattern as `debug-meli` (which works correctly).
 
-### Plan de acción
+**Corrected approach**: Call `is_super_admin` via `anonClient` (which carries the user's JWT), not `supabase` (service role).
 
-1. **Re-publicar la app** — Esto regenera el bundle de producción con las variables de entorno correctas, resolviendo el error `supabaseUrl is required` en soporteml.lovable.app.
+### 2. Production bundle: `supabaseUrl is required`
 
-2. **Quitar `optimizeDeps.force`** — Ya cumplió su propósito (limpiar cache de deps duplicadas). Dejarlo activo ralentiza cada inicio de dev server innecesariamente.
+**Problem**: The published site's static JS bundle was built without env vars embedded. This is a stale build artifact — the code is correct.
 
-### Cambio técnico
+**Fix**: Touch a file to trigger a new build. The `index.html` meta author was already updated. The user needs to **re-publish** to generate a fresh bundle. No code change needed — just a publish action.
 
-**`vite.config.ts`**: Eliminar el bloque `optimizeDeps: { force: true }` que ya no es necesario.
+### Plan
 
-No se requieren otros cambios. El código y la configuración de Cloud están sanos.
+| Step | Action |
+|------|--------|
+| 1 | Fix `backfill-ai-answers/index.ts`: enforce super admin check using `anonClient.rpc("is_super_admin")`, return 403 if false, remove dead `callerCompanyId` line |
+| 2 | Advise user to re-publish to fix the production `supabaseUrl` error |
 
