@@ -36,9 +36,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: isSuperAdmin } = await supabase.rpc("is_super_admin");
-    // Also check via user email as fallback
-    const { data: callerCompanyId } = await supabase.rpc("get_user_company_id", { _user_id: user.id });
+    const { data: isSuperAdmin } = await anonClient.rpc("is_super_admin");
+    if (!isSuperAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: super admin only" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Fetch questions to backfill (pending/needs_human with product_id)
     const { data: questions, error: qErr } = await supabase
