@@ -1,4 +1,9 @@
 # Changelog
+## [Unreleased]
+
+### Security
+- **CRITICAL**: `backfill-ai-answers` Edge Function now enforces super admin check (was fetched but never guarded). Uses `anonClient.rpc("is_super_admin")` with 403 response on failure.
+
 
 Todos los cambios notables de SoporteML se documentan en este archivo.
 
