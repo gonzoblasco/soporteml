@@ -1,6 +1,10 @@
 # Changelog
 ## [Unreleased]
 
+### Fixed
+- Service Worker: switched navigation requests to network-first strategy to prevent stale bundles after deploy
+- Bumped SW cache version to `soporteml-v2` to invalidate old cached assets
+
 ### Security
 - **CRITICAL**: `backfill-ai-answers` Edge Function now enforces super admin check (was fetched but never guarded). Uses `anonClient.rpc("is_super_admin")` with 403 response on failure.
 

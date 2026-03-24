@@ -1,6 +1,5 @@
-const CACHE_NAME = 'soporteml-v1';
+const CACHE_NAME = 'soporteml-v2';
 const STATIC_ASSETS = [
-  '/',
   '/favicon.svg',
   '/apple-touch-icon.png',
   '/manifest.json',
@@ -26,12 +25,26 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
-  // Network-first for API/supabase calls
+  // Skip API/supabase calls entirely
   if (request.url.includes('/rest/') || request.url.includes('/functions/') || request.url.includes('supabase')) {
     return;
   }
 
-  // Cache-first for static assets, network-first for navigation
+  // Navigation requests (HTML): network-first so new deploys are always picked up
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  // Static assets: stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchPromise = fetch(request).then((response) => {
