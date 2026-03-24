@@ -1,36 +1,25 @@
 
 
-## Two Issues to Fix
+## Fix: Service Worker serving stale bundle
 
-### 1. Security: Backfill function lacks super admin enforcement (CRITICAL)
+### Root cause
 
-**Problem**: `backfill-ai-answers/index.ts` line 39 fetches `isSuperAdmin` but never checks it. Any authenticated user can trigger cross-company AI backfill.
-
-**Fix**: Add guard after line 39 — if `!isSuperAdmin`, return 403 Forbidden. Also remove the unused `callerCompanyId` RPC call on line 41.
-
-```typescript
-// After line 39:
-if (!isSuperAdmin) {
-  return new Response(JSON.stringify({ error: "Forbidden: super admin only" }), {
-    status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-```
-
-Note: `is_super_admin()` uses `auth.uid()` internally, but here it's called via the service-role client which has no `auth.uid()`. Need to use the `anonClient` instead so the RPC resolves the caller's identity, OR check the user email directly. Will use the same pattern as `debug-meli` (which works correctly).
-
-**Corrected approach**: Call `is_super_admin` via `anonClient` (which carries the user's JWT), not `supabase` (service role).
-
-### 2. Production bundle: `supabaseUrl is required`
-
-**Problem**: The published site's static JS bundle was built without env vars embedded. This is a stale build artifact — the code is correct.
-
-**Fix**: Touch a file to trigger a new build. The `index.html` meta author was already updated. The user needs to **re-publish** to generate a fresh bundle. No code change needed — just a publish action.
+The Service Worker caches `/` (index.html) with a **cache-first** strategy. After a re-publish, the SW keeps serving the old HTML that references `index-B-L9H9yS.js` — a bundle built without env vars. The new bundle never loads because the SW intercepts the navigation request and returns the cached (stale) HTML.
 
 ### Plan
 
-| Step | Action |
-|------|--------|
-| 1 | Fix `backfill-ai-answers/index.ts`: enforce super admin check using `anonClient.rpc("is_super_admin")`, return 403 if false, remove dead `callerCompanyId` line |
-| 2 | Advise user to re-publish to fix the production `supabaseUrl` error |
+| Step | File | Change |
+|------|------|--------|
+| 1 | `public/sw.js` | Bump `CACHE_NAME` to `soporteml-v2` to invalidate old cache. Switch navigation requests (HTML) to **network-first** strategy so new deploys are always picked up. Keep cache-first only for static assets (images, fonts, manifest). |
+| 2 | `index.html` | Add a cache-busting comment with build timestamp to ensure the file hash changes on publish. |
+
+### Technical detail
+
+**`public/sw.js` changes:**
+- Bump `CACHE_NAME` → `soporteml-v2`
+- Remove `/` from `STATIC_ASSETS` (HTML should not be pre-cached)
+- For navigation requests (`request.mode === 'navigate'`), use network-first with cache fallback
+- For other static assets, keep stale-while-revalidate
+
+This ensures that after any publish, the browser fetches the latest `index.html` from the network, which references the correct JS bundle with env vars embedded.
 
