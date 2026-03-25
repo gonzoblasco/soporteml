@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     // ── AI Enrichment: generate suggestions from MeLi data ──
-    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
     let aiSuggestions: Record<string, unknown> | null = null;
 
     if (AI_API_KEY && meliCache) {
