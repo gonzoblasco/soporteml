@@ -1,25 +1,28 @@
 
 
-## Fix: Service Worker serving stale bundle
+## Fix: supabaseUrl is required on soporteml.com
 
-### Root cause
+### Root cause (confirmed via browser)
 
-The Service Worker caches `/` (index.html) with a **cache-first** strategy. After a re-publish, the SW keeps serving the old HTML that references `index-B-L9H9yS.js` — a bundle built without env vars. The new bundle never loads because the SW intercepts the navigation request and returns the cached (stale) HTML.
+The published site at `soporteml.com` is serving `index-B-L9H9yS.js` — an old production bundle compiled **before** the environment variables were configured. The code in `src/integrations/supabase/client.ts` is correct, but Vite embeds `import.meta.env` values at **build time**. Since no successful publish has occurred since the fix, the old bundle persists.
 
 ### Plan
 
-| Step | File | Change |
-|------|------|--------|
-| 1 | `public/sw.js` | Bump `CACHE_NAME` to `soporteml-v2` to invalidate old cache. Switch navigation requests (HTML) to **network-first** strategy so new deploys are always picked up. Keep cache-first only for static assets (images, fonts, manifest). |
-| 2 | `index.html` | Add a cache-busting comment with build timestamp to ensure the file hash changes on publish. |
+| Step | Action |
+|------|--------|
+| 1 | **Add runtime fallback** in `src/integrations/supabase/client.ts` — if `import.meta.env.VITE_SUPABASE_URL` is empty/undefined at runtime, fall back to the hardcoded production values. This makes the app resilient to missing env vars in any future stale-build scenario. |
+| 2 | **Publish the app** — triggers a new Vite build that embeds the env vars correctly into the JS bundle, replacing `index-B-L9H9yS.js` with a fresh one. |
 
 ### Technical detail
 
-**`public/sw.js` changes:**
-- Bump `CACHE_NAME` → `soporteml-v2`
-- Remove `/` from `STATIC_ASSETS` (HTML should not be pre-cached)
-- For navigation requests (`request.mode === 'navigate'`), use network-first with cache fallback
-- For other static assets, keep stale-while-revalidate
+**`src/integrations/supabase/client.ts`** — Add fallback constants (the values are already public/non-secret — they're the anon key and project URL visible in `.env.example`):
 
-This ensures that after any publish, the browser fetches the latest `index.html` from the network, which references the correct JS bundle with env vars embedded.
+```typescript
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://ropbkdqhqdeiwrenrmjt.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+```
+
+**Why a fallback?** This file is auto-generated and normally shouldn't be edited, but this is a one-line safety net. If Lovable regenerates it, the fallback disappears but so does the problem (because regeneration means a fresh build with env vars). The fallback only helps when a stale bundle gets served.
+
+**Alternative (no code change):** Simply publish — the new build will embed the correct values. But the fallback protects against future stale-bundle scenarios.
 
