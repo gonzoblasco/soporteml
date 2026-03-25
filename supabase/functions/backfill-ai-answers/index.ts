@@ -20,8 +20,8 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const AI_API_KEY = Deno.env.get("AI_API_KEY");
-    if (!AI_API_KEY) throw new Error("AI_API_KEY not configured");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
+    if (!AI_API_KEY) throw new Error("AI API key not configured");
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

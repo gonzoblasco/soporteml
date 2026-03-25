@@ -15,7 +15,7 @@ export async function generateAiAnswer(
     businessKnowledge?: string;
   }
 ): Promise<{ answer: string; category: string; requires_human: boolean; requires_human_reason: string; confidence: number }> {
-  const AI_API_KEY = Deno.env.get("AI_API_KEY");
+  const AI_API_KEY = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
   if (!AI_API_KEY) {
     return { answer: "", category: "Otro", requires_human: false, requires_human_reason: "", confidence: 0 };
   }
@@ -85,7 +85,7 @@ Datos del producto (publicación MeLi):
 ${productContext}`;
 
   try {
-    const aiUrl = Deno.env.get("AI_API_URL") || "https://api.openai.com/v1/chat/completions";
+    const aiUrl = Deno.env.get("AI_API_URL") || "https://ai.gateway.lovable.dev/v1/chat/completions";
     const res = await fetch(aiUrl, {
       method: "POST",
       headers: {
@@ -93,7 +93,7 @@ ${productContext}`;
         Authorization: `Bearer ${AI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: Deno.env.get("AI_MODEL") || "gpt-4o-mini",
+        model: Deno.env.get("AI_MODEL") || "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -144,7 +144,7 @@ export async function generateCopilotDraft(
     previousAnswer?: string | null;
   }
 ): Promise<{ summary: string; draft: string; missing_data: string[] }> {
-  const AI_API_KEY = Deno.env.get("AI_API_KEY");
+  const AI_API_KEY = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
   if (!AI_API_KEY) {
     return { summary: "Error: AI_API_KEY not configured", draft: "", missing_data: [] };
   }
@@ -188,7 +188,7 @@ Datos del producto (publicación MeLi):
 ${productContext}`;
 
   try {
-    const aiUrl = Deno.env.get("AI_API_URL") || "https://api.openai.com/v1/chat/completions";
+    const aiUrl = Deno.env.get("AI_API_URL") || "https://ai.gateway.lovable.dev/v1/chat/completions";
     const res = await fetch(aiUrl, {
       method: "POST",
       headers: {
@@ -196,7 +196,7 @@ ${productContext}`;
         Authorization: `Bearer ${AI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: Deno.env.get("AI_MODEL") || "gpt-4o-mini",
+        model: Deno.env.get("AI_MODEL") || "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

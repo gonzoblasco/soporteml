@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     // ── AI Enrichment: generate suggestions from MeLi data ──
-    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
     let aiSuggestions: Record<string, unknown> | null = null;
 
     if (AI_API_KEY && meliCache) {
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
         }
         if (mc.description) contextParts.push(`Descripción MeLi:\n${mc.description.slice(0, 2000)}`);
 
-        const aiUrl = Deno.env.get("AI_API_URL") || "https://api.openai.com/v1/chat/completions";
+        const aiUrl = Deno.env.get("AI_API_URL") || "https://ai.gateway.lovable.dev/v1/chat/completions";
         const aiRes = await fetch(aiUrl, {
           method: "POST",
           headers: {
@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: Deno.env.get("AI_MODEL") || "gpt-4o-mini",
+            model: Deno.env.get("AI_MODEL") || "google/gemini-3-flash-preview",
             messages: [
               {
                 role: "system",
