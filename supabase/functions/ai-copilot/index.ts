@@ -82,10 +82,10 @@ serve(async (req) => {
       });
     }
 
-    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY") || Deno.env.get("LOVABLE_API_KEY");
     if (!AI_API_KEY) {
-      console.error("ai-copilot: AI_API_KEY not configured");
-      throw new Error("AI_API_KEY not configured");
+      console.error("ai-copilot: Neither AI_API_KEY nor LOVABLE_API_KEY configured");
+      throw new Error("AI API key not configured");
     }
 
     const toneLabel = ai_tone || "profesional";
