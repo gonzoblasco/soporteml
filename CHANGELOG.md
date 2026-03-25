@@ -2,6 +2,7 @@
 ## [Unreleased]
 
 ### Fixed
+- **AI Gateway migration**: All edge functions (`ai-copilot`, `ai-service`, `backfill-ai-answers`, `enrich-product`) now fallback to `LOVABLE_API_KEY` when `AI_API_KEY` is not set, and use the Lovable AI Gateway (`ai.gateway.lovable.dev`) with model `google/gemini-3-flash-preview` as default instead of OpenAI.
 - **Supabase client resilience**: Created `src/lib/supabase-init.ts` wrapper with hardcoded production fallbacks to prevent `supabaseUrl is required` crash on stale CDN/SW bundles. All 41 files updated to import from wrapper.
 - Service Worker: switched navigation requests to network-first strategy to prevent stale bundles after deploy
 - Bumped SW cache version to `soporteml-v2` to invalidate old cached assets
