@@ -7,6 +7,7 @@
 
 ### Security
 - **CRITICAL**: `backfill-ai-answers` Edge Function now enforces super admin check (was fetched but never guarded). Uses `anonClient.rpc("is_super_admin")` with 403 response on failure.
+- **CRITICAL**: Fixed privilege escalation on `user_roles` table — replaced recursive `Admins can manage roles` RLS policy (which allowed any admin to grant roles to anyone) with `Super admin can manage roles` restricted to `is_super_admin()` only.
 
 
 Todos los cambios notables de SoporteML se documentan en este archivo.
