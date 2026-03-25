@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bot, Save, Zap, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

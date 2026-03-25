@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProductList } from '@/components/catalog/ProductList';
 import { ProductForm } from '@/components/catalog/ProductForm';

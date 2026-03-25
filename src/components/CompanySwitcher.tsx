@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Building2, ChevronDown, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import {
   DropdownMenu,
   DropdownMenuContent,

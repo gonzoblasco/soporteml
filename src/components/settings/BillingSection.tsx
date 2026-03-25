@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { useAuth } from '@/contexts/AuthContext';
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw, Info, CreditCard, Crown } from 'lucide-react';
 import { SUPER_ADMIN_EMAIL } from '@/lib/constants';
