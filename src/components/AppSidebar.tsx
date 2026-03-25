@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { NotificationBell } from '@/components/NotificationBell';
 import { CompanySwitcher } from '@/components/CompanySwitcher';

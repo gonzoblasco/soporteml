@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

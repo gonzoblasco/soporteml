@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Archive, RotateCcw, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { toast } from 'sonner';
 import { logAuditEntry } from '@/lib/auditLog';
 import { useAuth } from '@/contexts/AuthContext';

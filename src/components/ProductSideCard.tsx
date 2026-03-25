@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CompletenessIndicator } from '@/components/catalog/CompletenessIndicator';
 import { ProductFormDrawer, type NewProductParams } from '@/components/catalog/ProductFormDrawer';

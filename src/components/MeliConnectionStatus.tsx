@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { CheckCircle2, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { computeHealth, getHealthUI, type MeliHealthInfo } from '@/lib/meliTokenHealth';
 import { useAuth } from '@/contexts/AuthContext';

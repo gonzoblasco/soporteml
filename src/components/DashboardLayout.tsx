@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-init';
 import { toast } from 'sonner';
 import { AlertTriangle, Inbox } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
