@@ -2,6 +2,7 @@
 ## [Unreleased]
 
 ### Fixed
+- **Supabase client resilience**: Created `src/lib/supabase-init.ts` wrapper with hardcoded production fallbacks to prevent `supabaseUrl is required` crash on stale CDN/SW bundles. All 41 files updated to import from wrapper.
 - Service Worker: switched navigation requests to network-first strategy to prevent stale bundles after deploy
 - Bumped SW cache version to `soporteml-v2` to invalidate old cached assets
 
