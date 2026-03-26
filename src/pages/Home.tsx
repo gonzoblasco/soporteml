@@ -50,6 +50,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [rankingMode, setRankingMode] = useState<RankingMode>('products');
   const [tokenAlert, setTokenAlert] = useState<TokenAlert>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(30);
 
   useEffect(() => {
     const fetchData = async () => {
