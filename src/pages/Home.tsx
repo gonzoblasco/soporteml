@@ -152,7 +152,26 @@ const Home = () => {
     return { answeredToday, pending, avgLabel };
   }, [questions, today]);
 
-  const categoryData = useMemo(() => {
+  const aiMetrics = useMemo(() => {
+    const withAiAnswer = questions.filter((q: any) => q.ai_suggested_answer);
+    const totalGenerated = withAiAnswer.length;
+    const autoPublished = questions.filter((q: any) => q.status === 'auto_published' || q.answered_by_ai).length;
+    const humanAnswered = questions.filter((q: any) => q.status === 'published' && !q.answered_by_ai && q.answered_by).length;
+
+    // Avg confidence
+    const withConfidence = questions.filter((q: any) => q.ai_confidence != null);
+    const avgConfidence = withConfidence.length > 0
+      ? Math.round((withConfidence.reduce((s: number, q: any) => s + Number(q.ai_confidence), 0) / withConfidence.length) * 100)
+      : 0;
+
+    // AI automation rate
+    const totalAnswered = autoPublished + humanAnswered;
+    const automationRate = totalAnswered > 0 ? Math.round((autoPublished / totalAnswered) * 100) : 0;
+
+    return { totalGenerated, autoPublished, humanAnswered, avgConfidence, automationRate };
+  }, [questions]);
+
+
     const catMap: Record<string, number> = {};
     questions.forEach((q: any) => {
       const cat = q.ai_category ?? 'Sin categoría';
