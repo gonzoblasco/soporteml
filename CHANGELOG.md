@@ -3,6 +3,7 @@
 
 ### Added
 - **Dashboard: Métricas del Copiloto IA** — Nueva card en Home con 4 KPIs (generaciones IA, auto-publicadas, confianza promedio, tasa de automatización) y barra visual IA vs Humano.
+- **Dashboard: Filtro por rango de fechas** — Selector 7d / 30d / 90d / Todo que filtra todas las métricas, gráficos y rankings del dashboard.
 
 ### Fixed
 - **AI Gateway migration**: All edge functions (`ai-copilot`, `ai-service`, `backfill-ai-answers`, `enrich-product`) now fallback to `LOVABLE_API_KEY` when `AI_API_KEY` is not set, and use the Lovable AI Gateway (`ai.gateway.lovable.dev`) with model `google/gemini-3-flash-preview` as default instead of OpenAI.
