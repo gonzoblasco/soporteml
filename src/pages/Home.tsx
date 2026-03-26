@@ -251,9 +251,27 @@ const Home = () => {
 
   return (
     <div className="p-4 sm:p-6 overflow-y-auto h-full space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Resumen de rendimiento del equipo</p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border/50 p-0.5">
+          <CalendarDays className="w-3.5 h-3.5 text-muted-foreground ml-2" />
+          {DATE_RANGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setDateRange(opt.value)}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                dateRange === opt.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Token Alert Banner */}
