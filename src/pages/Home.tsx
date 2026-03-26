@@ -346,7 +346,7 @@ const Home = () => {
         </motion.div>
       )}
 
-
+      {categoryData.length === 0 && agentData.length === 0 && recentQuestions.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay datos suficientes todavía.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
