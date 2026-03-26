@@ -51,7 +51,7 @@ const Home = () => {
       const [{ data: qs }, { data: recent }, { data: token }] = await Promise.all([
         supabase
           .from('questions')
-          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)')
+          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, ai_suggested_answer, answered_by_ai, ai_confidence, products(title)')
           .eq('company_id', currentCompanyId)
           .order('created_at', { ascending: false })
           .limit(1000),
