@@ -150,13 +150,13 @@ const Home = () => {
   const today = new Date().toISOString().slice(0, 10);
 
   const kpis = useMemo(() => {
-    const answeredToday = questions.filter(
+    const answeredToday = filteredQuestions.filter(
       (q) => q.status === 'published' && q.answered_at?.slice(0, 10) === today
     ).length;
 
-    const pending = questions.filter((q) => q.status === 'pending').length;
+    const pending = filteredQuestions.filter((q) => q.status === 'pending').length;
 
-    const withTimes = questions.filter((q) => q.status === 'published' && q.answered_at && q.created_at);
+    const withTimes = filteredQuestions.filter((q) => q.status === 'published' && q.answered_at && q.created_at);
     let avgMinutes = 0;
     if (withTimes.length > 0) {
       const totalMs = withTimes.reduce((sum: number, q: any) => {
@@ -167,30 +167,28 @@ const Home = () => {
     const avgLabel = avgMinutes < 1 ? '< 1 min' : avgMinutes < 60 ? `${avgMinutes} min` : `${Math.round(avgMinutes / 60)}h`;
 
     return { answeredToday, pending, avgLabel };
-  }, [questions, today]);
+  }, [filteredQuestions, today]);
 
   const aiMetrics = useMemo(() => {
-    const withAiAnswer = questions.filter((q: any) => q.ai_suggested_answer);
+    const withAiAnswer = filteredQuestions.filter((q: any) => q.ai_suggested_answer);
     const totalGenerated = withAiAnswer.length;
-    const autoPublished = questions.filter((q: any) => q.status === 'auto_published' || q.answered_by_ai).length;
-    const humanAnswered = questions.filter((q: any) => q.status === 'published' && !q.answered_by_ai && q.answered_by).length;
+    const autoPublished = filteredQuestions.filter((q: any) => q.status === 'auto_published' || q.answered_by_ai).length;
+    const humanAnswered = filteredQuestions.filter((q: any) => q.status === 'published' && !q.answered_by_ai && q.answered_by).length;
 
-    // Avg confidence
-    const withConfidence = questions.filter((q: any) => q.ai_confidence != null);
+    const withConfidence = filteredQuestions.filter((q: any) => q.ai_confidence != null);
     const avgConfidence = withConfidence.length > 0
       ? Math.round((withConfidence.reduce((s: number, q: any) => s + Number(q.ai_confidence), 0) / withConfidence.length) * 100)
       : 0;
 
-    // AI automation rate
     const totalAnswered = autoPublished + humanAnswered;
     const automationRate = totalAnswered > 0 ? Math.round((autoPublished / totalAnswered) * 100) : 0;
 
     return { totalGenerated, autoPublished, humanAnswered, avgConfidence, automationRate };
-  }, [questions]);
+  }, [filteredQuestions]);
 
   const categoryData = useMemo(() => {
     const catMap: Record<string, number> = {};
-    questions.forEach((q: any) => {
+    filteredQuestions.forEach((q: any) => {
       const cat = q.ai_category ?? 'Sin categoría';
       catMap[cat] = (catMap[cat] || 0) + 1;
     });
@@ -201,13 +199,13 @@ const Home = () => {
         value,
         fill: CATEGORY_COLORS[name] ?? 'hsl(220, 10%, 50%)',
       }));
-  }, [questions]);
+  }, [filteredQuestions]);
 
-  const totalQuestions = useMemo(() => questions.length, [questions]);
+  const totalQuestions = useMemo(() => filteredQuestions.length, [filteredQuestions]);
 
   const topProducts = useMemo(() => {
     const prodMap: Record<string, { name: string; count: number }> = {};
-    questions.forEach((q: any) => {
+    filteredQuestions.forEach((q: any) => {
       const pid = q.product_id as string;
       if (!pid) return;
       if (!prodMap[pid]) prodMap[pid] = { name: q.products?.title ?? 'Producto', count: 0 };
@@ -217,11 +215,11 @@ const Home = () => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
       .map((p, i) => ({ rank: i + 1, name: p.name, questions: p.count }));
-  }, [questions]);
+  }, [filteredQuestions]);
 
   const topBuyers = useMemo(() => {
     const buyerMap: Record<string, { name: string; count: number }> = {};
-    questions.forEach((q: any) => {
+    filteredQuestions.forEach((q: any) => {
       const key = q.buyer_nickname ?? q.buyer_id;
       if (!key) return;
       if (!buyerMap[key]) buyerMap[key] = { name: key, count: 0 };
@@ -231,7 +229,7 @@ const Home = () => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
       .map((b, i) => ({ rank: i + 1, name: b.name, questions: b.count }));
-  }, [questions]);
+  }, [filteredQuestions]);
 
   const rankingData = rankingMode === 'products' ? topProducts : topBuyers;
 
