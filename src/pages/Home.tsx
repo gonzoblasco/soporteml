@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2, Bot, Zap, BarChart3 } from 'lucide-react';
 import { KpiSkeleton, ChartCardSkeleton } from '@/components/SkeletonCards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,7 +51,7 @@ const Home = () => {
       const [{ data: qs }, { data: recent }, { data: token }] = await Promise.all([
         supabase
           .from('questions')
-          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)')
+          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, ai_suggested_answer, answered_by_ai, ai_confidence, products(title)')
           .eq('company_id', currentCompanyId)
           .order('created_at', { ascending: false })
           .limit(1000),
@@ -151,6 +151,25 @@ const Home = () => {
 
     return { answeredToday, pending, avgLabel };
   }, [questions, today]);
+
+  const aiMetrics = useMemo(() => {
+    const withAiAnswer = questions.filter((q: any) => q.ai_suggested_answer);
+    const totalGenerated = withAiAnswer.length;
+    const autoPublished = questions.filter((q: any) => q.status === 'auto_published' || q.answered_by_ai).length;
+    const humanAnswered = questions.filter((q: any) => q.status === 'published' && !q.answered_by_ai && q.answered_by).length;
+
+    // Avg confidence
+    const withConfidence = questions.filter((q: any) => q.ai_confidence != null);
+    const avgConfidence = withConfidence.length > 0
+      ? Math.round((withConfidence.reduce((s: number, q: any) => s + Number(q.ai_confidence), 0) / withConfidence.length) * 100)
+      : 0;
+
+    // AI automation rate
+    const totalAnswered = autoPublished + humanAnswered;
+    const automationRate = totalAnswered > 0 ? Math.round((autoPublished / totalAnswered) * 100) : 0;
+
+    return { totalGenerated, autoPublished, humanAnswered, avgConfidence, automationRate };
+  }, [questions]);
 
   const categoryData = useMemo(() => {
     const catMap: Record<string, number> = {};
@@ -271,6 +290,61 @@ const Home = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* AI Copilot Metrics */}
+      {aiMetrics.totalGenerated > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+          <Card className="glass-panel">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-primary" />
+                <CardTitle className="text-sm font-medium">Copiloto IA</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <Zap className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.totalGenerated}</div>
+                  <div className="text-[11px] text-muted-foreground">Generaciones IA</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <CheckCircle2 className="w-4 h-4 mx-auto mb-1 text-emerald-500" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.autoPublished}</div>
+                  <div className="text-[11px] text-muted-foreground">Auto-publicadas</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <BarChart3 className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.avgConfidence}%</div>
+                  <div className="text-[11px] text-muted-foreground">Confianza prom.</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <Bot className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.automationRate}%</div>
+                  <div className="text-[11px] text-muted-foreground">Tasa automatización</div>
+                </div>
+              </div>
+              {/* AI vs Human bar */}
+              <div className="mt-4 space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>IA: {aiMetrics.autoPublished}</span>
+                  <span>Humano: {aiMetrics.humanAnswered}</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-muted flex overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-500 rounded-l-full"
+                    style={{ width: `${aiMetrics.automationRate}%` }}
+                  />
+                  <div
+                    className="h-full bg-muted-foreground/30 transition-all duration-500 rounded-r-full"
+                    style={{ width: `${100 - aiMetrics.automationRate}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {categoryData.length === 0 && agentData.length === 0 && recentQuestions.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay datos suficientes todavía.</p>
