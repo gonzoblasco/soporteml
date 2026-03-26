@@ -291,7 +291,62 @@ const Home = () => {
         ))}
       </div>
 
-      {categoryData.length === 0 && agentData.length === 0 && recentQuestions.length === 0 ? (
+      {/* AI Copilot Metrics */}
+      {aiMetrics.totalGenerated > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+          <Card className="glass-panel">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-primary" />
+                <CardTitle className="text-sm font-medium">Copiloto IA</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <Zap className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.totalGenerated}</div>
+                  <div className="text-[11px] text-muted-foreground">Generaciones IA</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <CheckCircle2 className="w-4 h-4 mx-auto mb-1 text-emerald-500" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.autoPublished}</div>
+                  <div className="text-[11px] text-muted-foreground">Auto-publicadas</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <BarChart3 className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.avgConfidence}%</div>
+                  <div className="text-[11px] text-muted-foreground">Confianza prom.</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <Bot className="w-4 h-4 mx-auto mb-1 text-primary" />
+                  <div className="text-xl font-bold text-foreground">{aiMetrics.automationRate}%</div>
+                  <div className="text-[11px] text-muted-foreground">Tasa automatización</div>
+                </div>
+              </div>
+              {/* AI vs Human bar */}
+              <div className="mt-4 space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>IA: {aiMetrics.autoPublished}</span>
+                  <span>Humano: {aiMetrics.humanAnswered}</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-muted flex overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-500 rounded-l-full"
+                    style={{ width: `${aiMetrics.automationRate}%` }}
+                  />
+                  <div
+                    className="h-full bg-muted-foreground/30 transition-all duration-500 rounded-r-full"
+                    style={{ width: `${100 - aiMetrics.automationRate}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+
         <p className="text-sm text-muted-foreground">No hay datos suficientes todavía.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
