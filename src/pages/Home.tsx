@@ -138,6 +138,14 @@ const Home = () => {
     }
   }, [loading, questions, navigate]);
 
+  // --- Date range filter ---
+  const filteredQuestions = useMemo(() => {
+    if (dateRange === 'all') return questions;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - dateRange);
+    return questions.filter((q: any) => new Date(q.created_at) >= cutoff);
+  }, [questions, dateRange]);
+
   // --- Derived data ---
   const today = new Date().toISOString().slice(0, 10);
 
