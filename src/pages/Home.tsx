@@ -171,7 +171,7 @@ const Home = () => {
     return { totalGenerated, autoPublished, humanAnswered, avgConfidence, automationRate };
   }, [questions]);
 
-
+  const categoryData = useMemo(() => {
     const catMap: Record<string, number> = {};
     questions.forEach((q: any) => {
       const cat = q.ai_category ?? 'Sin categoría';
