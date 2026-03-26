@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase-init';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2, Bot, Zap, BarChart3 } from 'lucide-react';
+import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2, Bot, Zap, BarChart3, CalendarDays } from 'lucide-react';
 import { KpiSkeleton, ChartCardSkeleton } from '@/components/SkeletonCards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
@@ -23,6 +23,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 type RankingMode = 'products' | 'buyers';
+type DateRange = 7 | 30 | 90 | 'all';
+
+const DATE_RANGE_OPTIONS: { label: string; value: DateRange }[] = [
+  { label: '7d', value: 7 },
+  { label: '30d', value: 30 },
+  { label: '90d', value: 90 },
+  { label: 'Todo', value: 'all' },
+];
 
 interface RecentQuestion {
   id: string;
