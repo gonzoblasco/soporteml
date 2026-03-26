@@ -1,6 +1,9 @@
 # Changelog
 ## [Unreleased]
 
+### Added
+- **Dashboard: Métricas del Copiloto IA** — Nueva card en Home con 4 KPIs (generaciones IA, auto-publicadas, confianza promedio, tasa de automatización) y barra visual IA vs Humano.
+
 ### Fixed
 - **AI Gateway migration**: All edge functions (`ai-copilot`, `ai-service`, `backfill-ai-answers`, `enrich-product`) now fallback to `LOVABLE_API_KEY` when `AI_API_KEY` is not set, and use the Lovable AI Gateway (`ai.gateway.lovable.dev`) with model `google/gemini-3-flash-preview` as default instead of OpenAI.
 - **Supabase client resilience**: Created `src/lib/supabase-init.ts` wrapper with hardcoded production fallbacks to prevent `supabaseUrl is required` crash on stale CDN/SW bundles. All 41 files updated to import from wrapper.
