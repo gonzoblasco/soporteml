@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2, Bot, Zap, BarChart3 } from 'lucide-react';
 import { KpiSkeleton, ChartCardSkeleton } from '@/components/SkeletonCards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
