@@ -23,13 +23,15 @@ const SyncButton = () => {
 
   const handleSync = async () => {
     setSyncing(true);
-    const { error } = await supabase.functions.invoke('sync-meli-questions', {
+    const { error, data } = await supabase.functions.invoke('sync-meli-questions', {
       body: { company_id: currentCompanyId },
     });
-    toast(error
-      ? { title: 'Error', description: 'No se pudo sincronizar. Intentá de nuevo.', variant: 'destructive' }
-      : { title: 'Sincronización completada', description: 'Las preguntas fueron actualizadas.' }
-    );
+    if (error) {
+      const msg = data?.error || error.message || 'No se pudo sincronizar. Intentá de nuevo.';
+      toast({ title: 'Error de sincronización', description: msg, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sincronización completada', description: 'Las preguntas fueron actualizadas.' });
+    }
     setSyncing(false);
   };
 
@@ -102,11 +104,12 @@ const MeliConnectionSection = () => {
 
   const handleDisconnect = async () => {
     setDisconnecting(true);
-    const { error } = await supabase.functions.invoke('disconnect-meli', {
+    const { error, data } = await supabase.functions.invoke('disconnect-meli', {
       body: { company_id: currentCompanyId },
     });
     if (error) {
-      toast({ title: 'Error', description: 'No se pudo desconectar. Intentá de nuevo.', variant: 'destructive' });
+      const msg = data?.error || error.message || 'No se pudo desconectar. Intentá de nuevo.';
+      toast({ title: 'Error al desconectar', description: msg, variant: 'destructive' });
     } else {
       toast({ title: 'Desconectado', description: 'Tu cuenta de MercadoLibre fue desconectada.' });
       setTokenInfo(null);
