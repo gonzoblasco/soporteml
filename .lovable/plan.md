@@ -1,63 +1,55 @@
 
 
-## Fix: `supabaseUrl is required` on custom domain
+## Diagnóstico: Error al desconectar y forzar sincronización de MercadoLibre
 
-### Problem
+### Problema identificado
 
-The custom domain is still serving `index-B-L9H9yS.js` — a stale bundle where Vite inlined empty/undefined env vars. Since `import.meta.env` is replaced at **compile time**, no runtime patch can fix an already-compiled bundle. And `src/integrations/supabase/client.ts` is auto-generated and cannot be edited.
+Ambos botones ("Desconectar" y "Forzar sincronización") fallan con el mismo error genérico. La investigación revela:
 
-### Solution
+1. **La edge function `disconnect-meli` no tiene logs** — ni siquiera boot/shutdown. Esto indica que probablemente no está deployada o falla inmediatamente al iniciar.
+2. **La edge function `sync-meli-questions` solo muestra boot/shutdown** sin procesamiento real, sugiriendo que falla silenciosamente (posiblemente por `MELI_APP_ID` o `MELI_SECRET_KEY` no configurados).
+3. **Ambas funciones comparten el patrón de verificación** con `has_membership_role` RPC — si el usuario no tiene rol `admin` en `memberships`, reciben 403.
 
-Add a **bootstrap script** in `index.html` that runs **before** the app module loads. This script will:
-1. Detect if the Supabase client throws the `supabaseUrl is required` error
-2. Monkey-patch the `createClient` export to inject the correct production values
+### Causa raíz probable
 
-However, since `import.meta.env` is statically replaced, the simpler and more reliable approach is:
+- **`disconnect-meli` no está deployada.** Sin logs de ningún tipo = la función no existe en el runtime.
+- **Posible falta de secrets** (`MELI_APP_ID`, `MELI_SECRET_KEY`) que causan crash en `sync-meli-questions`.
 
-**Create a non-auto-generated initialization file** (`src/lib/supabase-init.ts`) that wraps the auto-generated client with a try/catch fallback, and update all imports to use it instead.
+### Plan de corrección
 
-### Plan
+#### 1. Deploy de `disconnect-meli`
+Asegurar que la función esté deployada usando la herramienta de deploy.
 
-| Step | Action |
-|------|--------|
-| 1 | Create `src/lib/supabase-init.ts` — tries to import from `@/integrations/supabase/client`. If the client was created with empty URL (stale bundle), it catches the error and creates a new client with hardcoded production values. Re-exports `supabase`. |
-| 2 | Update all imports across the codebase — replace `import { supabase } from "@/integrations/supabase/client"` with `import { supabase } from "@/lib/supabase-init"` in every file that uses it (AuthContext, edge function callers, hooks, pages, etc.). |
-| 3 | Publish the app — triggers a fresh build. Even with the fresh build, the fallback remains as a safety net. |
+#### 2. Hacer `disconnect-meli` más resiliente
+El disconnect actual es simple (delete from `meli_tokens`) y no debería fallar. Pero agregaremos mejor logging y manejo de errores para diagnosticar si el problema es de permisos (403) o de base de datos.
 
-### Technical detail
+#### 3. Mejorar el manejo de errores en el frontend
+En `MeliConnectionSection.tsx`, mostrar el mensaje de error específico del backend en lugar del genérico "No se pudo desconectar":
 
-**`src/lib/supabase-init.ts`**:
 ```typescript
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
-
-const FALLBACK_URL = "https://ropbkdqhqdeiwrenrmjt.supabase.co";
-const FALLBACK_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvcGJrZHFocWRlaXdyZW5ybWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NTYyNTAsImV4cCI6MjA4NzQzMjI1MH0.NJStUzfzL5M76pOtlfUVa_Whf0WS74k49xTqRJapXoA";
-
-const url = import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || FALLBACK_KEY;
-
-export const supabase = createClient<Database>(url, key, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+const handleDisconnect = async () => {
+  setDisconnecting(true);
+  const { error, data } = await supabase.functions.invoke('disconnect-meli', {
+    body: { company_id: currentCompanyId },
+  });
+  if (error) {
+    // Mostrar el error real para facilitar debugging
+    const msg = error.message || 'No se pudo desconectar. Intentá de nuevo.';
+    toast({ title: 'Error', description: msg, variant: 'destructive' });
+  } else { ... }
+};
 ```
 
-**Files to update** (import path change only):
-- `src/contexts/AuthContext.tsx`
-- `src/api/ai.ts`
-- `src/components/AICopilotPanel.tsx`
-- `src/components/MeliConnectionStatus.tsx`
-- `src/components/OnboardingWizard.tsx`
-- `src/components/settings/*.tsx` (multiple)
-- `src/components/admin/*.tsx`
-- `src/components/catalog/*.tsx`
-- `src/pages/*.tsx` (Inbox, CatalogPage, etc.)
-- `src/lib/auditLog.ts`
-- Any other file importing from `@/integrations/supabase/client`
+Mismo patrón para `SyncButton`.
 
-These are public, non-secret values (the anon key is already visible in `.env.example` and in the HTML source). The fallback ensures the app works even when served from a CDN-cached stale bundle.
+#### 4. Verificar secrets configurados
+Confirmar que `MELI_APP_ID` y `MELI_SECRET_KEY` estén configurados como secrets en el proyecto.
+
+#### 5. Actualizar CHANGELOG
+
+### Detalle técnico
+
+- Se re-deployará `disconnect-meli` para que esté disponible
+- Se mejorarán los mensajes de error en ambos botones para mostrar la causa real (403 forbidden, function not found, etc.)
+- Se verificará la existencia de los secrets necesarios
 
