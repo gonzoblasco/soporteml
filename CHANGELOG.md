@@ -16,6 +16,13 @@
 - Bumped SW cache version to `soporteml-v2` to invalidate old cached assets
 
 ### Security
+- **CRITICAL**: Removed permissive SELECT policy on `meli_tokens` that exposed raw OAuth `access_token`/`refresh_token` to all company members. Client reads now routed through `meli_connection_status` view only.
+- **CRITICAL**: Restricted DELETE policy on `meli_tokens` from `public` to `authenticated` role to prevent unauthenticated evaluation.
+- **audit-log edge function**: Added company membership verification before inserting audit entries, preventing cross-company audit trail pollution.
+- **MeLi API error responses**: `publish-meli-answer` and `enrich-product` now return generic error messages instead of raw MercadoLibre API error bodies.
+- **memberships RLS**: Added admin-scoped INSERT/UPDATE/DELETE policies so company admins can manage their own team members.
+
+### Security (previous)
 - **CRITICAL**: `backfill-ai-answers` Edge Function now enforces super admin check (was fetched but never guarded). Uses `anonClient.rpc("is_super_admin")` with 403 response on failure.
 - **CRITICAL**: Fixed privilege escalation on `user_roles` table — replaced recursive `Admins can manage roles` RLS policy (which allowed any admin to grant roles to anyone) with `Super admin can manage roles` restricted to `is_super_admin()` only.
 
