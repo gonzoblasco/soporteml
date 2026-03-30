@@ -123,10 +123,9 @@ Deno.serve(async (req) => {
       ]);
 
       if (!itemRes.ok) {
+        console.error("MeLi API error:", itemRes.status, await itemRes.text());
         return new Response(JSON.stringify({
-          error: "MeLi API error",
-          status: itemRes.status,
-          detail: await itemRes.text(),
+          error: "Error communicating with MercadoLibre. Please try again.",
         }), {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

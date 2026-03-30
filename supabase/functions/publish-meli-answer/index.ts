@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
         .eq("id", question_id);
 
       return new Response(
-        JSON.stringify({ error: "MeLi API error", details: meliBody }),
+        JSON.stringify({ error: "Error communicating with MercadoLibre. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
