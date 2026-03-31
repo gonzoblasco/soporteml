@@ -2,6 +2,7 @@
 ## [Unreleased]
 
 ### Added
+- **Docs: MERCADOLIBRE_INTEGRATION.md** — Documentación técnica exhaustiva de la integración con MercadoLibre: arquitectura, OAuth PKCE, pipeline de ingesta, motor de decisión autopilot, detalle de cada edge function, variables de entorno, y guía de testing local.
 - **Dashboard: Métricas del Copiloto IA** — Nueva card en Home con 4 KPIs (generaciones IA, auto-publicadas, confianza promedio, tasa de automatización) y barra visual IA vs Humano.
 - **Dashboard: Filtro por rango de fechas** — Selector 7d / 30d / 90d / Todo que filtra todas las métricas, gráficos y rankings del dashboard.
 
