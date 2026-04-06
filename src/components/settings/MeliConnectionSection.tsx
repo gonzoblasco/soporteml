@@ -56,10 +56,11 @@ const MeliConnectionSection = () => {
     if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
     const [tokenRes, settingsRes] = await Promise.all([
-      supabase.from('meli_connection_status').select('meli_user_id, updated_at, expires_at, has_refresh_token').eq('company_id', currentCompanyId).maybeSingle(),
+      supabase.rpc('get_meli_connection_status', { _company_id: currentCompanyId }),
       supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', currentCompanyId).maybeSingle(),
     ]);
-    setTokenInfo(tokenRes.data ?? null);
+    const rows = tokenRes.data as any[];
+    setTokenInfo(rows && rows.length > 0 ? rows[0] : null);
     if (settingsRes.data?.sync_interval_minutes) {
       setSyncInterval(settingsRes.data.sync_interval_minutes);
     }
