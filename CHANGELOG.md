@@ -17,7 +17,8 @@
 - Bumped SW cache version to `soporteml-v2` to invalidate old cached assets
 
 ### Security
-- **CRITICAL**: Removed permissive SELECT policy on `meli_tokens` that exposed raw OAuth `access_token`/`refresh_token` to all company members. Client reads now routed through `meli_connection_status` view only.
+- **CRITICAL**: Replaced `meli_connection_status` view dependency with `get_meli_connection_status` RPC (`SECURITY DEFINER`). `meli_tokens` table remains fully blocked for direct client SELECT — only non-sensitive fields (id, meli_user_id, expires_at, has_refresh_token) are returned via the RPC after validating `auth.uid()` and company membership. `REVOKE ALL` from PUBLIC/anon, `GRANT EXECUTE` only to authenticated.
+- **CRITICAL**: Removed permissive SELECT policy on `meli_tokens` that exposed raw OAuth `access_token`/`refresh_token` to all company members. Client reads now routed through secure RPC only.
 - **CRITICAL**: Restricted DELETE policy on `meli_tokens` from `public` to `authenticated` role to prevent unauthenticated evaluation.
 - **audit-log edge function**: Added company membership verification before inserting audit entries, preventing cross-company audit trail pollution.
 - **MeLi API error responses**: `publish-meli-answer` and `enrich-product` now return generic error messages instead of raw MercadoLibre API error bodies.

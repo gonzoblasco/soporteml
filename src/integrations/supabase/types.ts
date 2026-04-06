@@ -851,6 +851,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_meli_connection_status: {
+        Args: { _company_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          expires_at: string
+          has_refresh_token: boolean
+          id: string
+          meli_user_id: string
+          updated_at: string
+        }[]
+      }
       get_user_active_companies: {
         Args: { _user_id: string }
         Returns: {

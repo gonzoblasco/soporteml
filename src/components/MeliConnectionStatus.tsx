@@ -13,12 +13,9 @@ const MeliConnectionStatus = () => {
   useEffect(() => {
     if (!currentCompanyId) { setHealthInfo({ status: null }); return; }
     const loadStatus = async () => {
-      const { data: token } = await supabase
-        .from('meli_connection_status')
-        .select('id, expires_at, has_refresh_token')
-        .eq('company_id', currentCompanyId)
-        .maybeSingle();
-
+      const { data } = await supabase.rpc('get_meli_connection_status', { _company_id: currentCompanyId });
+      const rows = data as any[];
+      const token = rows && rows.length > 0 ? rows[0] : null;
       setHealthInfo(computeHealth(token));
     };
     loadStatus();
