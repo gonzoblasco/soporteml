@@ -57,7 +57,7 @@ const Home = () => {
       if (!currentCompanyId) { setLoading(false); return; }
       setLoading(true);
 
-      const [{ data: qs }, { data: recent }, { data: token }] = await Promise.all([
+      const [{ data: qs }, { data: recent }, { data: tokenRows }] = await Promise.all([
         supabase
           .from('questions')
           .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, ai_suggested_answer, answered_by_ai, ai_confidence, products(title)')
@@ -71,13 +71,9 @@ const Home = () => {
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(5),
-        supabase
-          .from('meli_connection_status')
-          .select('expires_at, has_refresh_token')
-          .eq('company_id', currentCompanyId)
-          .limit(1)
-          .maybeSingle(),
+        supabase.rpc('get_meli_connection_status', { _company_id: currentCompanyId }),
       ]);
+      const token = (tokenRows as any[] | null)?.[0] ?? null;
 
       // Token health check using unified logic
       const health = computeHealth(token);
