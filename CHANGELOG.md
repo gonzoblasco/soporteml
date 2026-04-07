@@ -9,6 +9,7 @@
 ### Fixed
 - **MercadoLibre: disconnect-meli deployado** — La edge function no estaba deployada, causando error al desconectar. Re-deployada correctamente.
 - **MercadoLibre: errores detallados** — Los botones "Desconectar" y "Forzar sincronización" ahora muestran el mensaje de error real del backend en lugar de un genérico.
+- **MercadoLibre: migración completa a RPC segura** — Reemplazadas todas las consultas a la vista `meli_connection_status` por la RPC `get_meli_connection_status` en Home, OnboardingWizard y CompaniesTab. Evita respuestas vacías por RLS bloqueando la vista.
 
 
 - **AI Gateway migration**: All edge functions (`ai-copilot`, `ai-service`, `backfill-ai-answers`, `enrich-product`) now fallback to `LOVABLE_API_KEY` when `AI_API_KEY` is not set, and use the Lovable AI Gateway (`ai.gateway.lovable.dev`) with model `google/gemini-3-flash-preview` as default instead of OpenAI.
