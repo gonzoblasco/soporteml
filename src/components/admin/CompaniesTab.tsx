@@ -72,7 +72,7 @@ const CompaniesTab = () => {
     const companyIds = companiesData.map(c => c.id);
     const [membershipsRes, meliRes] = await Promise.all([
       supabase.from('memberships').select('company_id').eq('status', 'active').in('company_id', companyIds),
-      supabase.from('meli_connection_status').select('company_id').in('company_id', companyIds),
+      supabase.from('meli_tokens').select('company_id').in('company_id', companyIds),
     ]);
 
     const memberCounts: Record<string, number> = {};
