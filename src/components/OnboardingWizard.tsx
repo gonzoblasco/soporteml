@@ -23,7 +23,7 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
     if (!currentCompanyId) { setCheckingMeli(false); return; }
     const { data } = await supabase.rpc('get_meli_connection_status', { _company_id: currentCompanyId });
     const rows = data as any[] | null;
-    setMeliConnected(!!data);
+    setMeliConnected(!!rows && rows.length > 0);
     setCheckingMeli(false);
   }, [currentCompanyId]);
 
