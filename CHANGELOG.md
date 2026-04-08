@@ -7,6 +7,7 @@
 - **Dashboard: Filtro por rango de fechas** — Selector 7d / 30d / 90d / Todo que filtra todas las métricas, gráficos y rankings del dashboard.
 
 ### Fixed
+- **Auth: eliminado 403 bad_jwt periódico** — El pg_cron de `sync-meli-questions` enviaba la anon key como Authorization; la función no la reconocía como cron y llamaba a `auth.getUser()` con un JWT inválido cada 5 minutos. Fix: reconocer anon key + `source: "cron"` como llamada válida, y migrar de `getUser()` a `getClaims()` para evitar roundtrips innecesarios a `/auth/v1/user`.
 - **MercadoLibre: disconnect-meli deployado** — La edge function no estaba deployada, causando error al desconectar. Re-deployada correctamente.
 - **MercadoLibre: errores detallados** — Los botones "Desconectar" y "Forzar sincronización" ahora muestran el mensaje de error real del backend en lugar de un genérico.
 - **MercadoLibre: migración completa a RPC segura** — Reemplazadas todas las consultas a la vista `meli_connection_status` por la RPC `get_meli_connection_status` en Home, OnboardingWizard y CompaniesTab. Evita respuestas vacías por RLS bloqueando la vista.
