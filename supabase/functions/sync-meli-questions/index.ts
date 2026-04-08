@@ -80,10 +80,14 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* cron calls may have empty body */ }
 
-    // Allow service role key ONLY for cron-triggered calls (must include source: "cron")
+    // Allow service role key OR anon key for cron-triggered calls (must include source: "cron")
     const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
-    if (isServiceRole) {
-      if (body.source !== "cron") {
+    const isAnonKey = token === SUPABASE_ANON_KEY;
+    const isCronCall = body.source === "cron";
+
+    if (isServiceRole || (isAnonKey && isCronCall)) {
+      // Trusted server-side call (pg_cron or webhook) — skip user auth
+      if (isServiceRole && !isCronCall) {
         console.warn("Service role key used without source=cron, rejecting");
         return new Response(JSON.stringify({ error: "Forbidden: service role requires source=cron" }), {
           status: 403,
@@ -91,19 +95,19 @@ Deno.serve(async (req) => {
         });
       }
     } else {
-      // Validate user JWT
+      // Validate user JWT using getClaims (avoids hitting /auth/v1/user)
       const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         global: { headers: { Authorization: authHeader } },
       });
-      const { data: { user }, error: userError } = await anonClient.auth.getUser();
-      if (userError || !user) {
+      const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       // Store caller's user ID for company scoping below
-      callerUserId = user.id;
+      callerUserId = claimsData.claims.sub as string;
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
