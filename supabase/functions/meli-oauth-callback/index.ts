@@ -15,12 +15,41 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const rawState = url.searchParams.get("state"); // company_id|code_verifier
+    const oauthError = url.searchParams.get("error");
+    const oauthErrorDesc = url.searchParams.get("error_description");
 
-    console.log("OAuth callback triggered with code:", code ? "YES" : "NO", "rawState length:", rawState?.length);
+    console.log("[meli-oauth-callback] Callback hit. Params:", {
+      hasCode: !!code,
+      stateLength: rawState?.length ?? 0,
+      error: oauthError ?? "none",
+      errorDescription: oauthErrorDesc ?? "none",
+    });
+
+    // Handle MeLi error redirect (user denied access, etc.)
+    if (oauthError) {
+      console.error("[meli-oauth-callback] MeLi returned error:", oauthError, oauthErrorDesc);
+      const userMessage = oauthErrorDesc || oauthError;
+      return new Response(
+        `<html><head><meta charset="UTF-8"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+          <h2>⚠️ Conexión cancelada</h2>
+          <p>${userMessage}</p>
+          <p style="color:#888;margin-top:1em;">Podés cerrar esta ventana y reintentar desde la app.</p>
+          <script>setTimeout(() => window.close(), 5000);</script>
+        </body></html>`,
+        { headers: { "Content-Type": "text/html" }, status: 200 }
+      );
+    }
 
     if (!code || !rawState) {
-      console.error("Missing code or state in callback URL");
-      return new Response("Missing code or state", { status: 400 });
+      console.error("[meli-oauth-callback] Missing code or state in callback URL");
+      return new Response(
+        `<html><head><meta charset="UTF-8"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+          <h2>❌ Parámetros faltantes</h2>
+          <p>La respuesta de MercadoLibre no incluyó los datos necesarios (code/state).</p>
+          <script>setTimeout(() => window.close(), 5000);</script>
+        </body></html>`,
+        { headers: { "Content-Type": "text/html" }, status: 400 }
+      );
     }
 
     // Validate total state length to prevent abuse
