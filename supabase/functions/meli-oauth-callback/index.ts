@@ -159,14 +159,14 @@ Deno.serve(async (req) => {
 
     let upsertError;
     if (existingToken) {
-      // Update existing – never null out refresh_token
+      console.log("[meli-oauth-callback] Updating existing token row:", existingToken.id);
       const { error } = await supabase
         .from("meli_tokens")
         .update(upsertPayload)
         .eq("id", existingToken.id);
       upsertError = error;
     } else {
-      // First time insert
+      console.log("[meli-oauth-callback] Inserting new token row for company:", companyId);
       upsertPayload.refresh_token = refresh_token ?? null;
       const { error } = await supabase
         .from("meli_tokens")
@@ -175,11 +175,11 @@ Deno.serve(async (req) => {
     }
 
     if (upsertError) {
-      console.error("Failed to store tokens in 'meli_tokens' table:", upsertError);
+      console.error("[meli-oauth-callback] DB upsert FAILED:", JSON.stringify(upsertError));
       throw new Error("Failed to store tokens in database");
     }
 
-    console.log("Tokens stored successfully.");
+    console.log("[meli-oauth-callback] ✅ Tokens stored successfully for company:", companyId);
 
     // Redirect to app with success
     return new Response(
