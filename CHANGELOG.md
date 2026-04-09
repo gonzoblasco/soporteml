@@ -1,6 +1,9 @@
 # Changelog
 ## [Unreleased]
 
+### Fixed
+- **MeLi OAuth: hardening flujo de conexión** — Agregados logs diagnósticos en frontend (`handleConnect`) y callback (`meli-oauth-callback`). Manejo explícito de `error`/`error_description` devueltos por MeLi (usuario cancela, app no autorizada). Detección de popup bloqueado con toast al usuario. Páginas HTML informativas en callback para cada tipo de error.
+
 ### Added
 - **Docs: MERCADOLIBRE_INTEGRATION.md** — Documentación técnica exhaustiva de la integración con MercadoLibre: arquitectura, OAuth PKCE, pipeline de ingesta, motor de decisión autopilot, detalle de cada edge function, variables de entorno, y guía de testing local.
 - **Dashboard: Métricas del Copiloto IA** — Nueva card en Home con 4 KPIs (generaciones IA, auto-publicadas, confianza promedio, tasa de automatización) y barra visual IA vs Humano.
