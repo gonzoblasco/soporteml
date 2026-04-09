@@ -70,6 +70,7 @@ const MeliConnectionSection = () => {
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
   const handleConnect = async () => {
+    console.log('[MeLi OAuth] handleConnect START', { currentCompanyId });
     if (!currentCompanyId) {
       toast({ title: 'Error', description: 'No se encontró una empresa asociada.', variant: 'destructive' });
       return;
@@ -98,9 +99,36 @@ const MeliConnectionSection = () => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co`;
     const redirectUri = `${supabaseUrl}/functions/v1/meli-oauth-callback`;
     const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(statePayload)}&scope=offline_access%20read%20write&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+    console.log('[MeLi OAuth] Auth URL generated', {
+      redirectUri,
+      appId: MELI_APP_ID,
+      stateLength: statePayload.length,
+      codeChallengeLength: codeChallenge.length,
+    });
+
     const popup = window.open(authUrl, 'meli_oauth', 'width=600,height=700');
+
+    if (!popup || popup.closed) {
+      console.error('[MeLi OAuth] Popup was BLOCKED by browser');
+      toast({
+        title: 'Popup bloqueado',
+        description: 'Tu navegador bloqueó la ventana emergente. Habilitá popups para este sitio e intentá de nuevo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    console.log('[MeLi OAuth] Popup opened successfully');
+
     const interval = setInterval(() => {
-      if (!popup || popup.closed) { clearInterval(interval); fetchStatus(); }
+      if (!popup || popup.closed) {
+        console.log('[MeLi OAuth] Popup closed — refreshing connection status');
+        clearInterval(interval);
+        fetchStatus().then(() => {
+          console.log('[MeLi OAuth] Status refreshed after popup close');
+        });
+      }
     }, 1000);
   };
 
