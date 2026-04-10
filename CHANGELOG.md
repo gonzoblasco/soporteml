@@ -8,6 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Fixed
+- `sync-meli-questions` 401: el cron enviaba la anon key como Bearer pero la función solo aceptaba service_role key; ahora acepta ambas para llamadas con `source: "cron"`
+
 ### Corregido
 - **MeLi estado de conexión**: Migrados TODOS los consumers frontend de la vista `meli_connection_status` a la RPC segura `get_meli_connection_status` (Home, Settings, OnboardingWizard, MeliConnectionStatus, CompaniesTab). Esta era la causa raíz de que la UI mostrara "No conectado" tras un OAuth exitoso.
 - **Callback OAuth postMessage**: El callback `meli-oauth-callback` ahora envía `postMessage({ type: "meli_oauth_success" })` al opener antes de cerrarse, permitiendo que el frontend refresque el estado inmediatamente sin depender solo del polling por cierre de popup.
