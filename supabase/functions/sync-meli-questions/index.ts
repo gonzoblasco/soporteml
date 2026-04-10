@@ -224,16 +224,22 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* cron calls may have empty body */ }
 
-    // Allow service role key ONLY for cron-triggered calls (must include source: "cron")
+    const isCronSource = body.source === "cron";
+
+    // Allow service role key OR anon key for cron-triggered calls (must include source: "cron")
     const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
-    if (isServiceRole) {
-      if (body.source !== "cron") {
-        console.warn("Service role key used without source=cron, rejecting");
-        return new Response(JSON.stringify({ error: "Forbidden: service role requires source=cron" }), {
+    const isAnonKey = token === SUPABASE_ANON_KEY;
+    const isSystemCall = isServiceRole || isAnonKey;
+
+    if (isSystemCall) {
+      if (!isCronSource) {
+        console.warn("System key used without source=cron, rejecting");
+        return new Response(JSON.stringify({ error: "Forbidden: system key requires source=cron" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      console.log("[SYNC] Cron call accepted via", isServiceRole ? "service_role" : "anon_key");
     } else {
       // Validate user JWT
       const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -241,13 +247,14 @@ Deno.serve(async (req) => {
       });
       const { data: { user }, error: userError } = await anonClient.auth.getUser();
       if (userError || !user) {
+        console.warn("[SYNC] User auth failed:", userError?.message);
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Store caller's user ID for company scoping below
       callerUserId = user.id;
+      console.log("[SYNC] Manual call from user:", callerUserId);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
