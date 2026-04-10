@@ -337,8 +337,23 @@ const MeliConnectionSection = () => {
     const redirectUri = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meli-oauth-callback`;
     const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(statePayload)}&scope=offline_access%20read%20write&code_challenge=${codeChallenge}&code_challenge_method=S256`;
     const popup = window.open(authUrl, 'meli_oauth', 'width=600,height=700');
+
+    // Listen for postMessage from callback (primary signal)
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'meli_oauth_success') {
+        window.removeEventListener('message', onMessage);
+        fetchStatus();
+      }
+    };
+    window.addEventListener('message', onMessage);
+
+    // Fallback: poll for popup close
     const interval = setInterval(() => {
-      if (!popup || popup.closed) { clearInterval(interval); fetchStatus(); }
+      if (!popup || popup.closed) {
+        clearInterval(interval);
+        window.removeEventListener('message', onMessage);
+        fetchStatus();
+      }
     }, 1000);
   };
 

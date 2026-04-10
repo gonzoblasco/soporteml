@@ -54,9 +54,19 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
     const authUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${MELI_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(statePayload)}&scope=offline_access%20read%20write&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
     const popup = window.open(authUrl, 'meli_oauth', 'width=600,height=700');
+
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'meli_oauth_success') {
+        window.removeEventListener('message', onMessage);
+        checkMeliConnection();
+      }
+    };
+    window.addEventListener('message', onMessage);
+
     const interval = setInterval(() => {
       if (!popup || popup.closed) {
         clearInterval(interval);
+        window.removeEventListener('message', onMessage);
         checkMeliConnection();
       }
     }, 1000);
