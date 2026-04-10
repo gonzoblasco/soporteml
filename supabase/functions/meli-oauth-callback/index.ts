@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     // Validate total state length to prevent abuse
     if (rawState.length > 200) {
       console.error("State parameter too long:", rawState.length);
-      return new Response("Invalid state parameter", { status: 400 });
+      return new Response(errorHtml("Parámetro de estado inválido."), { status: 400, headers: HTML_HEADER });
     }
 
     // Parse state: "company_id|code_verifier" or legacy "company_id"
