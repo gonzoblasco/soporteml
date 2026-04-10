@@ -10,6 +10,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Fixed
 - `sync-meli-questions` 401: el cron enviaba la anon key como Bearer pero la función solo aceptaba service_role key; ahora acepta ambas para llamadas con `source: "cron"`
+- `meli-webhook` 404: la edge function nunca había sido creada; ahora existe y reenvía notificaciones de preguntas a `sync-meli-questions`
 
 ### Corregido
 - **MeLi estado de conexión**: Migrados TODOS los consumers frontend de la vista `meli_connection_status` a la RPC segura `get_meli_connection_status` (Home, Settings, OnboardingWizard, MeliConnectionStatus, CompaniesTab). Esta era la causa raíz de que la UI mostrara "No conectado" tras un OAuth exitoso.
