@@ -6,6 +6,47 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const HTML_HEADER = { "Content-Type": "text/html; charset=utf-8" };
+
+const successHtml = () => `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MercadoLibre Conectado</title>
+  <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f8faf8}div{text-align:center;padding:2rem}h2{color:#16a34a}p{color:#555}</style>
+</head>
+<body>
+  <div>
+    <h2>✅ MercadoLibre conectado exitosamente</h2>
+    <p>Ya podés cerrar esta ventana y volver a la aplicación.</p>
+  </div>
+  <script>
+    try { window.opener?.postMessage({ type: "meli_oauth_success" }, "*"); } catch(e) {}
+    setTimeout(function(){ window.close(); }, 2000);
+  </script>
+</body>
+</html>`;
+
+const errorHtml = (detail) => `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error — MercadoLibre</title>
+  <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fef2f2}div{text-align:center;padding:2rem}h2{color:#dc2626}p{color:#555}</style>
+</head>
+<body>
+  <div>
+    <h2>❌ Error al conectar MercadoLibre</h2>
+    <p>${detail || "Ocurrió un error inesperado. Por favor intentá de nuevo."}</p>
+  </div>
+  <script>
+    setTimeout(function(){ window.close(); }, 5000);
+  </script>
+</body>
+</html>`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
