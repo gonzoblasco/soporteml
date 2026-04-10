@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     const parts = rawState.split("|");
     if (parts.length > 2) {
       console.error("Invalid state format: too many segments");
-      return new Response("Invalid state format", { status: 400 });
+      return new Response(errorHtml("Formato de estado inválido."), { status: 400, headers: HTML_HEADER });
     }
 
     const companyId = parts[0];
@@ -86,13 +86,13 @@ Deno.serve(async (req) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(companyId)) {
       console.error("Invalid company_id format:", companyId);
-      return new Response("Invalid company_id format", { status: 400 });
+      return new Response(errorHtml("ID de empresa inválido."), { status: 400, headers: HTML_HEADER });
     }
 
     // Validate code_verifier format (PKCE spec: 43-128 chars, base64url)
     if (codeVerifier && !/^[A-Za-z0-9_-]{43,128}$/.test(codeVerifier)) {
       console.error("Invalid code_verifier format");
-      return new Response("Invalid code_verifier format", { status: 400 });
+      return new Response(errorHtml("Verificador PKCE inválido."), { status: 400, headers: HTML_HEADER });
     }
 
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID");
@@ -194,22 +194,9 @@ Deno.serve(async (req) => {
     console.log("Tokens stored successfully.");
 
     // Redirect to app with success
-    return new Response(
-      `<html><head><meta charset="UTF-8"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-        <h2>✅ MercadoLibre conectado exitosamente</h2>
-        <p>Ya podés cerrar esta ventana y volver a la aplicación.</p>
-        <script>
-          try { window.opener?.postMessage({ type: "meli_oauth_success" }, "*"); } catch(e) {}
-          setTimeout(() => window.close(), 2000);
-        </script>
-      </body></html>`,
-      { headers: { "Content-Type": "text/html" }, status: 200 }
-    );
+    return new Response(successHtml(), { headers: HTML_HEADER, status: 200 });
   } catch (error) {
     console.error("OAuth callback error:", error);
-    return new Response(
-      `<html><body><h2>❌ Error al conectar MercadoLibre</h2><p>Ocurrió un error inesperado. Por favor intentá de nuevo.</p></body></html>`,
-      { headers: { "Content-Type": "text/html" }, status: 500 }
-    );
+    return new Response(errorHtml(), { headers: HTML_HEADER, status: 500 });
   }
 });
