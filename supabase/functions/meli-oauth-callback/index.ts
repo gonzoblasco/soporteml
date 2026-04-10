@@ -157,7 +157,10 @@ Deno.serve(async (req) => {
       `<html><head><meta charset="UTF-8"></head><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
         <h2>✅ MercadoLibre conectado exitosamente</h2>
         <p>Ya podés cerrar esta ventana y volver a la aplicación.</p>
-        <script>setTimeout(() => window.close(), 3000);</script>
+        <script>
+          try { window.opener?.postMessage({ type: "meli_oauth_success" }, "*"); } catch(e) {}
+          setTimeout(() => window.close(), 2000);
+        </script>
       </body></html>`,
       { headers: { "Content-Type": "text/html" }, status: 200 }
     );
