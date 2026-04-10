@@ -12,6 +12,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **MeLi estado de conexión**: Migrados TODOS los consumers frontend de la vista `meli_connection_status` a la RPC segura `get_meli_connection_status` (Home, Settings, OnboardingWizard, MeliConnectionStatus, CompaniesTab). Esta era la causa raíz de que la UI mostrara "No conectado" tras un OAuth exitoso.
 - **Callback OAuth postMessage**: El callback `meli-oauth-callback` ahora envía `postMessage({ type: "meli_oauth_success" })` al opener antes de cerrarse, permitiendo que el frontend refresque el estado inmediatamente sin depender solo del polling por cierre de popup.
 - **Listener postMessage en frontend**: Settings y OnboardingWizard escuchan `meli_oauth_success` para ejecutar `fetchStatus()` al instante, con fallback a polling por popup cerrado.
+- **Popup OAuth render**: Corregido el HTML del callback `meli-oauth-callback` para que el navegador lo renderice como página web en lugar de texto plano. Se agregó `<!DOCTYPE html>`, `Content-Type: text/html; charset=utf-8`, y estructura HTML completa con estilos centrados. Todas las respuestas de error también devuelven HTML renderizable.
 
 ---
 
