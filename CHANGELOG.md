@@ -14,6 +14,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - Columna legacy `companies.invite_code` eliminada: cierra exposición residual a miembros no-admin
 - Invite codes restringidos en UI: solo admins de empresa y super admins pueden ver/copiar códigos de invitación
 - Hardening de `memberships`: company admin solo puede asignar rol `agent`; asignar `admin` requiere super admin
+- Hardening UPDATE de `memberships`: company admin solo puede modificar filas con rol `agent`, no puede tocar filas de otros admins
 
 ### Changed
 - `is_super_admin()` ya no depende de email hardcodeado; ahora consulta la tabla `super_admins` por `auth.uid()`
