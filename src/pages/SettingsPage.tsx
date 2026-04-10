@@ -164,24 +164,28 @@ const JoinCompanySection = () => {
 
 // ─── Company Section ───
 const CompanySection = () => {
-  const { currentCompanyId } = useAuth();
+  const { currentCompanyId, userRole } = useAuth();
   const { toast } = useToast();
   const [companyName, setCompanyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     if (!currentCompanyId) { setLoading(false); return; }
-    supabase.from('companies').select('name, invite_code').eq('id', currentCompanyId).single().then(({ data }) => {
-      if (data) {
-        setCompanyName(data.name);
-        setInviteCode((data as any).invite_code ?? '');
+    (async () => {
+      const { data: companyData } = await supabase.from('companies').select('name').eq('id', currentCompanyId).single();
+      if (companyData) setCompanyName(companyData.name);
+
+      if (isAdmin) {
+        const { data: code } = await supabase.rpc('get_company_invite_code' as any, { _company_id: currentCompanyId });
+        if (code) setInviteCode(code as string);
       }
       setLoading(false);
-    });
-  }, [currentCompanyId]);
+    })();
+  }, [currentCompanyId, isAdmin]);
 
   const handleSave = async () => {
     if (!currentCompanyId || !companyName.trim()) return;
@@ -237,20 +241,24 @@ const CompanySection = () => {
             </Button>
           </div>
         </div>
-        <Separator />
-        <div className="space-y-2">
-          <Label>Código de invitación</Label>
-          <p className="text-xs text-muted-foreground">Compartí este código para que otros usuarios se unan a tu empresa.</p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input value={inviteCode} readOnly className="flex-1 font-mono bg-muted" />
-            <Button size="sm" variant="outline" onClick={handleCopyCode} className="w-full sm:w-auto">
-              Copiar
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={regenerating} className="w-full sm:w-auto">
-              {regenerating ? 'Regenerando...' : 'Regenerar'}
-            </Button>
-          </div>
-        </div>
+        {isAdmin && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <Label>Código de invitación</Label>
+              <p className="text-xs text-muted-foreground">Compartí este código para que otros usuarios se unan a tu empresa.</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input value={inviteCode} readOnly className="flex-1 font-mono bg-muted" />
+                <Button size="sm" variant="outline" onClick={handleCopyCode} className="w-full sm:w-auto">
+                  Copiar
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={regenerating} className="w-full sm:w-auto">
+                  {regenerating ? 'Regenerando...' : 'Regenerar'}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -527,24 +535,25 @@ const MeliConnectionSection = () => {
 
 // ─── Team Section (Hito 5: membership-based) ───
 const TeamSection = () => {
-  const { currentCompanyId, user } = useAuth();
+  const { currentCompanyId, user, userRole } = useAuth();
   const { toast } = useToast();
   const [members, setMembers] = useState<Array<{ user_id: string; full_name: string; role: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [inviteCode, setInviteCode] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     if (!currentCompanyId) { setLoading(false); return; }
     (async () => {
       setLoading(true);
-      const [membersRes, companyRes] = await Promise.all([
-        supabase.rpc('get_company_members' as any, { _company_id: currentCompanyId }),
-        supabase.from('companies').select('invite_code').eq('id', currentCompanyId).single(),
-      ]);
+      const membersRes = await supabase.rpc('get_company_members' as any, { _company_id: currentCompanyId });
 
-      if (companyRes.data) setInviteCode((companyRes.data as any).invite_code ?? '');
+      if (isAdmin) {
+        const { data: code } = await supabase.rpc('get_company_invite_code' as any, { _company_id: currentCompanyId });
+        if (code) setInviteCode(code as string);
+      }
 
       setMembers(((membersRes.data ?? []) as any[]).map((m: any) => ({
         user_id: m.user_id,
@@ -553,7 +562,7 @@ const TeamSection = () => {
       })));
       setLoading(false);
     })();
-  }, [currentCompanyId]);
+  }, [currentCompanyId, isAdmin]);
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     const { error } = await supabase.rpc('update_membership_role' as any, {

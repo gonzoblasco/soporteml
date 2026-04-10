@@ -856,6 +856,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_company_invite_code: {
+        Args: { _company_id: string }
+        Returns: string
+      }
       get_company_members: {
         Args: { _company_id: string }
         Returns: {

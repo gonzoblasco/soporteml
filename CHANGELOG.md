@@ -9,6 +9,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ## [Unreleased]
 
 ### Security
+- Invite codes restringidos: solo admins de empresa y super admins pueden ver/copiar códigos de invitación (función `get_company_invite_code` + UI condicionada por rol)
 - Hardening de `memberships`: company admin solo puede asignar rol `agent`; asignar `admin` requiere super admin
 
 ### Changed
