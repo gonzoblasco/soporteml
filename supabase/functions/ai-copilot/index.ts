@@ -145,6 +145,7 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
           { role: "user", content: userPrompt },
         ],
         temperature: 0.4,
+        max_tokens: 2048,
       }),
     });
 
