@@ -88,7 +88,17 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
     setLoading(false);
 
     if (fnError) {
-      const msg = fnError.message || 'Error al consultar el copiloto';
+      // supabase SDK wraps non-2xx responses as FunctionsHttpError
+      let msg = 'Error al consultar el copiloto';
+      try {
+        const body = typeof fnError === 'object' && 'context' in fnError
+          ? await (fnError as any).context?.json?.()
+          : null;
+        if (body?.error) msg = body.error;
+        else if (fnError.message && fnError.message !== 'Failed to send function request') msg = fnError.message;
+      } catch {
+        // keep default msg
+      }
       setError(msg);
       toast.error(msg);
       autoApplyRef.current = false;
