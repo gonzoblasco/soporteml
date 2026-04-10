@@ -21,11 +21,8 @@ const OnboardingWizard = ({ onComplete }: OnboardingWizardProps) => {
 
   const checkMeliConnection = useCallback(async () => {
     if (!companyId) { setCheckingMeli(false); return; }
-    const { data } = await supabase
-      .from('meli_connection_status')
-      .select('id')
-      .eq('company_id', companyId)
-      .maybeSingle();
+    const { data: rows } = await supabase.rpc('get_meli_connection_status', { _company_id: companyId });
+    const data = rows?.[0] ?? null;
     setMeliConnected(!!data);
     setCheckingMeli(false);
   }, [companyId]);
