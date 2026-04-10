@@ -145,6 +145,7 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
           { role: "user", content: userPrompt },
         ],
         temperature: 0.4,
+        max_tokens: 2048,
       }),
     });
 
@@ -168,20 +169,41 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
     }
 
     const aiData = await response.json();
+    const finishReason = aiData.choices?.[0]?.finish_reason;
     const raw = aiData.choices?.[0]?.message?.content ?? "";
 
-    // Parse JSON from response (strip markdown fences if present)
+    if (finishReason === "length" || finishReason === "MAX_TOKENS") {
+      console.warn("AI response truncated, finish_reason:", finishReason);
+    }
+
+    // Parse JSON from response — robust extraction
     let parsed;
     try {
-      const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+      let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+      // Find JSON object boundaries
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd > jsonStart) {
+        cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+      }
       parsed = JSON.parse(cleaned);
     } catch {
-      console.error("Failed to parse AI response:", raw);
-      parsed = {
-        summary: "No pude analizar la pregunta automáticamente.",
-        draft: raw || "",
-        missing_data: [],
-      };
+      // Second attempt: fix trailing commas and control chars
+      try {
+        let fixed = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+        const s = fixed.indexOf("{");
+        const e = fixed.lastIndexOf("}");
+        if (s !== -1 && e > s) fixed = fixed.substring(s, e + 1);
+        fixed = fixed.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+        parsed = JSON.parse(fixed);
+      } catch {
+        console.error("Failed to parse AI response:", raw.substring(0, 500));
+        parsed = {
+          summary: "No pude analizar la pregunta automáticamente.",
+          draft: raw || "",
+          missing_data: [],
+        };
+      }
     }
 
     // Attach CRM suggestions to response
