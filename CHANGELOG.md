@@ -8,6 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Changed
+- `is_super_admin()` ya no depende de email hardcodeado; ahora consulta la tabla `super_admins` por `auth.uid()`
+
 ### Fixed
 - `sync-meli-questions` 401: el cron enviaba la anon key como Bearer pero la función solo aceptaba service_role key; ahora acepta ambas para llamadas con `source: "cron"`
 - `meli-webhook` 404: la edge function nunca había sido creada; ahora existe y reenvía notificaciones de preguntas a `sync-meli-questions`
