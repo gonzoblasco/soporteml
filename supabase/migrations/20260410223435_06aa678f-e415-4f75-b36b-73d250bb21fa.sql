@@ -1,0 +1,1 @@
+ALTER TABLE public.companies DROP COLUMN invite_code;
