@@ -201,15 +201,11 @@ const CompanySection = () => {
   const handleRegenerate = async () => {
     if (!currentCompanyId) return;
     setRegenerating(true);
-    const arr = new Uint8Array(6);
-    crypto.getRandomValues(arr);
-    const newCode = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-
-    const { error } = await supabase.from('companies').update({ invite_code: newCode } as any).eq('id', currentCompanyId);
+    const { data: newCode, error } = await supabase.rpc('regenerate_company_invite_code' as any, { _company_id: currentCompanyId });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      setInviteCode(newCode);
+      setInviteCode(newCode as string);
       toast({ title: 'Código regenerado', description: 'El código de invitación anterior ya no funcionará.' });
     }
     setRegenerating(false);
