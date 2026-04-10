@@ -79,6 +79,35 @@ export type Database = {
         }
         Relationships: []
       }
+      company_invites: {
+        Row: {
+          company_id: string
+          created_at: string
+          invite_code: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          invite_code?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          invite_code?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           ai_custom_instructions: string | null
@@ -914,6 +943,10 @@ export type Database = {
       }
       is_super_admin: { Args: never; Returns: boolean }
       join_company_by_invite: { Args: { _invite_code: string }; Returns: Json }
+      regenerate_company_invite_code: {
+        Args: { _company_id: string }
+        Returns: string
+      }
       remove_company_membership: {
         Args: { _company_id: string; _user_id: string }
         Returns: undefined

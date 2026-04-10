@@ -59,7 +59,7 @@ const CompaniesTab = () => {
   const fetchCompanies = async () => {
     const { data: companiesData, error } = await supabase
       .from('companies')
-      .select('id, name, invite_code, created_at')
+      .select('id, name, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -70,9 +70,12 @@ const CompaniesTab = () => {
     if (!companiesData) { setLoading(false); return; }
 
     const companyIds = companiesData.map(c => c.id);
-    const [membershipsRes, meliRes] = await Promise.all([
+
+    // Fetch invite codes from company_invites (super admin has access via RLS)
+    const [membershipsRes, meliRes, invitesRes] = await Promise.all([
       supabase.from('memberships').select('company_id').eq('status', 'active').in('company_id', companyIds),
       supabase.from('meli_tokens').select('company_id').in('company_id', companyIds),
+      supabase.from('company_invites' as any).select('company_id, invite_code').in('company_id', companyIds),
     ]);
 
     const memberCounts: Record<string, number> = {};
@@ -80,9 +83,14 @@ const CompaniesTab = () => {
       memberCounts[m.company_id] = (memberCounts[m.company_id] ?? 0) + 1;
     });
     const meliSet = new Set((meliRes.data ?? []).map(t => t.company_id));
+    const inviteMap: Record<string, string> = {};
+    ((invitesRes.data ?? []) as any[]).forEach((i: any) => {
+      inviteMap[i.company_id] = i.invite_code;
+    });
 
     setCompanies(companiesData.map(c => ({
       ...c,
+      invite_code: inviteMap[c.id] ?? '',
       member_count: memberCounts[c.id] ?? 0,
       has_meli: meliSet.has(c.id),
     })));
@@ -110,11 +118,11 @@ const CompaniesTab = () => {
     if (!newName.trim()) return;
     setCreating(true);
 
-    // 1. Create company
+    // 1. Create company (trigger auto-creates invite in company_invites)
     const { data: newCompany, error } = await supabase
       .from('companies')
       .insert({ name: newName.trim() })
-      .select('id, name, invite_code')
+      .select('id, name')
       .single();
 
     if (error || !newCompany) {
@@ -123,9 +131,12 @@ const CompaniesTab = () => {
       return;
     }
 
+    // 2. Fetch the auto-generated invite code
+    const { data: inviteCode } = await supabase.rpc('get_company_invite_code' as any, { _company_id: newCompany.id });
+
     let assignedEmail: string | undefined;
 
-    // 2. If a user was selected, create membership via RPC (Hito 5)
+    // 3. If a user was selected, create membership via RPC
     if (selectedUserId && selectedUserId !== 'none') {
       const selectedUser = unassignedUsers.find(u => u.id === selectedUserId);
 
@@ -142,11 +153,11 @@ const CompaniesTab = () => {
       }
     }
 
-    // 3. Show success with invite info
+    // 4. Show success with invite info
     setCreatedCompany({
       id: newCompany.id,
       name: newCompany.name,
-      invite_code: newCompany.invite_code,
+      invite_code: (inviteCode as string) ?? '',
       assigned_user_email: assignedEmail,
     });
 
@@ -191,7 +202,7 @@ const CompaniesTab = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Crear nueva Company</CardTitle>
-          <CardDescription>Se genera un invite_code automáticamente. Asigná un usuario existente o compartí el link de invitación.</CardDescription>
+          <CardDescription>Se genera un código de invitación automáticamente. Asigná un usuario existente o compartí el link de invitación.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -311,13 +322,17 @@ const CompaniesTab = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => copyCode(c.invite_code)}
-                        className="inline-flex items-center gap-1.5 font-mono text-xs bg-muted px-2 py-1 rounded hover:bg-accent transition-colors"
-                      >
-                        {c.invite_code}
-                        <Copy className="w-3 h-3" />
-                      </button>
+                      {c.invite_code ? (
+                        <button
+                          onClick={() => copyCode(c.invite_code)}
+                          className="inline-flex items-center gap-1.5 font-mono text-xs bg-muted px-2 py-1 rounded hover:bg-accent transition-colors"
+                        >
+                          {c.invite_code}
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -332,9 +347,11 @@ const CompaniesTab = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => copyInviteLink(c.invite_code)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Copiar link de invitación">
-                          <Link2 className="w-4 h-4" />
-                        </Button>
+                        {c.invite_code && (
+                          <Button variant="ghost" size="icon" onClick={() => copyInviteLink(c.invite_code)} className="h-8 w-8 text-muted-foreground hover:text-primary" title="Copiar link de invitación">
+                            <Link2 className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id, c.name)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                         </Button>

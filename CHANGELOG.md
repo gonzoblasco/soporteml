@@ -9,7 +9,8 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ## [Unreleased]
 
 ### Security
-- Invite codes restringidos: solo admins de empresa y super admins pueden ver/copiar códigos de invitación (función `get_company_invite_code` + UI condicionada por rol)
+- Invite codes migrados a tabla dedicada `company_invites` con RLS admin-only; eliminada exposición vía `companies` table. Funciones SECURITY DEFINER para leer, regenerar y resolver invitaciones
+- Invite codes restringidos en UI: solo admins de empresa y super admins pueden ver/copiar códigos de invitación
 - Hardening de `memberships`: company admin solo puede asignar rol `agent`; asignar `admin` requiere super admin
 
 ### Changed
