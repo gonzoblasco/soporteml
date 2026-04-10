@@ -13,6 +13,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Callback OAuth postMessage**: El callback `meli-oauth-callback` ahora envía `postMessage({ type: "meli_oauth_success" })` al opener antes de cerrarse, permitiendo que el frontend refresque el estado inmediatamente sin depender solo del polling por cierre de popup.
 - **Listener postMessage en frontend**: Settings y OnboardingWizard escuchan `meli_oauth_success` para ejecutar `fetchStatus()` al instante, con fallback a polling por popup cerrado.
 - **Popup OAuth render**: Corregido el HTML del callback `meli-oauth-callback` para que el navegador lo renderice como página web en lugar de texto plano. Se agregó `<!DOCTYPE html>`, `Content-Type: text/html; charset=utf-8`, y estructura HTML completa con estilos centrados. Todas las respuestas de error también devuelven HTML renderizable.
+- **Copiloto IA — parseo robusto**: Corregido error "Failed to parse response" en el panel Copiloto IA. Se agregó `max_tokens: 2048` para prevenir truncamiento, detección de `finish_reason` para respuestas truncadas, extracción robusta de JSON con fallback para trailing commas y caracteres de control, y mejor manejo de errores en el frontend para mostrar mensajes significativos en lugar del error genérico del SDK.
 
 ---
 
