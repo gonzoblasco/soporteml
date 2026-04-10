@@ -60,16 +60,11 @@ const Home = () => {
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(5),
-        supabase
-          .from('meli_connection_status')
-          .select('expires_at, has_refresh_token')
-          .eq('company_id', currentCompanyId)
-          .limit(1)
-          .maybeSingle(),
+        supabase.rpc('get_meli_connection_status', { _company_id: currentCompanyId }),
       ]);
 
       // Token health check using unified logic
-      const health = computeHealth(token);
+      const health = computeHealth(token?.[0] ?? null);
       setTokenAlert(health.status);
 
       if (recent) setRecentQuestions(recent);

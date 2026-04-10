@@ -227,6 +227,65 @@ export type Database = {
           },
         ]
       }
+      knowledge_entries: {
+        Row: {
+          ai_visible: boolean
+          company_id: string
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean
+          priority: number
+          scope: string
+          scope_ref: string | null
+          title: string
+          type: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ai_visible?: boolean
+          company_id: string
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          priority?: number
+          scope?: string
+          scope_ref?: string | null
+          title: string
+          type: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ai_visible?: boolean
+          company_id?: string
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          priority?: number
+          scope?: string
+          scope_ref?: string | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meli_tokens: {
         Row: {
           access_token: string
@@ -790,6 +849,18 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           status: string
           user_id: string
+        }[]
+      }
+      get_meli_connection_status: {
+        Args: { _company_id: string }
+        Returns: {
+          company_id: string
+          created_at: string
+          expires_at: string
+          has_refresh_token: boolean
+          id: string
+          meli_user_id: string
+          updated_at: string
         }[]
       }
       get_user_active_companies: {
