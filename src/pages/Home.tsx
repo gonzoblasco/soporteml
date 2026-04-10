@@ -64,7 +64,7 @@ const Home = () => {
       ]);
 
       // Token health check using unified logic
-      const health = computeHealth(token);
+      const health = computeHealth(token?.[0] ?? null);
       setTokenAlert(health.status);
 
       if (recent) setRecentQuestions(recent);

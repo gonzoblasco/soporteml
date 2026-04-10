@@ -299,7 +299,7 @@ const MeliConnectionSection = () => {
       supabase.rpc('get_meli_connection_status', { _company_id: currentCompanyId }),
       supabase.from('company_settings').select('sync_interval_minutes').eq('company_id', currentCompanyId).maybeSingle(),
     ]);
-    setTokenInfo(tokenRes.data ?? null);
+    setTokenInfo(tokenRes.data?.[0] ?? null);
     if (settingsRes.data?.sync_interval_minutes) {
       setSyncInterval(settingsRes.data.sync_interval_minutes);
     }
