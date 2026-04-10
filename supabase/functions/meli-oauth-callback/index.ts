@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     if (!code || !rawState) {
       console.error("Missing code or state in callback URL");
-      return new Response(errorHtml("Faltan parámetros en la URL de callback."), { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } });
+      return new Response(errorHtml("Faltan parámetros en la URL de callback."), { status: 400, headers: HTML_HEADER });
     }
 
     // Validate total state length to prevent abuse
