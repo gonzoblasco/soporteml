@@ -76,11 +76,21 @@ Deno.serve(async (req) => {
     const itemData = itemRes.ok ? await itemRes.json() : null;
     const descData = descRes.ok ? await descRes.json() : null;
 
+    const response: Record<string, unknown> = {
+      item: itemData,
+      description: descData?.plain_text ?? null,
+    };
+
+    if (!itemData) {
+      response.item_error = {
+        status: itemRes.status,
+        reason: itemRes.status === 404 ? 'not_found' :
+                itemRes.status === 403 ? 'forbidden' : 'api_error',
+      };
+    }
+
     return new Response(
-      JSON.stringify({
-        item: itemData,
-        description: descData?.plain_text ?? null,
-      }),
+      JSON.stringify(response),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
