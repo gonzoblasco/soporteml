@@ -52,6 +52,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ### Mejorado
 - **Side Panel**: mensajes de error contextuales cuando falla la carga de detalles de MeLi (not_found, forbidden, api_error) en vez de mensaje genérico
 
+### Mejorado
+- **Side Panel**: mensajes de error contextuales cuando falla la carga de detalles de MeLi (not_found, forbidden, api_error) en vez de mensaje genérico
+
 
 
 ## [1.0.2] — 2026-03-10
