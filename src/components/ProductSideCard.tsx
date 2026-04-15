@@ -55,7 +55,7 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
   const [item, setItem] = useState<MeliItem | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<false | 'not_found' | 'forbidden' | 'api_error'>(false);
+  const [error, setError] = useState<false | 'not_found' | 'forbidden' | 'api_error' | 'token_expired'>(false);
   const [crmProduct, setCrmProduct] = useState<CrmProduct | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerProductId, setDrawerProductId] = useState<string | null>(null);
@@ -76,9 +76,17 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
       if (!err && data?.item) {
         setItem(data.item);
         setDescription(data.description ?? null);
+        // Even with successful item fetch, token may have expired (public fallback used)
+        if (data?.token_expired) {
+          setError('token_expired');
+        }
       } else {
         const reason = data?.item_error?.reason;
-        setError(reason === 'not_found' ? 'not_found' : reason === 'forbidden' ? 'forbidden' : 'api_error');
+        setError(
+          reason === 'not_found' ? 'not_found' :
+          reason === 'forbidden' ? 'forbidden' :
+          reason === 'token_expired' ? 'token_expired' : 'api_error'
+        );
       }
       setLoading(false);
     }).catch(() => {
@@ -188,11 +196,13 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-foreground">
+                     <p className="text-xs font-medium text-foreground">
                       {error === 'not_found'
                         ? 'Publicación no encontrada en MeLi'
                         : error === 'forbidden'
                         ? 'Sin acceso a esta publicación'
+                        : error === 'token_expired'
+                        ? 'Token de MeLi expirado'
                         : 'No pudimos cargar los detalles'}
                     </p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -200,6 +210,8 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
                         ? 'La publicación puede haber sido eliminada o el ID no es válido.'
                         : error === 'forbidden'
                         ? 'El token de MeLi no tiene permisos para este ítem. Verificá que la conexión esté activa.'
+                        : error === 'token_expired'
+                        ? 'Reconectá tu cuenta de MercadoLibre desde Configuración para restaurar el acceso.'
                         : 'Puede deberse a un error temporal de la API de MeLi. Intentá de nuevo en unos minutos.'}
                     </p>
                   </div>

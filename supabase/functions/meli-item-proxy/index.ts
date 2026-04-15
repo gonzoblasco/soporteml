@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { refreshTokenIfNeeded, type TokenRow } from "../_shared/refreshMeliToken.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,22 +57,53 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Read full token row for refresh logic
     const { data: tokenRow } = await supabase
       .from("meli_tokens")
-      .select("access_token")
+      .select("id, company_id, access_token, refresh_token, expires_at")
       .eq("company_id", companyId)
       .maybeSingle();
 
-    // Fetch item data from MeLi (with auth if available, public otherwise)
-    const headers: Record<string, string> = {};
-    if (tokenRow?.access_token) {
-      headers.Authorization = `Bearer ${tokenRow.access_token}`;
+    // Try to get a valid access token (with auto-refresh)
+    let accessToken: string | null = null;
+    let tokenExpired = false;
+
+    if (tokenRow) {
+      try {
+        const appId = Deno.env.get("MELI_APP_ID") || "";
+        const secretKey = Deno.env.get("MELI_SECRET_KEY") || "";
+        accessToken = await refreshTokenIfNeeded(
+          supabase,
+          tokenRow as TokenRow,
+          appId,
+          secretKey,
+        );
+      } catch (refreshErr) {
+        console.warn("Token refresh failed, will try public fetch:", refreshErr.message);
+        tokenExpired = true;
+      }
     }
 
-    const [itemRes, descRes] = await Promise.all([
+    // Fetch item data from MeLi
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    let [itemRes, descRes] = await Promise.all([
       fetch(`https://api.mercadolibre.com/items/${item_id}`, { headers }),
       fetch(`https://api.mercadolibre.com/items/${item_id}/description`, { headers }),
     ]);
+
+    // If authenticated request got 401, retry without auth (public fallback)
+    if (itemRes.status === 401 && accessToken) {
+      console.log("MeLi returned 401 with token, retrying public fetch...");
+      tokenExpired = true;
+      [itemRes, descRes] = await Promise.all([
+        fetch(`https://api.mercadolibre.com/items/${item_id}`),
+        fetch(`https://api.mercadolibre.com/items/${item_id}/description`),
+      ]);
+    }
 
     const itemData = itemRes.ok ? await itemRes.json() : null;
     const descData = descRes.ok ? await descRes.json() : null;
@@ -85,8 +117,14 @@ Deno.serve(async (req) => {
       response.item_error = {
         status: itemRes.status,
         reason: itemRes.status === 404 ? 'not_found' :
-                itemRes.status === 403 ? 'forbidden' : 'api_error',
+                itemRes.status === 403 ? 'forbidden' :
+                itemRes.status === 401 ? 'token_expired' : 'api_error',
       };
+    }
+
+    // Flag token_expired even if public fallback succeeded
+    if (tokenExpired) {
+      response.token_expired = true;
     }
 
     return new Response(

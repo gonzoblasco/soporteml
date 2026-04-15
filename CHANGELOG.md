@@ -17,7 +17,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - Hardening UPDATE de `memberships`: company admin solo puede modificar filas con rol `agent`, no puede tocar filas de otros admins
 
 ### Mejorado
-- **Side Panel**: mensajes de error contextuales cuando falla la carga de detalles de MeLi (not_found, forbidden, api_error) en vez de mensaje genérico
+- **Side Panel**: mensajes de error contextuales cuando falla la carga de detalles de MeLi (not_found, forbidden, token_expired, api_error) en vez de mensaje genérico
+
+### Fixed
+- **meli-item-proxy**: integrado `refreshTokenIfNeeded` para renovar tokens expirados automáticamente antes de consultar la API de MeLi. Fallback público si el token está vencido sin refresh_token. Mapeo específico de 401 como `token_expired` con CTA de reconexión en el Side Panel
 
 ### Changed
 - `is_super_admin()` ya no depende de email hardcodeado; ahora consulta la tabla `super_admins` por `auth.uid()`
