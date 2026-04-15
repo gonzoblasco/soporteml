@@ -77,11 +77,12 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
         setItem(data.item);
         setDescription(data.description ?? null);
       } else {
-        setError(true);
+        const reason = data?.item_error?.reason;
+        setError(reason === 'not_found' ? 'not_found' : reason === 'forbidden' ? 'forbidden' : 'api_error');
       }
       setLoading(false);
     }).catch(() => {
-      setError(true);
+      setError('api_error');
       setLoading(false);
     });
   }, [meliItemId]);
