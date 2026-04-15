@@ -55,7 +55,7 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
   const [item, setItem] = useState<MeliItem | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<false | 'not_found' | 'forbidden' | 'api_error'>(false);
   const [crmProduct, setCrmProduct] = useState<CrmProduct | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerProductId, setDrawerProductId] = useState<string | null>(null);
@@ -77,11 +77,12 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
         setItem(data.item);
         setDescription(data.description ?? null);
       } else {
-        setError(true);
+        const reason = data?.item_error?.reason;
+        setError(reason === 'not_found' ? 'not_found' : reason === 'forbidden' ? 'forbidden' : 'api_error');
       }
       setLoading(false);
     }).catch(() => {
-      setError(true);
+      setError('api_error');
       setLoading(false);
     });
   }, [meliItemId]);
@@ -187,9 +188,19 @@ const ProductSideCard = ({ meliItemId, productId, fallbackTitle, fallbackPrice, 
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-foreground">No pudimos cargar los detalles</p>
+                    <p className="text-xs font-medium text-foreground">
+                      {error === 'not_found'
+                        ? 'Publicación no encontrada en MeLi'
+                        : error === 'forbidden'
+                        ? 'Sin acceso a esta publicación'
+                        : 'No pudimos cargar los detalles'}
+                    </p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Puede deberse a una conexión en curso o a la sincronización.
+                      {error === 'not_found'
+                        ? 'La publicación puede haber sido eliminada o el ID no es válido.'
+                        : error === 'forbidden'
+                        ? 'El token de MeLi no tiene permisos para este ítem. Verificá que la conexión esté activa.'
+                        : 'Puede deberse a un error temporal de la API de MeLi. Intentá de nuevo en unos minutos.'}
                     </p>
                   </div>
                 </div>
