@@ -63,6 +63,7 @@ export type Database = {
           billing_period_end: string | null
           billing_status: string
           created_at: string
+          deleted_at: string | null
           id: string
           mp_preapproval_id: string | null
           name: string
@@ -72,6 +73,7 @@ export type Database = {
           billing_period_end?: string | null
           billing_status?: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           mp_preapproval_id?: string | null
           name: string
@@ -81,6 +83,7 @@ export type Database = {
           billing_period_end?: string | null
           billing_status?: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           mp_preapproval_id?: string | null
           name?: string
@@ -132,6 +135,8 @@ export type Database = {
           features_ai_suggestions: boolean | null
           features_autopilot_after_hours: boolean | null
           features_autopilot_in_hours: boolean | null
+          kb_similarity_threshold: number
+          kb_top_k: number
           last_synced_at: string | null
           sync_interval_minutes: number
           updated_at: string
@@ -150,6 +155,8 @@ export type Database = {
           features_ai_suggestions?: boolean | null
           features_autopilot_after_hours?: boolean | null
           features_autopilot_in_hours?: boolean | null
+          kb_similarity_threshold?: number
+          kb_top_k?: number
           last_synced_at?: string | null
           sync_interval_minutes?: number
           updated_at?: string
@@ -168,6 +175,8 @@ export type Database = {
           features_ai_suggestions?: boolean | null
           features_autopilot_after_hours?: boolean | null
           features_autopilot_in_hours?: boolean | null
+          kb_similarity_threshold?: number
+          kb_top_k?: number
           last_synced_at?: string | null
           sync_interval_minutes?: number
           updated_at?: string
