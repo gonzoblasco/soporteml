@@ -96,6 +96,7 @@ const AppRoutes = () => (
       <Route path="/templates" element={<ErrorBoundary fallbackTitle="Error en Templates"><TemplatesPage /></ErrorBoundary>} />
       <Route path="/catalog" element={<ErrorBoundary fallbackTitle="Error en Catálogo"><CatalogPage /></ErrorBoundary>} />
       <Route path="/knowledge-base" element={<ErrorBoundary fallbackTitle="Error en Base de conocimiento"><KnowledgeBasePage /></ErrorBoundary>} />
+      <Route path="/customers" element={<ErrorBoundary fallbackTitle="Error en Clientes"><CustomersPage /></ErrorBoundary>} />
       <Route path="/analytics" element={<ErrorBoundary fallbackTitle="Error en Analytics"><AnalyticsPage /></ErrorBoundary>} />
       <Route path="/admin" element={<ErrorBoundary fallbackTitle="Error en Admin"><AdminPanel /></ErrorBoundary>} />
     </Route>

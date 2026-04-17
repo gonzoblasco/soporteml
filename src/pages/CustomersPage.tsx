@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { EmptyState } from '@/components/EmptyState';
+import EmptyState from '@/components/EmptyState';
 import { Search, RefreshCw, Loader2, Users, X, Plus, Check, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { timeAgoEs } from '@/lib/timeAgo';
