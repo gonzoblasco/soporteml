@@ -15,6 +15,13 @@ const log = (step: string, details?: unknown) => {
  * Pauses the company's MP preapproval (status: 'paused').
  * The user retains access until billing_period_end and can reactivate from MP.
  * Only company admins can call this.
+ *
+ * Security model (audited):
+ * - JWT validated via supabase.auth.getUser(authHeader).
+ * - company_id derived server-side via get_user_company_id(user.id) — NEVER from client body.
+ * - Membership enforced via has_membership_role(_role: 'admin'), which is stricter than
+ *   user_belongs_to_company (requires admin role, not just any active membership).
+ * - Multi-company safe: a user can only cancel the subscription of their default company.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
