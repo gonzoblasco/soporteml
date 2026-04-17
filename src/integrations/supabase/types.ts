@@ -980,6 +980,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_company_for_user: {
+        Args: { _company_name: string }
+        Returns: Json
+      }
       find_similar_products: {
         Args: {
           _company_id: string
