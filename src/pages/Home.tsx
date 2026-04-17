@@ -252,7 +252,7 @@ const Home = () => {
                   <div className="space-y-1.5">
                     {recentQuestions.map((q) => {
                       const date = new Date(q.created_at);
-                      const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
+                      const elapsed = isNaN(date.getTime()) ? '' : timeAgoEs(q.created_at);
                       return (
                         <button
                           key={q.id}
