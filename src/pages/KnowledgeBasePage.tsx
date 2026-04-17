@@ -13,8 +13,20 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, RefreshCw, Search, Loader2, AlertCircle, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+
+function timeAgoEs(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'hace unos segundos';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `hace ${days} d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `hace ${months} m`;
+  return `hace ${Math.floor(months / 12)} a`;
+}
 
 type SourceType = 'text' | 'markdown';
 type ArticleStatus = 'pending' | 'processing' | 'ready' | 'error';
@@ -284,7 +296,7 @@ const KnowledgeBasePage = () => {
                       </TableCell>
                       <TableCell><StatusBadge status={a.status} /></TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: es })}
+                        {timeAgoEs(new Date(a.created_at))}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
