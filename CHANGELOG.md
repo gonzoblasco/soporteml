@@ -8,6 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+- **Sign in con Google.** Botón "Continuar con Google" en `/login` y `/signup` usando `lovable.auth.signInWithOAuth('google')` (Lovable Cloud Managed OAuth, sin secrets a configurar). Componente reutilizable `GoogleSignInButton`. Para usuarios nuevos sin empresa se agregó la pantalla `/post-google` con dos opciones: crear empresa nueva (admin default) o unirse con código de invitación. Nueva RPC `create_company_for_user(_company_name)` que crea empresa + invite + profile + membership admin para users que llegaron vía OAuth (donde no hay metadata de signup que dispare `handle_new_user`). `ProtectedRoute` redirige a `/post-google` si el user autenticado todavía no tiene `companyId`.
+
 ### Corregido
 - **Fix seguridad: `mp-create-subscription` y `mp-check-subscription` — auditadas y documentadas.** Ambas ya validaban JWT con `getUser` y derivaban `company_id` server-side vía `get_user_company_id(user.id)` (el cliente nunca lo provee), por lo que no existe vector cross-tenant y `user_belongs_to_company` resulta redundante (la RPC solo retorna empresas con membership activo del user). Se agregaron comentarios inline documentando el modelo de seguridad. Limitación funcional conocida: operan sobre la empresa default; soportar billing en empresas secundarias requeriría aceptar `company_id` explícito + membership check (fuera del scope de seguridad).
 - **Fix seguridad: `audit-log` valida JWT y membership antes de insertar.** Se agregó la validación con `user_belongs_to_company` para impedir que un usuario autenticado escriba audit logs en empresas a las que no pertenece. `actor_user_id` siempre derivado del JWT, nunca del body del cliente. `notify` revisada: ya estaba protegida (solo acepta llamadas con `SUPABASE_SERVICE_ROLE_KEY` desde otras EFs trusted), se agregó comentario aclaratorio.
