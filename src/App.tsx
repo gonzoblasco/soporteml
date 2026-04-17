@@ -20,6 +20,7 @@ import AdminPanel from "./pages/AdminPanel";
 import CatalogPage from "./pages/CatalogPage";
 import KnowledgeBasePage from "./pages/KnowledgeBasePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import PostGoogleSetup from "./pages/PostGoogleSetup";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
