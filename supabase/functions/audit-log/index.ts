@@ -44,6 +44,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Validate membership: caller must belong to the target company
+    const { data: hasAccess, error: membershipError } = await serviceClient.rpc(
+      "user_belongs_to_company",
+      { _user_id: user.id, _company_id: company_id }
+    );
+    if (membershipError || !hasAccess) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { error: insertError } = await serviceClient.from("audit_logs").insert({
       company_id,
       actor_user_id: user.id,

@@ -9,6 +9,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ## [Unreleased]
 
 ### Corregido
+- **Fix seguridad: `audit-log` valida JWT y membership antes de insertar.** Se agregó la validación con `user_belongs_to_company` para impedir que un usuario autenticado escriba audit logs en empresas a las que no pertenece. `actor_user_id` siempre derivado del JWT, nunca del body del cliente. `notify` revisada: ya estaba protegida (solo acepta llamadas con `SUPABASE_SERVICE_ROLE_KEY` desde otras EFs trusted), se agregó comentario aclaratorio.
 - **Fix seguridad: `publish-meli-answer` valida JWT y membership antes de publicar.** `company_id` siempre derivado de DB (de la pregunta), nunca del cliente. Reemplazada la validación basada en `get_user_company_id` (que solo retornaba la empresa default y rompía publicaciones en empresas secundarias para usuarios multi-company) por `user_belongs_to_company`, que valida correctamente cualquier membership activa del usuario sobre la empresa dueña de la pregunta.
 - **Fix: eliminado `date-fns/locale` de 6 componentes** para prevenir el bug `null is not an object (evaluating 'dispatcher.useContext')` causado por instancias duplicadas de React en el bundle. Reemplazado en `GroupedQuestionCard`, `NotificationBell`, `QuestionCard`, `QuestionDetail`, `catalog/AuditTimeline` y `SettingsPage` por el helper local `timeAgoEs(dateStr)` (formato "ahora / hace X min / Xh / Xd"). Mismo patrón ya aplicado en `Home.tsx` y `KnowledgeBasePage.tsx`.
 
