@@ -14,17 +14,7 @@ import { ProductFormDrawer } from './catalog/ProductFormDrawer';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
-const timeAgoEs = (dateStr: string): string => {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'ahora';
-  if (mins < 60) return `hace ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  return `hace ${days}d`;
-};
+import { timeAgoEs } from '@/lib/timeAgo';
 
 interface Props {
   question: QuestionRow | null;

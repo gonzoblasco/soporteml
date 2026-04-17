@@ -17,17 +17,7 @@ import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Build
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
-
-const timeAgoEs = (dateStr: string): string => {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'ahora';
-  if (mins < 60) return `hace ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  return `hace ${days}d`;
-};
+import { timeAgoEs } from '@/lib/timeAgo';
 
 const MELI_APP_ID = import.meta.env.VITE_MELI_APP_ID || '8921097700859218';
 
