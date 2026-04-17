@@ -5,24 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Loader2, MessageSquare, Clock, AlertTriangle, Package, Users, ArrowRight, Inbox, XCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Clock, AlertTriangle, ArrowRight, Inbox, XCircle } from 'lucide-react';
 import { KpiSkeleton, ChartCardSkeleton } from '@/components/SkeletonCards';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { computeHealth, getHealthUI, type MeliHealthStatus } from '@/lib/meliTokenHealth';
 import { es } from 'date-fns/locale';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Precio: 'hsl(200, 80%, 45%)',
-  Stock: 'hsl(150, 60%, 35%)',
-  Técnico: 'hsl(280, 60%, 50%)',
-  Envío: 'hsl(25, 85%, 45%)',
-  Garantía: 'hsl(340, 65%, 45%)',
-};
-
-type RankingMode = 'products' | 'buyers';
 
 interface RecentQuestion {
   id: string;
@@ -33,6 +23,7 @@ interface RecentQuestion {
 }
 
 type TokenAlert = MeliHealthStatus;
+
 const Home = () => {
   const navigate = useNavigate();
   const { currentCompanyId } = useAuth();
@@ -40,7 +31,6 @@ const Home = () => {
   const [recentQuestions, setRecentQuestions] = useState<RecentQuestion[]>([]);
   const [agentData, setAgentData] = useState<{ name: string; answered: number }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rankingMode, setRankingMode] = useState<RankingMode>('products');
   const [tokenAlert, setTokenAlert] = useState<TokenAlert>(null);
 
   useEffect(() => {
@@ -51,7 +41,7 @@ const Home = () => {
       const [{ data: qs }, { data: recent }, { data: token }] = await Promise.all([
         supabase
           .from('questions')
-          .select('ai_category, status, answered_by, answered_at, created_at, product_id, buyer_nickname, buyer_id, products(title)')
+          .select('status, answered_by, answered_at, created_at')
           .eq('company_id', currentCompanyId),
         supabase
           .from('questions')
@@ -145,53 +135,6 @@ const Home = () => {
     return { answeredToday, pending, avgLabel };
   }, [questions, today]);
 
-  const categoryData = useMemo(() => {
-    const catMap: Record<string, number> = {};
-    questions.forEach((q: any) => {
-      const cat = q.ai_category ?? 'Sin categoría';
-      catMap[cat] = (catMap[cat] || 0) + 1;
-    });
-    return Object.entries(catMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, value]) => ({
-        name,
-        value,
-        fill: CATEGORY_COLORS[name] ?? 'hsl(220, 10%, 50%)',
-      }));
-  }, [questions]);
-
-  const totalQuestions = useMemo(() => questions.length, [questions]);
-
-  const topProducts = useMemo(() => {
-    const prodMap: Record<string, { name: string; count: number }> = {};
-    questions.forEach((q: any) => {
-      const pid = q.product_id as string;
-      if (!pid) return;
-      if (!prodMap[pid]) prodMap[pid] = { name: q.products?.title ?? 'Producto', count: 0 };
-      prodMap[pid].count += 1;
-    });
-    return Object.values(prodMap)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-      .map((p, i) => ({ rank: i + 1, name: p.name, questions: p.count }));
-  }, [questions]);
-
-  const topBuyers = useMemo(() => {
-    const buyerMap: Record<string, { name: string; count: number }> = {};
-    questions.forEach((q: any) => {
-      const key = q.buyer_nickname ?? q.buyer_id;
-      if (!key) return;
-      if (!buyerMap[key]) buyerMap[key] = { name: key, count: 0 };
-      buyerMap[key].count += 1;
-    });
-    return Object.values(buyerMap)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-      .map((b, i) => ({ rank: i + 1, name: b.name, questions: b.count }));
-  }, [questions]);
-
-  const rankingData = rankingMode === 'products' ? topProducts : topBuyers;
-
   if (loading) {
     return (
       <div className="p-6 overflow-y-auto h-full space-y-6 animate-fade-in">
@@ -265,79 +208,20 @@ const Home = () => {
         ))}
       </div>
 
-      {categoryData.length === 0 && agentData.length === 0 && recentQuestions.length === 0 ? (
+      {/* Link to historic analytics */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => navigate('/analytics')}
+          className="flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          Ver métricas históricas <ArrowRight className="w-3 h-3" />
+        </button>
+      </div>
+
+      {agentData.length === 0 && recentQuestions.length === 0 ? (
         <p className="text-sm text-muted-foreground">No hay datos suficientes todavía.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pie Chart */}
-          {categoryData.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="glass-panel">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Consultas por Categoría</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={categoryData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value" stroke="none">
-                          {categoryData.map((entry, i) => (
-                            <Cell key={i} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            color: 'hsl(var(--foreground))',
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex flex-wrap gap-3 mt-2 justify-center">
-                    {categoryData.map((c) => (
-                      <div key={c.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.fill }} />
-                        {c.name} ({c.value})
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Category Progress Bars */}
-          {categoryData.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <Card className="glass-panel">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Distribución por Categoría</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {categoryData.map((c) => {
-                    const pct = totalQuestions > 0 ? Math.round((c.value / totalQuestions) * 100) : 0;
-                    return (
-                      <div key={c.name} className="flex items-center gap-3">
-                        <span className="text-xs w-20 text-muted-foreground truncate">{c.name}</span>
-                        <div className="flex-1 h-2 rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%`, backgroundColor: c.fill }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
           {/* Recent Activity Widget */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
             <Card className="glass-panel">
@@ -417,56 +301,6 @@ const Home = () => {
                         <Bar dataKey="answered" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Ranking: Products or Buyers toggle */}
-          {rankingData.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <Card className="glass-panel">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">
-                      {rankingMode === 'products' ? 'Top 5 Productos' : 'Top 5 Compradores'}
-                    </CardTitle>
-                    <div className="flex items-center rounded-md border border-border/50 overflow-hidden">
-                      <button
-                        onClick={() => setRankingMode('products')}
-                        className={`flex items-center gap-1 px-2.5 py-1 text-xs transition-colors ${
-                          rankingMode === 'products'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Package className="w-3 h-3" />
-                        Productos
-                      </button>
-                      <button
-                        onClick={() => setRankingMode('buyers')}
-                        className={`flex items-center gap-1 px-2.5 py-1 text-xs transition-colors ${
-                          rankingMode === 'buyers'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        <Users className="w-3 h-3" />
-                        Compradores
-                      </button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {rankingData.map((item) => (
-                      <div key={item.rank} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                        <span className="text-lg font-bold text-primary w-6 text-center">{item.rank}</span>
-                        <span className="flex-1 text-sm text-foreground truncate">{item.name}</span>
-                        <span className="text-sm font-medium text-muted-foreground">{item.questions} consultas</span>
-                      </div>
-                    ))}
                   </div>
                 </CardContent>
               </Card>
