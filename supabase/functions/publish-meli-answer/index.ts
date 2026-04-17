@@ -64,9 +64,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify user belongs to the question's company
-    const { data: userCompanyId } = await supabase.rpc('get_user_company_id', { _user_id: callerUserId });
-    if (!userCompanyId || userCompanyId !== question.company_id) {
+    // Verify user belongs to the question's company (membership check, multi-company safe)
+    const { data: hasAccess, error: membershipError } = await supabase.rpc(
+      'user_belongs_to_company',
+      { _user_id: callerUserId, _company_id: question.company_id }
+    );
+    if (membershipError || !hasAccess) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
