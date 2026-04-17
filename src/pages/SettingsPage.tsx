@@ -13,7 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle, CreditCard, Crown } from 'lucide-react';
+import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle, CreditCard, Crown, Sparkles, Cpu, ShieldAlert, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -1533,35 +1534,375 @@ const BillingSection = () => {
   );
 };
 
-// ─── Settings Page ───
+// ─── Model / RAG Config Section ───
+const ModelSection = () => {
+  const { currentCompanyId } = useAuth();
+  const { toast } = useToast();
+  const [topK, setTopK] = useState(5);
+  const [threshold, setThreshold] = useState(0.45);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!currentCompanyId) { setLoading(false); return; }
+    supabase
+      .from('company_settings')
+      .select('kb_top_k, kb_similarity_threshold' as any)
+      .eq('company_id', currentCompanyId)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data) {
+          if (typeof data.kb_top_k === 'number') setTopK(data.kb_top_k);
+          if (data.kb_similarity_threshold != null) setThreshold(Number(data.kb_similarity_threshold));
+        }
+        setLoading(false);
+      });
+  }, [currentCompanyId]);
+
+  const handleSave = async () => {
+    if (!currentCompanyId) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('company_settings')
+      .upsert({
+        company_id: currentCompanyId,
+        kb_top_k: topK,
+        kb_similarity_threshold: threshold,
+      } as any, { onConflict: 'company_id' });
+
+    toast(error
+      ? { title: 'Error', description: error.message, variant: 'destructive' }
+      : { title: 'Guardado', description: 'Configuración del modelo actualizada.' }
+    );
+    setSaving(false);
+  };
+
+  if (loading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Cpu className="w-4 h-4 text-muted-foreground" />
+          <CardTitle className="text-sm">Modelo</CardTitle>
+        </div>
+        <CardDescription>Parámetros del motor de RAG (Retrieval-Augmented Generation)</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="space-y-1.5">
+          <Label className="text-sm">Modelo de embeddings</Label>
+          <div className="flex items-center gap-2 p-2.5 rounded-md border border-border bg-muted/40">
+            <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
+            <code className="text-xs text-foreground font-mono">text-embedding-3-small</code>
+            <Badge variant="secondary" className="ml-auto text-xs">Fijo en v1</Badge>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Chunks a recuperar (top-k)</Label>
+            <span className="text-sm font-mono text-foreground">{topK}</span>
+          </div>
+          <Slider
+            value={[topK]}
+            onValueChange={([v]) => setTopK(v)}
+            min={1}
+            max={10}
+            step={1}
+          />
+          <p className="text-xs text-muted-foreground">
+            Cantidad máxima de fragmentos de la KB que se inyectan en el prompt. Más = más contexto, pero también más ruido.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm">Umbral de similitud</Label>
+            <span className="text-sm font-mono text-foreground">{threshold.toFixed(2)}</span>
+          </div>
+          <Slider
+            value={[threshold]}
+            onValueChange={([v]) => setThreshold(v)}
+            min={0.3}
+            max={0.8}
+            step={0.05}
+          />
+          <p className="text-xs text-muted-foreground">
+            Similitud mínima para que un chunk sea considerado relevante. Valores más altos = más exigente.
+          </p>
+        </div>
+
+        <div className="rounded-lg bg-muted/40 border border-border p-3 flex gap-2">
+          <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            Cambiar estos valores afecta la calidad del RAG. Los cambios aplican a las próximas respuestas generadas por el copiloto.
+          </p>
+        </div>
+
+        <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Save className="w-4 h-4 mr-1" />{saving ? 'Guardando...' : 'Guardar'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ─── Danger Zone Section ───
+const DangerZoneSection = () => {
+  const { currentCompanyId, userRole, user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [companyName, setCompanyName] = useState('');
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const isAdmin = userRole === 'admin';
+  const isSuperAdmin = user?.email === 'gonzoblasco@icloud.com';
+
+  useEffect(() => {
+    if (!currentCompanyId) return;
+    supabase.from('companies').select('name').eq('id', currentCompanyId).single()
+      .then(({ data }) => { if (data) setCompanyName(data.name); });
+  }, [currentCompanyId]);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!currentCompanyId) return;
+    if (confirmText.trim() !== companyName.trim()) {
+      toast({ title: 'Confirmación incorrecta', description: 'El nombre no coincide.', variant: 'destructive' });
+      return;
+    }
+    setDeleting(true);
+    const { error } = await supabase
+      .from('companies')
+      .update({ deleted_at: new Date().toISOString() } as any)
+      .eq('id', currentCompanyId);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setDeleting(false);
+      return;
+    }
+    toast({ title: 'Empresa eliminada', description: 'Cerrando sesión...' });
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-destructive" />
+          <CardTitle className="text-sm text-destructive">Danger zone</CardTitle>
+        </div>
+        <CardDescription>Acciones irreversibles. Procedé con cuidado.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg border border-border p-4 flex items-center justify-between gap-3 bg-background">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Cerrar sesión</p>
+            <p className="text-xs text-muted-foreground">Salí de tu cuenta en este dispositivo.</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleSignOut} disabled={signingOut}>
+            {signingOut ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <LogOut className="w-3.5 h-3.5 mr-1.5" />}
+            Cerrar sesión
+          </Button>
+        </div>
+
+        {isAdmin && !isSuperAdmin && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-destructive">Eliminar empresa</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                La empresa quedará marcada como eliminada. Vas a perder acceso a las preguntas, productos y configuración asociadas.
+              </p>
+            </div>
+            <AlertDialog onOpenChange={(open) => { if (!open) setConfirmText(''); }}>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="destructive" disabled={deleting}>
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />Eliminar empresa
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar &quot;{companyName}&quot;?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción marca la empresa como eliminada y cierra tu sesión. Para confirmar, escribí el nombre exacto de la empresa:
+                    <span className="block mt-2 font-mono text-foreground">{companyName}</span>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder={companyName}
+                  className="font-mono"
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteCompany}
+                    disabled={deleting || confirmText.trim() !== companyName.trim()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                    Sí, eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ─── Settings Page (2-panel layout) ───
+type SectionKey =
+  | 'autopilot'
+  | 'ai-config'
+  | 'model'
+  | 'profile'
+  | 'team'
+  | 'plan'
+  | 'meli'
+  | 'notifications'
+  | 'trash'
+  | 'danger';
+
+interface NavItem {
+  key: SectionKey;
+  label: string;
+  adminOnly?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 const SettingsPage = () => {
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
+  const [active, setActive] = useState<SectionKey>('autopilot');
+
+  const groups: NavGroup[] = [
+    {
+      label: 'Agente IA',
+      items: [
+        { key: 'autopilot', label: 'Autopilot', adminOnly: true },
+        { key: 'ai-config', label: 'Prompt y tono', adminOnly: true },
+        { key: 'model', label: 'Modelo', adminOnly: true },
+      ],
+    },
+    {
+      label: 'Cuenta',
+      items: [
+        { key: 'profile', label: 'Perfil' },
+        { key: 'team', label: 'Equipo', adminOnly: true },
+        { key: 'plan', label: 'Plan' },
+        { key: 'notifications', label: 'Notificaciones' },
+      ],
+    },
+    {
+      label: 'Integraciones',
+      items: [
+        { key: 'meli', label: 'Mercado Libre', adminOnly: true },
+      ],
+    },
+    {
+      label: 'Avanzado',
+      items: [
+        { key: 'trash', label: 'Papelera', adminOnly: true },
+        { key: 'danger', label: 'Danger zone' },
+      ],
+    },
+  ];
+
+  const visibleGroups = groups
+    .map(g => ({ ...g, items: g.items.filter(i => !i.adminOnly || isAdmin) }))
+    .filter(g => g.items.length > 0);
+
+  // If active section is hidden (non-admin landed on autopilot), pick first available
+  useEffect(() => {
+    const allKeys = visibleGroups.flatMap(g => g.items.map(i => i.key));
+    if (!allKeys.includes(active) && allKeys.length > 0) {
+      setActive(allKeys[0]);
+    }
+  }, [isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const renderSection = () => {
+    switch (active) {
+      case 'autopilot': return <AutoReplySection />;
+      case 'ai-config': return <AiConfigSection />;
+      case 'model': return <ModelSection />;
+      case 'profile': return (
+        <div className="space-y-4">
+          <ProfileSection />
+          <JoinCompanySection />
+          {isAdmin && <CompanySection />}
+        </div>
+      );
+      case 'team': return <TeamSection />;
+      case 'plan': return <BillingSection />;
+      case 'meli': return <MeliConnectionSection />;
+      case 'notifications': return <NotificationsSection />;
+      case 'trash': return <TrashSection />;
+      case 'danger': return <DangerZoneSection />;
+      default: return null;
+    }
+  };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 h-full overflow-y-auto">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-xl font-semibold text-foreground mb-1">Settings</h1>
-        <p className="text-sm text-muted-foreground mb-6">Configuración de la cuenta y preferencias</p>
+    <div className="h-full flex flex-col">
+      <div className="px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-3 border-b border-border">
+        <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">Configuración de la cuenta y preferencias</p>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-4">
-            <ProfileSection />
-            <JoinCompanySection />
-            <BillingSection />
-            <NotificationsSection />
-            {isAdmin && <CompanySection />}
-            {isAdmin && <MeliConnectionSection />}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+        {/* Left nav */}
+        <aside className="lg:w-[200px] lg:shrink-0 lg:border-r border-border bg-background overflow-y-auto">
+          <nav className="p-3 space-y-4">
+            {visibleGroups.map(group => (
+              <div key={group.label} className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2.5 py-1">
+                  {group.label}
+                </p>
+                {group.items.map(item => {
+                  const isActive = active === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => setActive(item.key)}
+                      className={`w-full text-left text-sm px-2.5 py-1.5 rounded-md border-l-2 transition-colors ${
+                        isActive
+                          ? 'border-primary bg-accent text-foreground font-medium'
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Right content */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
+            {renderSection()}
           </div>
-          {isAdmin && (
-            <div className="space-y-4">
-              <TeamSection />
-              <AiConfigSection />
-              <AutoReplySection />
-              <TrashSection />
-            </div>
-          )}
-        </div>
+        </main>
       </div>
     </div>
   );
