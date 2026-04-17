@@ -8,6 +8,17 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Agregado
+- **EL-2: Knowledge Base con embeddings (pgvector)**: Sistema multi-tenant con búsqueda semántica real.
+  - Extensión `vector` habilitada y nuevas tablas `kb_articles` (título, source_type text/markdown, raw_content, status pending/processing/ready/error) y `kb_chunks` (chunks de ~500 tokens con overlap 50, `embedding vector(1536)` para `text-embedding-3-small`).
+  - Índice ivfflat coseno con lists=100. RLS estricto por `company_id` (mismo patrón que `products`): admins/agents pueden insertar y editar, solo admins pueden borrar.
+  - RPC `match_kb_chunks` SECURITY DEFINER con validación `user_belongs_to_company` que devuelve top-K matches por similaridad coseno.
+  - Edge Functions: `kb-process-article` (chunking + batch embeddings 100/req contra OpenAI + bulk insert), `kb-search` (embed query + RPC), `kb-delete-article` (cascada admin-only).
+  - Nueva ruta `/knowledge-base` con tabla de artículos, drawer de creación (tabs Texto/Markdown), realtime sobre `kb_articles`, y card "Probar búsqueda semántica" con slider de match_count.
+  - Sidebar: nueva entrada "Base de conocimiento" en grupo Catálogo (la entrada anterior "Conocimiento" era placeholder).
+  - Secret nuevo: `OPENAI_API_KEY`.
+  - **Sin tocar**: `knowledge_entries` ni `/knowledge` (CRM Knowledge sigue intacto). Storage bucket pospuesto a EL-2.1 junto con parser PDF/DOCX.
+
 ### Changed (BREAKING)
 - **Billing migrado de Stripe a Mercado Pago Preapproval**: Stripe completamente removido del proyecto.
   - Edge Functions eliminadas: `create-checkout`, `customer-portal`, `check-subscription`.
