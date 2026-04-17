@@ -60,19 +60,31 @@ export type Database = {
       }
       companies: {
         Row: {
+          billing_period_end: string | null
+          billing_status: string
           created_at: string
           id: string
+          mp_preapproval_id: string | null
           name: string
+          plan: string
         }
         Insert: {
+          billing_period_end?: string | null
+          billing_status?: string
           created_at?: string
           id?: string
+          mp_preapproval_id?: string | null
           name: string
+          plan?: string
         }
         Update: {
+          billing_period_end?: string | null
+          billing_status?: string
           created_at?: string
           id?: string
+          mp_preapproval_id?: string | null
           name?: string
+          plan?: string
         }
         Relationships: []
       }
@@ -393,6 +405,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mp_webhook_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload: Json
+          processed_at?: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
