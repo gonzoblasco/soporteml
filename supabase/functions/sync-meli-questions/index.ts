@@ -796,6 +796,8 @@ async function processQuestion(
         console.error("Error inserting question:", insertErr);
         return false;
       }
+      // EL-6: Forward sync de customer
+      await upsertCustomerFromQuestion(supabase, companyId, baseInsert);
       return true;
     } else {
       // Failsafe: publish failed → needs_human
@@ -812,6 +814,8 @@ async function processQuestion(
         console.error("Error inserting question:", insertErr);
         return false;
       }
+      // EL-6: Forward sync de customer
+      await upsertCustomerFromQuestion(supabase, companyId, baseInsert);
       return true;
     }
   }
@@ -828,6 +832,9 @@ async function processQuestion(
     console.error("Error inserting question:", insertErr);
     return false;
   }
+
+  // EL-6: Forward sync de customer (buyer único por empresa)
+  await upsertCustomerFromQuestion(supabase, companyId, baseInsert);
 
   // Send notification for priority questions
   if (requires_human || finalStatus === 'needs_human') {
