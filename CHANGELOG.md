@@ -8,6 +8,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Mejorado
+- **AI Copilot — RAG real (EL-3)**: `ai-copilot` ahora busca chunks relevantes en la KB (`match_kb_chunks`, threshold 0.45, top-5) antes de generar cada respuesta. Contexto de KB incluido en el system prompt como bloque separado del contexto CRM. La respuesta incluye `kb_sources` (artículos usados, mostrados como chips en `AICopilotPanel`) y `kb_chunks_count`. Se agregó columna `kb_chunks.hit_count` y RPC `increment_chunk_hit_counts` (service_role) para trazabilidad. Integración non-fatal: si no hay `OPENAI_API_KEY` o no hay chunks relevantes, el copilot responde igual usando solo el contexto CRM del producto.
+- **Realtime en KB**: `kb_articles` y `kb_chunks` agregadas a la publication `supabase_realtime` con `REPLICA IDENTITY FULL` para que la UI de `/knowledge-base` refresque automáticamente al pasar de procesando → listo. Polling de respaldo cada 3s mientras haya artículos en `pending`/`processing`.
+
 ### Agregado
 - **EL-2: Knowledge Base con embeddings (pgvector)**: Sistema multi-tenant con búsqueda semántica real.
   - Extensión `vector` habilitada y nuevas tablas `kb_articles` (título, source_type text/markdown, raw_content, status pending/processing/ready/error) y `kb_chunks` (chunks de ~500 tokens con overlap 50, `embedding vector(1536)` para `text-embedding-3-small`).

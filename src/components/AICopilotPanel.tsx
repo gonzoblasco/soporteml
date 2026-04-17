@@ -18,6 +18,8 @@ interface CopilotResult {
   draft: string;
   missing_data: string[];
   crm_suggestions?: CrmSuggestion[];
+  kb_sources?: string[];
+  kb_chunks_count?: number;
 }
 
 interface Props {
@@ -269,6 +271,26 @@ const AICopilotPanel = ({ question, onUseDraft, onOpenCrmDrawer }: Props) => {
                         {item}
                       </span>
                     </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* KB Sources used (RAG traceability) */}
+            {result.kb_sources && result.kb_sources.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BookOpen className="w-3.5 h-3.5 text-primary" />
+                  <p className="text-[11px] font-medium text-muted-foreground">Fuentes KB</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.kb_sources.map((title, idx) => (
+                    <span
+                      key={idx}
+                      className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full border border-border/40"
+                    >
+                      {title}
+                    </span>
                   ))}
                 </div>
               </div>
