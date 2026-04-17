@@ -265,6 +265,101 @@ export type Database = {
           },
         ]
       }
+      kb_articles: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          id: string
+          raw_content: string
+          source_type: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          raw_content: string
+          source_type?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          raw_content?: string
+          source_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_articles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_chunks: {
+        Row: {
+          article_id: string
+          chunk_index: number
+          company_id: string
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          tokens: number
+        }
+        Insert: {
+          article_id: string
+          chunk_index: number
+          company_id: string
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          tokens?: number
+        }
+        Update: {
+          article_id?: string
+          chunk_index?: number
+          company_id?: string
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_chunks_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "kb_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_chunks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_entries: {
         Row: {
           ai_visible: boolean
@@ -973,6 +1068,21 @@ export type Database = {
       }
       is_super_admin: { Args: never; Returns: boolean }
       join_company_by_invite: { Args: { _invite_code: string }; Returns: Json }
+      match_kb_chunks: {
+        Args: {
+          _company_id: string
+          _match_count?: number
+          _match_threshold?: number
+          _query_embedding: string
+        }
+        Returns: {
+          article_id: string
+          article_title: string
+          chunk_id: string
+          content: string
+          similarity: number
+        }[]
+      }
       regenerate_company_invite_code: {
         Args: { _company_id: string }
         Returns: string
