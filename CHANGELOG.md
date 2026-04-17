@@ -13,6 +13,10 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 - **Realtime en KB**: `kb_articles` y `kb_chunks` agregadas a la publication `supabase_realtime` con `REPLICA IDENTITY FULL` para que la UI de `/knowledge-base` refresque automáticamente al pasar de procesando → listo. Polling de respaldo cada 3s mientras haya artículos en `pending`/`processing`.
 
 ### Agregado
+- **EL-4: Analytics real**: Dashboard de métricas con datos reales desde Supabase.
+  RPC `get_company_analytics(_company_id, _days)` con KPIs (total, auto-resueltas, escaladas, pendientes, confianza IA promedio, tasa de auto-resolución), volumen diario, distribución por categoría y top productos/compradores. Validación `user_belongs_to_company` integrada.
+  Selector de período 7/30/90 días con re-fetch automático. Gráficos con Recharts (barras apiladas auto/humano/resto + donut por categoría con colores fijos por tipo). Exportación CSV de las preguntas del período (fecha, comprador, categoría, estado, confianza). Deltas vs período anterior en KPIs principales con flechas verde/rojo.
+  Nueva ruta `/analytics` y entrada en el sidebar entre Plantillas y Settings.
 - **EL-2: Knowledge Base con embeddings (pgvector)**: Sistema multi-tenant con búsqueda semántica real.
   - Extensión `vector` habilitada y nuevas tablas `kb_articles` (título, source_type text/markdown, raw_content, status pending/processing/ready/error) y `kb_chunks` (chunks de ~500 tokens con overlap 50, `embedding vector(1536)` para `text-embedding-3-small`).
   - Índice ivfflat coseno con lists=100. RLS estricto por `company_id` (mismo patrón que `products`): admins/agents pueden insertar y editar, solo admins pueden borrar.
