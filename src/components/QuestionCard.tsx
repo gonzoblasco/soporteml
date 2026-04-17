@@ -1,11 +1,20 @@
 import type { QuestionRow } from '@/types/question';
 import CategoryBadge from './CategoryBadge';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import { derivePriorityChips } from '@/lib/priorityChips';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+const timeAgoEs = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days}d`;
+};
 
 interface Props {
   question: QuestionRow;
@@ -16,7 +25,7 @@ interface Props {
 
 const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props) => {
   const date = new Date(question.created_at);
-  const elapsed = isNaN(date.getTime()) ? '' : formatDistanceToNow(date, { addSuffix: true, locale: es });
+  const elapsed = isNaN(date.getTime()) ? '' : timeAgoEs(question.created_at);
   const chips = showHumanReason ? derivePriorityChips(question) : [];
 
   return (

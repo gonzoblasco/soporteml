@@ -3,10 +3,19 @@ import type { QuestionGroup } from '@/lib/groupQuestions';
 import QuestionCard from './QuestionCard';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
 import CategoryBadge from './CategoryBadge';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const timeAgoEs = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days}d`;
+};
 
 interface Props {
   group: QuestionGroup;
@@ -32,7 +41,7 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: P
     );
   }
 
-  const elapsed = formatDistanceToNow(new Date(group.latest_at), { addSuffix: true, locale: es });
+  const elapsed = timeAgoEs(group.latest_at);
   const isAnySelected = group.questions.some(q => q.id === selectedId);
 
   // Most common category
