@@ -1,4 +1,4 @@
-import { Inbox, LayoutDashboard, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield, ChevronsLeft, ChevronsRight, FileText, Package, Users, ShoppingCart, BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Inbox, LayoutDashboard, Settings, LogOut, MessageSquare, Menu, X, AlertTriangle, Sun, Moon, Shield, ChevronsLeft, ChevronsRight, FileText, Package, Users, ShoppingCart, BookOpen, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +15,7 @@ const navItems = [
   { title: 'Inbox', url: '/inbox', icon: Inbox, badgeKey: 'inbox' as const },
   { title: 'Priority', url: '/priority', icon: AlertTriangle, badgeKey: 'priority' as const },
   { title: 'Plantillas', url: '/templates', icon: FileText },
+  { title: 'Analytics', url: '/analytics', icon: BarChart3 },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 

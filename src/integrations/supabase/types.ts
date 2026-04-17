@@ -1013,6 +1013,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_company_analytics: {
+        Args: { _company_id: string; _days?: number }
+        Returns: Json
+      }
       get_company_invite_code: {
         Args: { _company_id: string }
         Returns: string
