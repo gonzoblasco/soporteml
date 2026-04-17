@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import DesignTest from "./pages/DesignTest";
 import AdminPanel from "./pages/AdminPanel";
 import CatalogPage from "./pages/CatalogPage";
+import KnowledgeBasePage from "./pages/KnowledgeBasePage";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -87,6 +88,7 @@ const AppRoutes = () => (
       <Route path="/settings" element={<ErrorBoundary fallbackTitle="Error en Settings"><SettingsPage /></ErrorBoundary>} />
       <Route path="/templates" element={<ErrorBoundary fallbackTitle="Error en Templates"><TemplatesPage /></ErrorBoundary>} />
       <Route path="/catalog" element={<ErrorBoundary fallbackTitle="Error en Catálogo"><CatalogPage /></ErrorBoundary>} />
+      <Route path="/knowledge-base" element={<ErrorBoundary fallbackTitle="Error en Base de conocimiento"><KnowledgeBasePage /></ErrorBoundary>} />
       <Route path="/admin" element={<ErrorBoundary fallbackTitle="Error en Admin"><AdminPanel /></ErrorBoundary>} />
     </Route>
     <Route path="/design-test" element={<DesignTest />} />

@@ -20,9 +20,9 @@ const navItems = [
 
 const crmSubItems = [
   { title: 'Productos', url: '/catalog', icon: Package, enabled: true },
+  { title: 'Base de conocimiento', url: '/knowledge-base', icon: BookOpen, enabled: true },
   { title: 'Clientes', url: '#', icon: Users, enabled: false },
   { title: 'Órdenes', url: '#', icon: ShoppingCart, enabled: false },
-  { title: 'Conocimiento', url: '#', icon: BookOpen, enabled: false },
 ];
 
 const SUPER_ADMIN_EMAIL = 'gonzoblasco@icloud.com';
