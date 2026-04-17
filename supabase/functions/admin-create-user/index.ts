@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -7,8 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-const PLAN_BASE_PRICE_ID = "price_1T7faRHxJMYe1KhU6WFMGZBE";
 
 const logStep = (step: string, details?: unknown) => {
   const d = details ? ` - ${JSON.stringify(details)}` : "";
@@ -27,7 +24,6 @@ serve(async (req) => {
   );
 
   try {
-    // Authenticate caller
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header");
 
@@ -37,13 +33,9 @@ serve(async (req) => {
 
     logStep("Caller authenticated", { userId: userData.user.id });
 
-    // Verify super admin
-    const { data: isSA } = await supabaseAdmin.rpc("is_super_admin");
-    // Since we're using service role, we need to check manually
     if (userData.user.email !== "gonzoblasco@icloud.com") {
       throw new Error("Unauthorized: super admin access required");
     }
-
     logStep("Super admin verified");
 
     const body = await req.json();
@@ -52,12 +44,10 @@ serve(async (req) => {
     if (!email || !password || !full_name) {
       throw new Error("Missing required fields: email, password, full_name");
     }
-
     if (password.length < 6) {
       throw new Error("Password must be at least 6 characters");
     }
 
-    // 1. Create user with auto-confirmed email
     logStep("Creating user", { email, full_name });
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -72,7 +62,6 @@ serve(async (req) => {
     const newUserId = newUser.user.id;
     logStep("User created", { newUserId });
 
-    // 2. Add company membership if requested
     if (company_id && role) {
       logStep("Adding membership", { company_id, role });
       const { error: memError } = await supabaseAdmin.rpc("add_company_membership", {
@@ -87,39 +76,17 @@ serve(async (req) => {
       }
     }
 
-    // 3. Create Stripe subscription if plan requested
-    if (plan === "base") {
-      logStep("Creating Stripe subscription for Plan Base");
-      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-      if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
-
-      const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-      // Check if customer exists
-      const customers = await stripe.customers.list({ email, limit: 1 });
-      let customerId: string;
-
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Existing Stripe customer found", { customerId });
-      } else {
-        const customer = await stripe.customers.create({
-          email,
-          name: full_name,
-          metadata: { supabase_user_id: newUserId },
-        });
-        customerId = customer.id;
-        logStep("Stripe customer created", { customerId });
+    // If plan === "base", mark company as paid in DB.
+    // The actual MP preapproval still needs to be created by the user from Settings.
+    if (plan === "base" && company_id) {
+      logStep("Marking company plan as base (manual override)");
+      const { error: planError } = await supabaseAdmin
+        .from("companies")
+        .update({ plan: "base", billing_status: "active" })
+        .eq("id", company_id);
+      if (planError) {
+        logStep("Plan update error (non-fatal)", { error: planError.message });
       }
-
-      // Create subscription
-      const subscription = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: PLAN_BASE_PRICE_ID }],
-        payment_behavior: "default_incomplete",
-        metadata: { supabase_user_id: newUserId },
-      });
-      logStep("Subscription created", { subscriptionId: subscription.id, status: subscription.status });
     }
 
     return new Response(
