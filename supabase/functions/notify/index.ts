@@ -15,7 +15,8 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // This function is called internally by other edge functions with service role
+    // Called only from trusted EFs with service role.
+    // The Authorization header MUST equal the service role key — no client JWTs accepted.
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "");
     if (token !== SUPABASE_SERVICE_ROLE_KEY) {
