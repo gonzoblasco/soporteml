@@ -30,6 +30,8 @@ serve(async (req) => {
     );
     if (userError || !userData.user) throw new Error("Authentication failed");
 
+    // Security: company_id derived server-side from the authenticated user (default company only).
+    // Client cannot inject a foreign company_id; membership is implicit via get_user_company_id.
     const { data: companyId } = await supabase.rpc("get_user_company_id", {
       _user_id: userData.user.id,
     });
