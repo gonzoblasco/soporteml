@@ -7,6 +7,72 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * Embed the question with OpenAI text-embedding-3-small (1536 dims).
+ * Returns null on any failure — caller treats KB as empty.
+ */
+async function embedQuery(query: string, openaiKey: string): Promise<number[] | null> {
+  try {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: query,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.data?.[0]?.embedding ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Search relevant KB chunks for the buyer question (RAG).
+ * Non-fatal: returns [] on any failure so the copilot can still answer.
+ */
+async function searchKbChunks(
+  supabase: any,
+  questionText: string,
+  companyId: string,
+  _productId: string | null,
+  openaiKey: string
+): Promise<Array<{ id: string; content: string; article_title: string; similarity: number }>> {
+  try {
+    const embedding = await embedQuery(questionText, openaiKey);
+    if (!embedding) return [];
+
+    const { data: chunks, error } = await supabase.rpc("match_kb_chunks", {
+      _company_id: companyId,
+      _query_embedding: `[${embedding.join(",")}]`,
+      _match_threshold: 0.45,
+      _match_count: 5,
+    });
+
+    if (error || !chunks?.length) return [];
+
+    // Increment hit_count fire-and-forget (non-fatal)
+    const chunkIds = chunks.map((c: any) => c.chunk_id ?? c.id).filter(Boolean);
+    if (chunkIds.length > 0) {
+      supabase.rpc("increment_chunk_hit_counts", { chunk_ids: chunkIds }).then(() => {}, () => {});
+    }
+
+    return chunks.map((c: any) => ({
+      id: c.chunk_id ?? c.id,
+      content: c.content,
+      article_title: c.article_title ?? "Artículo KB",
+      similarity: c.similarity ?? 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -90,6 +156,29 @@ serve(async (req) => {
         }
       }
     }
+    // ── KB Search (RAG) ──
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    let kbChunks: Array<{ id: string; content: string; article_title: string; similarity: number }> = [];
+    let kbContextBlock = "";
+
+    if (OPENAI_API_KEY && question_text) {
+      kbChunks = await searchKbChunks(
+        serviceClient,
+        question_text,
+        callerCompanyId,
+        product_id ?? null,
+        OPENAI_API_KEY
+      );
+
+      if (kbChunks.length > 0) {
+        kbContextBlock = "\n\n--- BASE DE CONOCIMIENTO DEL VENDEDOR ---\n" +
+          kbChunks
+            .map((c) => `[${c.article_title}]\n${c.content}`)
+            .join("\n\n") +
+          "\n--- FIN BASE DE CONOCIMIENTO ---";
+      }
+    }
+
     const systemPrompt = `Sos un copiloto de atención al cliente para vendedores de Mercado Libre en Argentina.
 Tu trabajo es analizar la pregunta de un comprador y devolver un JSON estructurado con 3 campos.
 
@@ -103,7 +192,7 @@ Respondé SOLO con un JSON válido (sin markdown, sin backticks), con esta estru
 }
 
 Si no falta ningún dato, devolvé "missing_data": [].
-Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}`;
+Si ya hay una sugerencia previa de IA, podés mejorarla o usarla como base.${productKnowledge}${kbContextBlock}`;
 
     // Deterministic CRM suggestions based on field completeness
     const crmSuggestions: Array<{message: string; tab?: string}> = [];
@@ -209,6 +298,13 @@ ${ai_suggested_answer ? `Sugerencia IA previa: "${ai_suggested_answer}"` : "No h
     // Attach CRM suggestions to response
     if (crmSuggestions.length > 0) {
       parsed.crm_suggestions = crmSuggestions;
+    }
+
+    // Attach KB sources used (RAG traceability)
+    if (kbChunks.length > 0) {
+      const uniqueTitles = [...new Set(kbChunks.map((c) => c.article_title))];
+      parsed.kb_sources = uniqueTitles;
+      parsed.kb_chunks_count = kbChunks.length;
     }
 
     return new Response(JSON.stringify(parsed), {
