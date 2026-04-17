@@ -114,7 +114,14 @@ const KnowledgeBasePage = () => {
       return;
     }
     setSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    // Ensure session is hydrated before insert (avoids anon-key fallback that breaks RLS)
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      toast.error('Sesión expirada. Iniciá sesión de nuevo.');
+      setSubmitting(false);
+      return;
+    }
+    const userId = sessionData.session.user.id;
     const { data: inserted, error } = await supabase
       .from('kb_articles')
       .insert({
@@ -123,7 +130,7 @@ const KnowledgeBasePage = () => {
         source_type: sourceType,
         raw_content: c,
         status: 'pending',
-        created_by: user?.id ?? null,
+        created_by: userId,
       })
       .select('id')
       .single();
