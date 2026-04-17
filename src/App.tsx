@@ -53,6 +53,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   );
   if (!user) return <Navigate to="/login" replace />;
 
+  // OAuth users sin empresa: pasar por setup antes de entrar al dashboard
+  if (!companyId) return <Navigate to="/post-google" replace />;
+
   if (showOnboarding) {
     return <OnboardingWizard onComplete={() => setShowOnboarding(false)} />;
   }
@@ -82,6 +85,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
+    <Route path="/post-google" element={<PostGoogleSetup />} />
     <Route path="/" element={<SmartHome />} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<ErrorBoundary fallbackTitle="Error en Dashboard"><Home /></ErrorBoundary>} />
