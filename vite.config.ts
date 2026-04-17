@@ -20,6 +20,6 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom", "@tanstack/react-query"],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "@tanstack/react-query", "date-fns", "date-fns/locale"],
+    include: ["react", "react-dom", "@tanstack/react-query"],
   },
 }));
