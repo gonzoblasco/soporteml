@@ -1302,91 +1302,116 @@ const NotificationsSection = () => {
   );
 };
 
-// ─── Billing Section ───
+// ─── Billing Section (Mercado Pago) ───
 const PLANS = {
   base: {
     name: 'Plan Base',
-    price_id: 'price_1T7faRHxJMYe1KhU6WFMGZBE',
-    product_id: 'prod_U5rJedcU19HeK3',
-    price: 100,
+    price: 15000,
+    currency: 'ARS',
     features: ['Copiloto IA', 'CRM de productos', 'Conexión MercadoLibre', 'Hasta 3 usuarios'],
   },
   pro: {
     name: 'Plan Pro',
-    price_id: null,
-    product_id: null,
-    price: 200,
+    price: 30000,
+    currency: 'ARS',
     features: ['Todo del Plan Base', 'Respuestas automáticas', 'Usuarios ilimitados', 'SLA y reportes'],
   },
 };
 
+type BillingState = {
+  subscribed: boolean;
+  plan: string;
+  billing_status: string;
+  billing_period_end: string | null;
+};
+
 const BillingSection = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
-  const [openingPortal, setOpeningPortal] = useState(false);
-  const [subscription, setSubscription] = useState<{ subscribed: boolean; product_id?: string; subscription_end?: string } | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [billing, setBilling] = useState<BillingState | null>(null);
 
   const isSuperAdmin = user?.email === 'gonzoblasco@icloud.com';
+  const isAdmin = userRole === 'admin';
 
   const checkSubscription = useCallback(async () => {
     if (isSuperAdmin) {
-      setSubscription({ subscribed: true, product_id: '__super_admin__' });
+      setBilling({ subscribed: true, plan: 'super_admin', billing_status: 'active', billing_period_end: null });
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      const { data, error } = await supabase.functions.invoke('mp-check-subscription');
       if (error) throw error;
-      setSubscription(data);
+      setBilling(data as BillingState);
     } catch {
-      setSubscription({ subscribed: false });
+      setBilling({ subscribed: false, plan: 'free', billing_status: 'free', billing_period_end: null });
     }
     setLoading(false);
-  }, []);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     checkSubscription();
     const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success') {
+    if (params.get('billing') === 'success') {
       setTimeout(checkSubscription, 2000);
       window.history.replaceState({}, '', window.location.pathname);
+      toast({ title: '¡Suscripción iniciada!', description: 'Estamos confirmando el pago con Mercado Pago.' });
     }
-  }, [checkSubscription]);
+  }, [checkSubscription, toast]);
 
   useEffect(() => {
     const interval = setInterval(checkSubscription, 60000);
     return () => clearInterval(interval);
   }, [checkSubscription]);
 
-  const handleCheckout = async () => {
+  const handleSubscribe = async () => {
     setCheckingOut(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout');
+      const { data, error } = await supabase.functions.invoke('mp-create-subscription');
       if (error) throw error;
-      if (data?.url) window.open(data.url, '_blank');
+      if ((data as any)?.already_subscribed) {
+        toast({ title: 'Ya estás suscripto', description: 'Tu plan ya se encuentra activo.' });
+        await checkSubscription();
+      } else if ((data as any)?.checkout_url) {
+        window.location.href = (data as any).checkout_url;
+      } else {
+        throw new Error('No se recibió URL de checkout');
+      }
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'No se pudo iniciar el checkout.', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message || 'No se pudo iniciar la suscripción.', variant: 'destructive' });
     }
     setCheckingOut(false);
   };
 
-  const handleManage = async () => {
-    setOpeningPortal(true);
+  const handleCancel = async () => {
+    setCancelling(true);
     try {
-      const { data, error } = await supabase.functions.invoke('customer-portal');
+      const { error } = await supabase.functions.invoke('mp-cancel-subscription');
       if (error) throw error;
-      if (data?.url) window.open(data.url, '_blank');
+      toast({ title: 'Suscripción pausada', description: 'Tu plan queda activo hasta el próximo cobro y no se renovará.' });
+      await checkSubscription();
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'No se pudo abrir el portal.', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message || 'No se pudo cancelar.', variant: 'destructive' });
     }
-    setOpeningPortal(false);
+    setCancelling(false);
   };
 
-  const isSubscribed = subscription?.subscribed;
-  const currentPlan = isSuperAdmin ? 'super_admin' : (isSubscribed && subscription?.product_id === PLANS.base.product_id ? 'base' : null);
+  const isActive = billing?.billing_status === 'active';
+  const isPaused = billing?.billing_status === 'paused' || billing?.billing_status === 'cancelled';
+  const isPending = billing?.billing_status === 'pending';
+  const currentPlan = isSuperAdmin ? 'super_admin' : (billing?.plan === 'base' ? 'base' : null);
+
+  const statusBadge = () => {
+    if (isSuperAdmin) return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Activo</Badge>;
+    if (isActive) return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Activo</Badge>;
+    if (isPaused) return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Pausado</Badge>;
+    if (isPending) return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Pendiente</Badge>;
+    return <Badge variant="secondary">Sin plan</Badge>;
+  };
 
   return (
     <Card>
@@ -1395,7 +1420,7 @@ const BillingSection = () => {
           <CreditCard className="w-4 h-4 text-muted-foreground" />
           <CardTitle className="text-sm">Plan y facturación</CardTitle>
         </div>
-        <CardDescription>Gestioná tu suscripción</CardDescription>
+        <CardDescription>Suscripción gestionada por Mercado Pago</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
@@ -1404,30 +1429,27 @@ const BillingSection = () => {
           </div>
         ) : (
           <>
-            {isSubscribed ? (
-              <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                <Crown className="w-4 h-4 text-emerald-600" />
-                <div className="flex-1">
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30">
+              <Crown className="w-4 h-4 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium text-foreground">
-                    {currentPlan === 'super_admin' ? '⚡ Super Admin — Acceso total' : currentPlan === 'base' ? 'Plan Base' : 'Suscripción activa'}
+                    {currentPlan === 'super_admin' ? '⚡ Super Admin' : currentPlan === 'base' ? 'Plan Base' : 'Plan Free'}
                   </p>
-                  {subscription?.subscription_end && (
-                    <p className="text-xs text-muted-foreground">
-                      Próxima renovación: {new Date(subscription.subscription_end).toLocaleDateString('es-AR')}
-                    </p>
-                  )}
+                  {statusBadge()}
                 </div>
-                <Button size="sm" variant="outline" onClick={handleManage} disabled={openingPortal}>
-                  {openingPortal ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ExternalLink className="w-3 h-3 mr-1" />}
-                  Gestionar
-                </Button>
+                {billing?.billing_period_end && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {isActive ? 'Próximo cobro' : 'Acceso hasta'}: {new Date(billing.billing_period_end).toLocaleDateString('es-AR')}
+                  </p>
+                )}
+                {isPaused && (
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Tu suscripción está pausada. Reactivala desde Mercado Pago para seguir.
+                  </p>
+                )}
               </div>
-            ) : (
-              <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-muted/30">
-                <Info className="w-4 h-4 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground flex-1">No tenés una suscripción activa.</p>
-              </div>
-            )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={`rounded-lg border p-4 space-y-3 ${currentPlan === 'base' ? 'border-primary ring-1 ring-primary/20' : 'border-border'}`}>
@@ -1436,7 +1458,10 @@ const BillingSection = () => {
                 )}
                 <div>
                   <p className="font-semibold text-foreground">{PLANS.base.name}</p>
-                  <p className="text-2xl font-bold text-foreground">${PLANS.base.price}<span className="text-sm font-normal text-muted-foreground">/mes</span></p>
+                  <p className="text-2xl font-bold text-foreground">
+                    ${PLANS.base.price.toLocaleString('es-AR')}
+                    <span className="text-sm font-normal text-muted-foreground"> {PLANS.base.currency}/mes</span>
+                  </p>
                 </div>
                 <ul className="space-y-1">
                   {PLANS.base.features.map(f => (
@@ -1445,11 +1470,37 @@ const BillingSection = () => {
                     </li>
                   ))}
                 </ul>
-                {!isSubscribed && (
-                  <Button size="sm" className="w-full" onClick={handleCheckout} disabled={checkingOut}>
+                {!isActive && !isSuperAdmin && isAdmin && (
+                  <Button size="sm" className="w-full" onClick={handleSubscribe} disabled={checkingOut}>
                     {checkingOut ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                    Suscribirme
+                    Suscribirme con Mercado Pago
                   </Button>
+                )}
+                {isActive && !isSuperAdmin && isAdmin && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="w-full" disabled={cancelling}>
+                        {cancelling ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                        Cancelar suscripción
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Cancelar la suscripción?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Vamos a pausar tu plan en Mercado Pago. Vas a tener acceso hasta el próximo cobro previsto y no se renovará.
+                          Podés reactivarla cuando quieras desde tu cuenta de Mercado Pago.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Volver</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleCancel}>Cancelar plan</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                {!isAdmin && !isSuperAdmin && (
+                  <p className="text-xs text-muted-foreground">Solo el administrador puede gestionar el plan.</p>
                 )}
               </div>
 
@@ -1457,7 +1508,10 @@ const BillingSection = () => {
                 <Badge variant="secondary" className="text-xs">Próximamente</Badge>
                 <div>
                   <p className="font-semibold text-foreground">{PLANS.pro.name}</p>
-                  <p className="text-2xl font-bold text-foreground">${PLANS.pro.price}<span className="text-sm font-normal text-muted-foreground">/mes</span></p>
+                  <p className="text-2xl font-bold text-foreground">
+                    ${PLANS.pro.price.toLocaleString('es-AR')}
+                    <span className="text-sm font-normal text-muted-foreground"> {PLANS.pro.currency}/mes</span>
+                  </p>
                 </div>
                 <ul className="space-y-1">
                   {PLANS.pro.features.map(f => (

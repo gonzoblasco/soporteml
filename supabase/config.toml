@@ -19,13 +19,15 @@ project_id = "ropbkdqhqdeiwrenrmjt"
     verify_jwt = false
   [functions.sync-meli-questions]
     verify_jwt = false
-  [functions.create-checkout]
-    verify_jwt = false
-  [functions.check-subscription]
-    verify_jwt = false
-  [functions.customer-portal]
-    verify_jwt = false
   [functions.notify]
     verify_jwt = false
   [functions.admin-create-user]
+    verify_jwt = false
+  [functions.mp-create-subscription]
+    verify_jwt = false
+  [functions.mp-check-subscription]
+    verify_jwt = false
+  [functions.mp-cancel-subscription]
+    verify_jwt = false
+  [functions.mp-webhook]
     verify_jwt = false

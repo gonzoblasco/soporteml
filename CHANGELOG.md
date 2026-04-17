@@ -8,6 +8,16 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Changed (BREAKING)
+- **Billing migrado de Stripe a Mercado Pago Preapproval**: Stripe completamente removido del proyecto.
+  - Edge Functions eliminadas: `create-checkout`, `customer-portal`, `check-subscription`.
+  - Nuevas Edge Functions: `mp-create-subscription`, `mp-check-subscription`, `mp-cancel-subscription` (pausa el preapproval), `mp-webhook` (con validación HMAC SHA-256 vía `MP_WEBHOOK_SECRET`).
+  - Nuevos campos en `companies`: `mp_preapproval_id`, `billing_status` (free/active/paused/cancelled/pending), `plan` (free/base), `billing_period_end`.
+  - Nueva tabla `mp_webhook_events` (super admin only) para auditoría de notificaciones IPN.
+  - `admin-create-user` ya no crea suscripciones Stripe; cuando `plan: "base"` se pasa, marca `companies.plan = 'base'` y `billing_status = 'active'` directo en DB.
+  - UI Settings: nueva tarjeta de billing con estado (badge), próximo cobro y botón "Cancelar suscripción" (pausa el preapproval con confirmación).
+  - Secrets nuevos requeridos: `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `MP_PREAPPROVAL_PLAN_ID`. `STRIPE_SECRET_KEY` queda inactivo.
+
 ### Security
 - Leaked password protection (HIBP) activado: contraseñas comprometidas son rechazadas en signup y cambio de password
 - Invite codes migrados a tabla dedicada `company_invites` con RLS admin-only; eliminada exposición vía `companies` table. Funciones SECURITY DEFINER para leer, regenerar y resolver invitaciones
