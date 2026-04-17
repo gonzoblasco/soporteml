@@ -36,6 +36,9 @@ serve(async (req) => {
     if (userError || !userData.user) throw new Error("Authentication failed");
 
     const userId = userData.user.id;
+    // Security: company_id is derived server-side from the authenticated user's default company.
+    // The client never supplies company_id, so user_belongs_to_company is implicit (get_user_company_id
+    // only returns a company the user is an active member of). Safe for current single-company-per-action flow.
     const { data: companyId } = await supabase.rpc("get_user_company_id", { _user_id: userId });
     if (!companyId) throw new Error("No company found");
 
