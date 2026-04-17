@@ -320,6 +320,7 @@ export type Database = {
           content: string
           created_at: string
           embedding: string | null
+          hit_count: number
           id: string
           tokens: number
         }
@@ -330,6 +331,7 @@ export type Database = {
           content: string
           created_at?: string
           embedding?: string | null
+          hit_count?: number
           id?: string
           tokens?: number
         }
@@ -340,6 +342,7 @@ export type Database = {
           content?: string
           created_at?: string
           embedding?: string | null
+          hit_count?: number
           id?: string
           tokens?: number
         }
@@ -1065,6 +1068,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_chunk_hit_counts: {
+        Args: { chunk_ids: string[] }
+        Returns: undefined
       }
       is_super_admin: { Args: never; Returns: boolean }
       join_company_by_invite: { Args: { _invite_code: string }; Returns: Json }
