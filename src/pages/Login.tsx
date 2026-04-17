@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
 import { Loader2, MessageSquare, ArrowLeft, Building2, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 const Login = () => {
   const { login, signup, isLoading } = useAuth();
@@ -90,7 +91,21 @@ const Login = () => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-panel rounded-xl p-6 space-y-4">
+        <div className="glass-panel rounded-xl p-6 space-y-4">
+          <GoogleSignInButton
+            label={mode === 'login' ? 'Iniciar sesión con Google' : 'Registrarse con Google'}
+          />
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/50" />
+            </div>
+            <div className="relative flex justify-center text-[11px] uppercase tracking-wider">
+              <span className="bg-background/80 px-2 text-muted-foreground">o con email</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
             <div className="space-y-2">
               <Label htmlFor="fullName">Nombre completo</Label>
@@ -182,7 +197,8 @@ const Login = () => {
             {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </Button>
-        </form>
+          </form>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
           {mode === 'login' ? (
