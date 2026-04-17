@@ -10,9 +10,18 @@ import { motion } from 'framer-motion';
 import { MessageSquare, Clock, AlertTriangle, ArrowRight, Inbox, XCircle } from 'lucide-react';
 import { KpiSkeleton, ChartCardSkeleton } from '@/components/SkeletonCards';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDistanceToNow } from 'date-fns';
 import { computeHealth, getHealthUI, type MeliHealthStatus } from '@/lib/meliTokenHealth';
-import { es } from 'date-fns/locale';
+
+const timeAgoEs = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days}d`;
+};
 
 interface RecentQuestion {
   id: string;
