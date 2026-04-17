@@ -107,6 +107,14 @@ const KnowledgeBasePage = () => {
     return () => { supabase.removeChannel(channel); };
   }, [currentCompanyId, loadArticles]);
 
+  // Fallback polling: while any article is processing/pending, refresh every 3s
+  useEffect(() => {
+    const hasInFlight = articles.some((a) => a.status === 'processing' || a.status === 'pending');
+    if (!hasInFlight) return;
+    const interval = setInterval(() => loadArticles(), 3000);
+    return () => clearInterval(interval);
+  }, [articles, loadArticles]);
+
   const resetForm = () => {
     setTitle('');
     setSourceType('text');
