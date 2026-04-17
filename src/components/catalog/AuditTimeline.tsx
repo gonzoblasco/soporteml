@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Clock, FileEdit, Archive, RotateCcw, PlusCircle } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+
+const timeAgoEs = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days}d`;
+};
 
 interface AuditEntry {
   id: string;
@@ -117,7 +126,7 @@ export function AuditTimeline({ entityType, entityId, companyId }: Props) {
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">
-                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: es })}
+                {timeAgoEs(log.created_at)}
               </p>
             </div>
           </div>

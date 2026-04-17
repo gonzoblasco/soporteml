@@ -16,9 +16,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle, CreditCard, Crown, Sparkles, Cpu, ShieldAlert, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+
+const timeAgoEs = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days}d`;
+};
 
 const MELI_APP_ID = import.meta.env.VITE_MELI_APP_ID || '8921097700859218';
 
@@ -442,7 +451,7 @@ const MeliConnectionSection = () => {
             )}
             <div className="text-sm text-muted-foreground space-y-1">
               <p>Seller ID: <span className="font-mono text-foreground">{tokenInfo!.meli_user_id}</span></p>
-              <p>Última renovación: {formatDistanceToNow(new Date(tokenInfo!.updated_at), { addSuffix: true, locale: es })}</p>
+              <p>Última renovación: {timeAgoEs(tokenInfo!.updated_at)}</p>
               <p>Expira {(() => {
                 const expiresMs = new Date(tokenInfo!.expires_at).getTime() - Date.now();
                 if (expiresMs <= 0) return <span className="text-destructive font-medium">expirado</span>;
@@ -1196,7 +1205,7 @@ const TrashSection = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{item.question_text}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.product_title ?? 'Sin producto'} · {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: es })}
+                    {item.product_title ?? 'Sin producto'} · {timeAgoEs(item.created_at)}
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">

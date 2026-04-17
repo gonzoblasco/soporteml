@@ -8,6 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ## [Unreleased]
 
+### Corregido
+- **Fix: eliminado `date-fns/locale` de 6 componentes** para prevenir el bug `null is not an object (evaluating 'dispatcher.useContext')` causado por instancias duplicadas de React en el bundle. Reemplazado en `GroupedQuestionCard`, `NotificationBell`, `QuestionCard`, `QuestionDetail`, `catalog/AuditTimeline` y `SettingsPage` por el helper local `timeAgoEs(dateStr)` (formato "ahora / hace X min / Xh / Xd"). Mismo patrón ya aplicado en `Home.tsx` y `KnowledgeBasePage.tsx`.
+
 ### Mejorado
 - **EL-4: Dashboard simplificado** — Métricas históricas movidas a `/analytics`. `Home.tsx` queda como "snapshot operativo de hoy": banner de salud del token ML, 3 KPIs diarios (respondidas hoy, tiempo promedio, pendientes), actividad reciente y rendimiento por empleado. Se eliminaron PieChart de categorías, barras de distribución y rankings Top productos/compradores (ahora viven en `/analytics`). Query de `questions` simplificada (sin join a products ni campos de buyer/categoría). Link sutil "Ver métricas históricas →" hacia `/analytics`.
 - **EL-5: Settings consolidado**: Layout de dos paneles con nav lateral interna (Agente IA / Cuenta / Integraciones / Avanzado). Las secciones existentes (Autopilot, Equipo, Plan/MP, Mercado Libre, Perfil, Notificaciones, Papelera) se reorganizan dentro del nuevo layout sin cambios funcionales. Nuevas secciones: **Modelo** (sliders para `kb_top_k` 1-10 y `kb_similarity_threshold` 0.3-0.8 que ajustan el RAG del copiloto) y **Danger zone** (cerrar sesión + eliminar empresa con soft delete `companies.deleted_at` y confirmación tipeando el nombre). Migración: nuevos campos `company_settings.kb_top_k`, `company_settings.kb_similarity_threshold` y `companies.deleted_at` con índice parcial.
