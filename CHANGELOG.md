@@ -9,6 +9,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 ## [Unreleased]
 
 ### Agregado
+- **EL-6: Clientes — CRM liviano de buyers MeLi.** Tabla `customers` con notas y tags custom por empresa (`customer_tags`). Backfill desde preguntas existentes vía RPC `backfill_customers`. Forward sync en `sync-meli-questions` (upsert + `increment_customer_questions`). Nueva página `/customers` con layout lista + drawer: notas auto-save (debounce 1s), gestión de tags (admins crean, todos aplican/quitan), historial de últimas 10 preguntas y badge "Cliente frecuente" desde 5 preguntas. Entrada **Clientes** activada en sidebar.
 - **Sign in con Google.** Botón "Continuar con Google" en `/login` y `/signup` usando `lovable.auth.signInWithOAuth('google')` (Lovable Cloud Managed OAuth, sin secrets a configurar). Componente reutilizable `GoogleSignInButton`. Para usuarios nuevos sin empresa se agregó la pantalla `/post-google` con dos opciones: crear empresa nueva (admin default) o unirse con código de invitación. Nueva RPC `create_company_for_user(_company_name)` que crea empresa + invite + profile + membership admin para users que llegaron vía OAuth (donde no hay metadata de signup que dispare `handle_new_user`). `ProtectedRoute` redirige a `/post-google` si el user autenticado todavía no tiene `companyId`.
 
 ### Cambiado

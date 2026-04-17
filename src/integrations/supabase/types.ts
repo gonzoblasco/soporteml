@@ -215,6 +215,85 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_tags: {
+        Row: {
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_tags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          buyer_id: string
+          buyer_nickname: string | null
+          company_id: string
+          created_at: string
+          id: string
+          last_interaction_at: string | null
+          notes: string | null
+          tags: string[]
+          total_questions: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          buyer_nickname?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          last_interaction_at?: string | null
+          notes?: string | null
+          tags?: string[]
+          total_questions?: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          buyer_nickname?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_interaction_at?: string | null
+          notes?: string | null
+          tags?: string[]
+          total_questions?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dismissed_meli_questions: {
         Row: {
           company_id: string
@@ -980,6 +1059,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      backfill_customers: { Args: { _company_id: string }; Returns: Json }
       create_company_for_user: {
         Args: { _company_name: string }
         Returns: Json
@@ -1088,6 +1168,10 @@ export type Database = {
       }
       increment_chunk_hit_counts: {
         Args: { chunk_ids: string[] }
+        Returns: undefined
+      }
+      increment_customer_questions: {
+        Args: { _buyer_id: string; _company_id: string }
         Returns: undefined
       }
       is_super_admin: { Args: never; Returns: boolean }

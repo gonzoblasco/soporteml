@@ -796,6 +796,8 @@ async function processQuestion(
         console.error("Error inserting question:", insertErr);
         return false;
       }
+      // EL-6: Forward sync de customer
+      await upsertCustomerFromQuestion(supabase, companyId, baseInsert);
       return true;
     } else {
       // Failsafe: publish failed → needs_human
@@ -812,6 +814,8 @@ async function processQuestion(
         console.error("Error inserting question:", insertErr);
         return false;
       }
+      // EL-6: Forward sync de customer
+      await upsertCustomerFromQuestion(supabase, companyId, baseInsert);
       return true;
     }
   }
@@ -828,6 +832,9 @@ async function processQuestion(
     console.error("Error inserting question:", insertErr);
     return false;
   }
+
+  // EL-6: Forward sync de customer (buyer único por empresa)
+  await upsertCustomerFromQuestion(supabase, companyId, baseInsert);
 
   // Send notification for priority questions
   if (requires_human || finalStatus === 'needs_human') {
@@ -854,4 +861,36 @@ async function processQuestion(
   }
 
   return true;
+}
+
+// EL-6: Upsert customer row + incrementar contador de preguntas
+async function upsertCustomerFromQuestion(
+  supabase: any,
+  companyId: string,
+  baseInsert: { buyer_id: string | null; buyer_nickname: string | null; created_at?: string }
+) {
+  if (!baseInsert.buyer_id) return;
+  try {
+    const { error: upsertErr } = await supabase
+      .from("customers")
+      .upsert(
+        {
+          company_id: companyId,
+          buyer_id: baseInsert.buyer_id,
+          buyer_nickname: baseInsert.buyer_nickname ?? null,
+          last_interaction_at: baseInsert.created_at ?? new Date().toISOString(),
+        },
+        { onConflict: "company_id,buyer_id", ignoreDuplicates: false }
+      );
+    if (upsertErr) {
+      console.error("Customer upsert error:", upsertErr);
+      return;
+    }
+    await supabase.rpc("increment_customer_questions", {
+      _company_id: companyId,
+      _buyer_id: baseInsert.buyer_id,
+    });
+  } catch (e) {
+    console.error("upsertCustomerFromQuestion error:", e);
+  }
 }
