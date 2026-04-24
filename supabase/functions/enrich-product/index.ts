@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
           const accessToken = await refreshTokenIfNeeded(supabase, tokenRow as TokenRow, appId, secretKey);
           headers.Authorization = `Bearer ${accessToken}`;
         } catch (e) {
-          console.warn("Token refresh failed, trying public fetch:", e.message);
+          console.warn("Token refresh failed, trying public fetch:", (e as Error).message);
         }
       }
 
@@ -275,7 +275,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
           console.warn("AI enrichment failed:", aiRes.status, errText);
         }
       } catch (e) {
-        console.warn("AI enrichment error:", e.message);
+        console.warn("AI enrichment error:", (e as Error).message);
       }
     }
 
@@ -344,7 +344,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
     });
   } catch (error) {
     console.error("enrich-product error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
