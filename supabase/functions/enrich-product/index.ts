@@ -48,27 +48,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user company (via memberships)
-    const { data: companyId } = await supabase.rpc("get_user_company_id", { _user_id: user.id });
-
-    if (!companyId) {
-      return new Response(JSON.stringify({ error: "No active membership found" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch product (must belong to user's company)
+    // Fetch product by id only — multi-tenant access is validated below against
+    // the product's own company_id (no asumir la company "default" del usuario,
+    // que rompe el flujo para usuarios con membership en varias empresas).
     const { data: product, error: prodErr } = await supabase
       .from("products")
       .select("*")
       .eq("id", product_id)
-      .eq("company_id", companyId)
-      .single();
+      .maybeSingle();
 
     if (prodErr || !product) {
       return new Response(JSON.stringify({ error: "Product not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const companyId = product.company_id as string;
+
+    // Membership check: validar que el usuario pertenezca a la company del producto
+    const { data: hasAccess, error: accessErr } = await supabase.rpc(
+      "user_belongs_to_company",
+      { _user_id: user.id, _company_id: companyId },
+    );
+    if (accessErr || !hasAccess) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -113,7 +118,7 @@ Deno.serve(async (req) => {
           const accessToken = await refreshTokenIfNeeded(supabase, tokenRow as TokenRow, appId, secretKey);
           headers.Authorization = `Bearer ${accessToken}`;
         } catch (e) {
-          console.warn("Token refresh failed, trying public fetch:", e.message);
+          console.warn("Token refresh failed, trying public fetch:", (e as Error).message);
         }
       }
 
@@ -270,7 +275,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
           console.warn("AI enrichment failed:", aiRes.status, errText);
         }
       } catch (e) {
-        console.warn("AI enrichment error:", e.message);
+        console.warn("AI enrichment error:", (e as Error).message);
       }
     }
 
@@ -339,7 +344,7 @@ Las respuestas deben ser en español argentino, concisas y orientadas a soporte 
     });
   } catch (error) {
     console.error("enrich-product error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
