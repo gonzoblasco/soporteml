@@ -112,14 +112,20 @@ Deno.serve(async (req) => {
     console.log("MeLi answer response:", meliRes.status, meliBody);
 
     if (!meliRes.ok) {
-      // Update question status to error
+      // Failsafe: MeLi rechazó la publicación → mover a needs_human para que sea visible y accionable en Priority Inbox.
+      // Evita que la pregunta quede "huérfana" en status=error (que no se muestra en ninguna pestaña del Inbox).
+      const reasonDetail = (meliBody || "").slice(0, 280);
       await supabase
         .from("questions")
-        .update({ status: "error" })
+        .update({
+          status: "needs_human",
+          requires_human: true,
+          requires_human_reason: `Mercado Libre rechazó la publicación (${meliRes.status}): ${reasonDetail}`,
+        })
         .eq("id", question_id);
 
       return new Response(
-        JSON.stringify({ error: "MeLi API error", details: meliBody }),
+        JSON.stringify({ error: "MeLi API error", details: meliBody, fallback: "needs_human" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
