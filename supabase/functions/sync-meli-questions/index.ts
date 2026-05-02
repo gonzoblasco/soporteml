@@ -205,6 +205,7 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SUPABASE_PUBLISHABLE_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID")!;
     const MELI_SECRET_KEY = Deno.env.get("MELI_SECRET_KEY")!;
 
@@ -228,7 +229,9 @@ Deno.serve(async (req) => {
 
     // Allow service role key OR anon key for cron-triggered calls (must include source: "cron")
     const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
-    const isAnonKey = token === SUPABASE_ANON_KEY;
+    const isAnonKey =
+      token === SUPABASE_ANON_KEY ||
+      (SUPABASE_PUBLISHABLE_KEY !== "" && token === SUPABASE_PUBLISHABLE_KEY);
     const isSystemCall = isServiceRole || isAnonKey;
 
     if (isSystemCall) {
