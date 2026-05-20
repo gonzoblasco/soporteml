@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,14 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Helmet>
+        <title>{mode === 'signup' ? 'Crear cuenta — SoporteML' : 'Iniciar sesión — SoporteML'}</title>
+        <meta name="description" content={mode === 'signup' ? 'Creá tu cuenta gratis en SoporteML y empezá a responder preguntas de Mercado Libre con IA.' : 'Iniciá sesión en SoporteML para gestionar tus preguntas de Mercado Libre.'} />
+        <link rel="canonical" href={mode === 'signup' ? 'https://soporteml.com/signup' : 'https://soporteml.com/login'} />
+        <meta property="og:title" content={mode === 'signup' ? 'Crear cuenta — SoporteML' : 'Iniciar sesión — SoporteML'} />
+        <meta property="og:description" content={mode === 'signup' ? 'Creá tu cuenta gratis en SoporteML.' : 'Iniciá sesión en SoporteML.'} />
+        <meta property="og:url" content={mode === 'signup' ? 'https://soporteml.com/signup' : 'https://soporteml.com/login'} />
+      </Helmet>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
