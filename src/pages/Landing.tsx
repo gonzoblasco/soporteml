@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import {
   Sparkles, AlertTriangle, BarChart3, Link2, Inbox, Bot, ArrowRight,
   MessageSquare, Sun, Moon, Clock, Zap, Check, Calendar, Crown,
