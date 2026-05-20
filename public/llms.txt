@@ -1,0 +1,11 @@
+# SoporteML
+
+> Plataforma para vendedores de Mercado Libre que centraliza las preguntas de las publicaciones, sugiere respuestas con IA y permite responder automáticamente según reglas configurables.
+
+SoporteML conecta tu cuenta de Mercado Libre, recibe las preguntas en tiempo real vía webhooks y las muestra en una bandeja unificada. Una IA analiza cada pregunta usando el contexto del producto (CRM y base de conocimiento) y sugiere o publica respuestas. Incluye bandeja prioritaria para casos que requieren intervención humana, equipos con roles (admin/agente) y soporte multi-empresa.
+
+## Pages
+
+- [Inicio](/): Resumen del producto, funcionalidades, precios y FAQ.
+- [Crear cuenta](/signup): Registro gratis para empezar a usar SoporteML.
+- [Iniciar sesión](/login): Acceso para usuarios existentes.
