@@ -155,6 +155,24 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Helmet>
+        <title>SoporteML — Respondé preguntas de Mercado Libre con IA</title>
+        <meta name="description" content="Centralizá las preguntas de tus publicaciones de Mercado Libre, respondé con IA y automatizá tu atención sin perder ventas." />
+        <link rel="canonical" href="https://soporteml.com/" />
+        <meta property="og:title" content="SoporteML — Respondé preguntas de Mercado Libre con IA" />
+        <meta property="og:description" content="Centralizá las preguntas de tus publicaciones de Mercado Libre, respondé con IA y automatizá tu atención sin perder ventas." />
+        <meta property="og:url" content="https://soporteml.com/" />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqs.map(f => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        })}</script>
+      </Helmet>
       {/* Navbar */}
       <nav className="fixed top-0 inset-x-0 z-50 glass-panel border-b border-border/50">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 h-14">
