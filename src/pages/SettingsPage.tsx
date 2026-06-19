@@ -717,6 +717,7 @@ const AiConfigSection = () => {
   const [aiInstructions, setAiInstructions] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (!currentCompanyId) { setLoading(false); return; }
@@ -1772,6 +1773,7 @@ const SlaSection = () => {
   const [emailsText, setEmailsText] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (!currentCompanyId) { setLoading(false); return; }
@@ -1818,6 +1820,33 @@ const SlaSection = () => {
       toast({ title: 'SLA actualizado', description: `Tiempo objetivo: ${target} min · Alertas ${enabled ? 'activas' : 'desactivadas'}` });
     }
     setSaving(false);
+  };
+
+  const handleTest = async () => {
+    if (!currentCompanyId) return;
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sla-breach-notifier', {
+        body: { source: 'cron' },
+      });
+      if (error) throw error;
+      const sent = (data as any)?.totalSent ?? 0;
+      if (sent > 0) {
+        toast({
+          title: 'Alerta enviada',
+          description: `Se enviaron ${sent} aviso${sent === 1 ? '' : 's'} por email. Revisá tu bandeja.`,
+        });
+      } else {
+        toast({
+          title: 'Sin vencimientos',
+          description: 'No hay preguntas vencidas pendientes de alertar en este momento.',
+        });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error al ejecutar la prueba', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -1883,11 +1912,21 @@ const SlaSection = () => {
                 disabled={!enabled}
               />
               <p className="text-xs text-muted-foreground">
-                Separá con comas. Cada 5 minutos se envía un resumen con las preguntas vencidas que aún no fueron alertadas. Dejá vacío para no recibir emails.
+                Separá con comas. Cada 15 minutos se envía un resumen con las preguntas vencidas que aún no fueron alertadas. Dejá vacío para no recibir emails.
               </p>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTest}
+                disabled={testing || !enabled}
+                title={!enabled ? 'Activá las alertas para probar' : 'Ejecuta el job ahora y envía emails si hay vencimientos'}
+              >
+                {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                Probar alerta ahora
+              </Button>
               <Button onClick={handleSave} disabled={saving} size="sm">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
                 Guardar
