@@ -12,6 +12,23 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Optional shared-secret protection. Configure MELI_WEBHOOK_SECRET in env and append
+  // `?secret=<token>` to the URL registered in Mercado Libre. When unset, we accept all
+  // calls (back-compat) but log a warning so the operator can enable it.
+  const expectedSecret = Deno.env.get("MELI_WEBHOOK_SECRET");
+  if (expectedSecret) {
+    const url = new URL(req.url);
+    if (url.searchParams.get("secret") !== expectedSecret) {
+      console.warn("[MELI-WEBHOOK] Rejected request with invalid/missing secret");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } else {
+    console.warn("[MELI-WEBHOOK] MELI_WEBHOOK_SECRET is not set; accepting unauthenticated webhook");
+  }
+
   // MeLi sends GET for verification and POST for notifications
   if (req.method === "GET") {
     // Verification ping from MeLi during webhook setup
@@ -39,7 +56,11 @@ Deno.serve(async (req) => {
       console.log("[MELI-WEBHOOK] Question notification:", resource, "user_id:", user_id);
 
       const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-      const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      // Fetch cron secret from vault via SECURITY DEFINER RPC
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const { data: cronSecret } = await admin.rpc("get_cron_secret");
 
       // Forward to sync-meli-questions with the specific resource
       const syncUrl = `${SUPABASE_URL}/functions/v1/sync-meli-questions`;
@@ -47,7 +68,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          "X-Cron-Secret": String(cronSecret ?? ""),
         },
         body: JSON.stringify({
           source: "cron",
