@@ -31,3 +31,5 @@ project_id = "ropbkdqhqdeiwrenrmjt"
     verify_jwt = false
   [functions.mp-webhook]
     verify_jwt = false
+  [functions.sla-breach-notifier]
+    verify_jwt = false
