@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle, CreditCard, Crown, Sparkles, Cpu, ShieldAlert, LogOut } from 'lucide-react';
+import { CheckCircle2, XCircle, ExternalLink, Loader2, Unplug, Save, User, Building2, Link, Users, Bot, Copy, RefreshCw, Mail, UserPlus, Trash2, RotateCcw, Zap, Info, Bell, AlertTriangle, CreditCard, Crown, Sparkles, Cpu, ShieldAlert, LogOut, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
