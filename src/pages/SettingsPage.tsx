@@ -718,6 +718,7 @@ const AiConfigSection = () => {
   const [aiInstructions, setAiInstructions] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (!currentCompanyId) { setLoading(false); return; }
@@ -1819,6 +1820,33 @@ const SlaSection = () => {
       toast({ title: 'SLA actualizado', description: `Tiempo objetivo: ${target} min · Alertas ${enabled ? 'activas' : 'desactivadas'}` });
     }
     setSaving(false);
+  };
+
+  const handleTest = async () => {
+    if (!currentCompanyId) return;
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sla-breach-notifier', {
+        body: { source: 'cron' },
+      });
+      if (error) throw error;
+      const sent = (data as any)?.totalSent ?? 0;
+      if (sent > 0) {
+        toast({
+          title: 'Alerta enviada',
+          description: `Se enviaron ${sent} aviso${sent === 1 ? '' : 's'} por email. Revisá tu bandeja.`,
+        });
+      } else {
+        toast({
+          title: 'Sin vencimientos',
+          description: 'No hay preguntas vencidas pendientes de alertar en este momento.',
+        });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error al ejecutar la prueba', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
