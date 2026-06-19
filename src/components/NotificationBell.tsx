@@ -25,7 +25,7 @@ const typeIcons: Record<string, string> = {
   answer_published: '✅',
 };
 
-export const NotificationBell = ({ collapsed }: { collapsed?: boolean }) => {
+export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; label?: string }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -83,18 +83,36 @@ export const NotificationBell = ({ collapsed }: { collapsed?: boolean }) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`relative h-8 w-8 ${collapsed ? 'mx-auto' : ''}`}
-        >
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1">
-              {unreadCount > 99 ? '99+' : unreadCount}
+        {collapsed || !label ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`relative h-8 w-8 ${collapsed ? 'mx-auto' : ''}`}
+          >
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 px-2 h-8 text-muted-foreground hover:text-foreground"
+          >
+            <span className="relative inline-flex items-center justify-center w-4 h-4 shrink-0">
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </span>
-          )}
-        </Button>
+            <span className="text-xs">{label}</span>
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent side="right" align="start" className="w-80 p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">

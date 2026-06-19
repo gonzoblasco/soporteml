@@ -229,10 +229,10 @@ const AppSidebar = () => {
 
       {/* Notification Bell + Collapse Toggle */}
       <div className={`px-3 pb-1 space-y-1 ${collapsed && !isMobile ? 'flex flex-col items-center' : ''}`}>
-        <div className={`flex items-center ${collapsed && !isMobile ? 'justify-center' : 'gap-2 px-1'}`}>
-          <NotificationBell collapsed={collapsed && !isMobile} />
-          {(!collapsed || isMobile) && <span className="text-xs text-muted-foreground">Notificaciones</span>}
-        </div>
+        <NotificationBell
+          collapsed={collapsed && !isMobile}
+          label={!collapsed || isMobile ? 'Notificaciones' : undefined}
+        />
         {!isMobile && (
           <Button
             variant="ghost"
