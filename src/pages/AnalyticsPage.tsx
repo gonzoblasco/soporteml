@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import EmptyState from '@/components/EmptyState';
-import { BarChart3, Download, TrendingUp, TrendingDown, Bot, AlertTriangle, Clock, Sparkles } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, TrendingDown, Bot, AlertTriangle, Clock, Sparkles, Timer } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   ResponsiveContainer,
@@ -33,6 +33,11 @@ interface AnalyticsData {
   auto_resolution_rate: number;
   delta_total: number | null;
   delta_auto_rate: number | null;
+  sla_target_minutes?: number;
+  sla_answered_total?: number;
+  sla_answered_in_target?: number;
+  sla_compliance_pct?: number | null;
+  sla_pending_breached?: number;
   daily_volume: Array<{ date: string; total: number; auto: number; human: number }> | null;
   by_category: Array<{ category: string; count: number }> | null;
   top_products: Array<{ product_id: string; title: string; questions: number; auto_rate: number }> | null;
@@ -66,6 +71,13 @@ const confidenceColor = (pct: number) => {
 const autoRateColor = (pct: number) => {
   if (pct >= 75) return 'text-emerald-600 dark:text-emerald-400';
   if (pct >= 60) return 'text-amber-600 dark:text-amber-400';
+  return 'text-rose-600 dark:text-rose-400';
+};
+
+const slaColor = (pct: number | null | undefined) => {
+  if (pct == null) return 'text-muted-foreground';
+  if (pct >= 90) return 'text-emerald-600 dark:text-emerald-400';
+  if (pct >= 70) return 'text-amber-600 dark:text-amber-400';
   return 'text-rose-600 dark:text-rose-400';
 };
 
@@ -285,6 +297,32 @@ const AnalyticsPage = () => {
                 valueClass={confidenceColor(Number(data.avg_confidence) * 100)}
               />
               <KpiCard label="Pendientes" value={data.pending} icon={Clock} />
+            </div>
+
+            {/* SLA row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KpiCard
+                label="Cumplimiento SLA"
+                value={data.sla_compliance_pct != null ? `${data.sla_compliance_pct}%` : '—'}
+                icon={Timer}
+                hint={
+                  data.sla_target_minutes
+                    ? `Target: ${data.sla_target_minutes} min · ${data.sla_answered_in_target ?? 0}/${data.sla_answered_total ?? 0}`
+                    : undefined
+                }
+                valueClass={slaColor(data.sla_compliance_pct)}
+              />
+              <KpiCard
+                label="Pendientes vencidas"
+                value={data.sla_pending_breached ?? 0}
+                icon={AlertTriangle}
+                hint={(data.sla_pending_breached ?? 0) > 0 ? 'Atención: superaron el SLA' : 'Todo al día'}
+                valueClass={
+                  (data.sla_pending_breached ?? 0) > 0
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }
+              />
             </div>
 
             {/* Daily volume */}

@@ -1,22 +1,31 @@
 import type { QuestionRow } from '@/types/question';
 import CategoryBadge from './CategoryBadge';
 import { motion } from 'framer-motion';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Clock } from 'lucide-react';
 import { derivePriorityChips } from '@/lib/priorityChips';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { timeAgoEs } from '@/lib/timeAgo';
+import { computeSlaInfo } from '@/lib/sla';
 
 interface Props {
   question: QuestionRow;
   isSelected: boolean;
   onClick: () => void;
   showHumanReason?: boolean;
+  slaTargetMinutes?: number;
 }
 
-const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props) => {
+const QuestionCard = ({ question, isSelected, onClick, showHumanReason, slaTargetMinutes }: Props) => {
   const date = new Date(question.created_at);
   const elapsed = isNaN(date.getTime()) ? '' : timeAgoEs(question.created_at);
   const chips = showHumanReason ? derivePriorityChips(question) : [];
+
+  // Show SLA chip only for pending/unanswered questions when target is provided
+  const isPending = question.status === 'pending' && !question.answered_at;
+  const slaInfo = slaTargetMinutes && isPending
+    ? computeSlaInfo(question.created_at, slaTargetMinutes, question.answered_at)
+    : null;
+  const showSlaChip = slaInfo && (slaInfo.status === 'at_risk' || slaInfo.status === 'breached');
 
   return (
     <motion.button
@@ -36,6 +45,19 @@ const QuestionCard = ({ question, isSelected, onClick, showHumanReason }: Props)
             {question.buyer_nickname ?? question.buyer_id ?? 'Comprador'} · {elapsed}
           </span>
         </div>
+        {showSlaChip && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 ${slaInfo!.chipClass}`}>
+                <Clock className="w-2.5 h-2.5" />
+                {slaInfo!.label}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs max-w-[240px]">
+              {slaInfo!.tooltip}
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {showHumanReason && chips.length > 0 && (

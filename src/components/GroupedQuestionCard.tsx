@@ -2,19 +2,21 @@ import { useState } from 'react';
 import type { QuestionGroup } from '@/lib/groupQuestions';
 import QuestionCard from './QuestionCard';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageSquare, Clock } from 'lucide-react';
 import CategoryBadge from './CategoryBadge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { timeAgoEs } from '@/lib/timeAgo';
+import { computeSlaInfo } from '@/lib/sla';
 
 interface Props {
   group: QuestionGroup;
   selectedId: string | null;
   onSelect: (id: string) => void;
   showHumanReason?: boolean;
+  slaTargetMinutes?: number;
 }
 
-const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: Props) => {
+const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason, slaTargetMinutes }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const count = group.questions.length;
 
@@ -27,6 +29,7 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: P
         isSelected={selectedId === q.id}
         onClick={() => onSelect(q.id)}
         showHumanReason={showHumanReason}
+        slaTargetMinutes={slaTargetMinutes}
       />
     );
   }
@@ -41,6 +44,15 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: P
         categories.filter(c => c === b).length - categories.filter(c => c === a).length
       )[0]
     : null;
+
+  // Worst SLA across pending questions in the group
+  const groupSla = slaTargetMinutes
+    ? group.questions
+        .filter(q => q.status === 'pending' && !q.answered_at)
+        .map(q => computeSlaInfo(q.created_at, slaTargetMinutes, q.answered_at))
+        .sort((a, b) => a.remainingMin - b.remainingMin)[0]
+    : null;
+  const showSlaChip = groupSla && (groupSla.status === 'at_risk' || groupSla.status === 'breached');
 
   return (
     <div className="space-y-1">
@@ -63,6 +75,15 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: P
               {group.buyer_nickname ?? group.buyer_id ?? 'Comprador'} · {elapsed}
             </span>
           </div>
+          {showSlaChip && (
+            <span
+              title={groupSla!.tooltip}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 ${groupSla!.chipClass}`}
+            >
+              <Clock className="w-2.5 h-2.5" />
+              {groupSla!.label}
+            </span>
+          )}
           <Badge variant="secondary" className="text-xs gap-1 font-normal shrink-0">
             <MessageSquare className="w-3 h-3" />
             {count}
@@ -91,6 +112,7 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason }: P
                 isSelected={selectedId === q.id}
                 onClick={() => onSelect(q.id)}
                 showHumanReason={showHumanReason}
+                slaTargetMinutes={slaTargetMinutes}
               />
             ))}
           </motion.div>

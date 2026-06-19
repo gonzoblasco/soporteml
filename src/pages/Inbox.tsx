@@ -4,7 +4,7 @@ import type { QuestionRow } from '@/types/question';
 import QuestionDetail from '@/components/QuestionDetail';
 import GroupedQuestionCard from '@/components/GroupedQuestionCard';
 import { groupQuestions } from '@/lib/groupQuestions';
-import { Search, Loader2, ArrowLeft, Inbox as InboxIcon, Link2, Settings } from 'lucide-react';
+import { Search, Loader2, ArrowLeft, Inbox as InboxIcon, Link2, Settings, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import MeliConnectionStatus from '@/components/MeliConnectionStatus';
@@ -15,11 +15,14 @@ import { QuestionListSkeleton } from '@/components/SkeletonCards';
 
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSlaSettings } from '@/hooks/useSlaSettings';
+import { computeSlaInfo } from '@/lib/sla';
 
-type StatusFilter = 'pending' | 'published' | 'archived' | 'auto_published' | 'needs_human';
+type StatusFilter = 'pending' | 'sla' | 'published' | 'archived' | 'auto_published' | 'needs_human';
 
 const TABS: { label: string; value: StatusFilter }[] = [
   { label: 'Pendientes', value: 'pending' },
+  { label: 'Por vencer', value: 'sla' },
   { label: 'Publicadas', value: 'published' },
   { label: 'Auto IA', value: 'auto_published' },
   { label: 'Archivadas', value: 'archived' },
@@ -34,19 +37,28 @@ const Inbox = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const isMobile = useIsMobile();
   const { currentCompanyId } = useAuth();
+  const { targetMinutes: slaTargetMinutes } = useSlaSettings();
+  // Tick every 30s to refresh SLA chip colors without re-fetching
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchQuestions = useCallback(async () => {
     if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
+    // "Por vencer" reuses pending data — query as pending and filter client-side
+    const dbStatus: StatusFilter = statusFilter === 'sla' ? 'pending' : statusFilter;
     let query = supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
       .eq('company_id', currentCompanyId)
-      .eq('status', statusFilter)
+      .eq('status', dbStatus)
       .order('created_at', { ascending: false });
 
     // Exclude questions flagged for human review — those belong in Priority Inbox
-    if (statusFilter === 'pending') {
+    if (dbStatus === 'pending') {
       query = query.eq('requires_human', false);
     }
 
@@ -90,13 +102,26 @@ const Inbox = () => {
     return () => { supabase.removeChannel(channel); };
   }, [currentCompanyId, fetchQuestions]);
 
-  const filtered = questions.filter(
+  const textFiltered = questions.filter(
     (q) =>
       (q.product_title ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (q.buyer_id ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (q.ai_category ?? '').toLowerCase().includes(search.toLowerCase()) ||
       q.question_text.toLowerCase().includes(search.toLowerCase())
   );
+
+  // "Por vencer" — keep only at_risk + breached, ordered by urgency
+  const filtered = useMemo(() => {
+    if (statusFilter !== 'sla') return textFiltered;
+    return textFiltered
+      .map(q => ({
+        q,
+        info: computeSlaInfo(q.created_at, slaTargetMinutes, q.answered_at),
+      }))
+      .filter(x => x.info.status === 'at_risk' || x.info.status === 'breached')
+      .sort((a, b) => a.info.remainingMin - b.info.remainingMin)
+      .map(x => x.q);
+  }, [textFiltered, statusFilter, slaTargetMinutes]);
 
   const groups = useMemo(() => groupQuestions(filtered), [filtered]);
 
@@ -164,9 +189,18 @@ const Inbox = () => {
               <QuestionListSkeleton />
             ) : filtered.length === 0 ? (
               <EmptyState
-                icon={InboxIcon}
-                title={statusFilter === 'pending' ? 'Sin preguntas pendientes' : statusFilter === 'published' ? 'Sin preguntas publicadas' : 'Sin preguntas archivadas'}
-                description={statusFilter === 'pending' ? 'Conectá tu cuenta de MercadoLibre para empezar a recibir preguntas automáticamente.' : `No hay preguntas ${statusFilter === 'published' ? 'publicadas' : 'archivadas'} todavía.`}
+                icon={statusFilter === 'sla' ? Clock : InboxIcon}
+                title={
+                  statusFilter === 'sla' ? 'Todo al día' :
+                  statusFilter === 'pending' ? 'Sin preguntas pendientes' :
+                  statusFilter === 'published' ? 'Sin preguntas publicadas' :
+                  'Sin preguntas archivadas'
+                }
+                description={
+                  statusFilter === 'sla' ? `Ninguna pregunta a punto de vencer ni vencida (SLA ${slaTargetMinutes} min).` :
+                  statusFilter === 'pending' ? 'Conectá tu cuenta de MercadoLibre para empezar a recibir preguntas automáticamente.' :
+                  `No hay preguntas ${statusFilter === 'published' ? 'publicadas' : 'archivadas'} todavía.`
+                }
                 actionLabel={statusFilter === 'pending' ? 'Ir a Configuración' : undefined}
                 onAction={statusFilter === 'pending' ? () => navigate('/settings') : undefined}
               />
@@ -178,6 +212,7 @@ const Inbox = () => {
                   group={g}
                   selectedId={selectedId}
                   onSelect={setSelectedId}
+                  slaTargetMinutes={slaTargetMinutes}
                 />
               ))
             )}

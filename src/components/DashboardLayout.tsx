@@ -4,9 +4,11 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle, Inbox, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSlaSettings } from '@/hooks/useSlaSettings';
+import { computeSlaInfo } from '@/lib/sla';
 
 // Simple notification sound using Web Audio API
 const playSound = (type: 'priority' | 'normal') => {
@@ -89,6 +91,8 @@ const DashboardLayout = () => {
   const location = useLocation();
   const initialLoad = useRef(true);
   const { currentCompanyId } = useAuth();
+  const { targetMinutes, escalationEnabled } = useSlaSettings();
+  const breachedAlertedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // Request push notification permission on mount
@@ -167,6 +171,57 @@ const DashboardLayout = () => {
       supabase.removeChannel(channel);
     };
   }, [navigate, currentCompanyId]);
+
+  // SLA breach poller — checks every 60s for newly-breached pending questions.
+  // Uses a per-session Set to avoid re-alerting the same question.
+  useEffect(() => {
+    if (!currentCompanyId || !escalationEnabled) return;
+
+    const checkBreaches = async () => {
+      const { data } = await supabase
+        .from('questions')
+        .select('id, meli_question_id, question_text, created_at, answered_at')
+        .eq('company_id', currentCompanyId)
+        .eq('status', 'pending')
+        .eq('requires_human', false)
+        .is('answered_at', null);
+
+      if (!data) return;
+
+      for (const q of data) {
+        const info = computeSlaInfo(q.created_at, targetMinutes, q.answered_at);
+        if (info.status !== 'breached') continue;
+        if (breachedAlertedRef.current.has(q.id)) continue;
+        breachedAlertedRef.current.add(q.id);
+
+        const preview = (q.question_text ?? '').slice(0, 80);
+
+        toast('⏱ SLA vencido', {
+          description: `${info.label} · "${preview}${preview.length === 80 ? '…' : ''}"`,
+          icon: <Clock className="w-4 h-4 text-rose-500" />,
+          action: { label: 'Abrir', onClick: () => navigate('/inbox') },
+          duration: 10_000,
+        });
+
+        sendBrowserNotification(
+          '⏱ SLA vencido',
+          `${info.label} · ${preview}`,
+          `sla-${q.meli_question_id}`,
+          () => navigate('/inbox'),
+        );
+      }
+    };
+
+    // Run shortly after mount, then every 60s
+    const initial = setTimeout(checkBreaches, 3000);
+    const id = setInterval(checkBreaches, 60_000);
+    return () => { clearTimeout(initial); clearInterval(id); };
+  }, [currentCompanyId, targetMinutes, escalationEnabled, navigate]);
+
+  // Reset the alerted-set when switching companies
+  useEffect(() => {
+    breachedAlertedRef.current = new Set();
+  }, [currentCompanyId]);
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">

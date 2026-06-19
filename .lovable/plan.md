@@ -1,49 +1,97 @@
-# Fix: enrich-product 404 "Product not found" en usuarios multi-company
+# Roadmap urgente — análisis y plan
 
-## Problema
+## 1. Las 5 features más urgentes
 
-Al hacer clic en "Enriquecer con IA" en /catalog (mientras se trabaja sobre la company Moderno), la Edge Function devuelve 404 y la pantalla queda en blanco.
+Cada una está rankeada por **impacto en retención/reputación × frecuencia de uso × esfuerzo**.
 
-**Causa raíz:** `enrich-product` resuelve la company del usuario llamando a `get_user_company_id(user.id)`, que devuelve la membership marcada como **default** del usuario. Para usuarios multi-company (super admin con membership en `a1b2c3d4-...` como default y otra en `667c53e7-...` Moderno), siempre se infiere la default — no la company que el usuario tiene seleccionada en el switcher. Como el producto pertenece a Moderno, el filtro `.eq('company_id', defaultCompanyId)` no encuentra nada → 404.
+### a) Mensajería post-venta de Mercado Libre
+Hoy SoporteML solo cubre **preguntas pre-venta**. El daño real a la reputación ocurre después de la compra: "no llegó", "vino fallado", "quiero devolver". Esos mensajes viven en el módulo *Mensajes* de MeLi (`/messages/packs/...`) y la app está ciega ahí. Es el feature más pedido implícitamente porque resuelve el problema de negocio principal del seller: evitar reclamos.
 
-Esto rompe el patrón ya documentado en el proyecto (`mem://architecture/tenant-context-resolution`): **las acciones manuales iniciadas por la UI deben recibir el `company_id` del tenant activo de forma explícita o derivarlo del recurso, no del default del usuario.**
+### b) Gestión de reclamos (Claims / Mediaciones)
+Cuando se abre un claim, el seller tiene 48h para responder o pierde plata. Hoy se enteran por mail de MeLi y entran al panel viejo. Centralizarlos en SoporteML con IA sugerida y SLA visible es alto impacto y diferenciador.
 
-## Solución
+### c) SLA tracking + alertas de escalation
+Ya guardamos `created_at` y `answered_at` por pregunta. Falta surfacing accionable: timer visible, target configurable por empresa, alerta (browser push + email) cuando una pregunta supera el umbral. Es la feature de **menor esfuerzo, mayor impacto operativo** porque convierte data existente en comportamiento.
 
-Validar membership contra el `company_id` del **producto** (que ya está en la DB), en lugar de inferir un company_id default del usuario. El producto identifica unívocamente su tenant; solo hay que confirmar que el usuario pertenece a esa company.
+### d) Bulk actions en el Inbox
+Responder/archivar/asignar múltiples preguntas similares en una sola acción. Hoy todo es 1×1, lo que duele en empresas con >50 preguntas/día. Ganancia de productividad inmediata, esfuerzo bajo.
 
-### Cambios
+### e) Multi-cuenta MeLi por empresa
+La restricción `1 cuenta MeLi por empresa` bloquea sellers que operan varios CUITs/marcas. Desbloquea ventas hacia el segmento medio-alto. Esfuerzo medio (toca OAuth, sync, scoping) y no urgente para los usuarios actuales — más estratégico que urgente.
 
-**1. `supabase/functions/enrich-product/index.ts`**
+## 2. Las 3 primordiales (conclusión)
 
-- Buscar el producto por `id` solamente (sin filtrar por company_id):
-  ```ts
-  const { data: product } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", product_id)
-    .maybeSingle();
-  ```
-- Si no existe → 404 "Product not found".
-- Validar acceso usando la RPC ya existente `user_belongs_to_company(user.id, product.company_id)`. Si no pertenece → 403 Forbidden.
-- Reemplazar todos los usos de `companyId` (que venían de `get_user_company_id`) por `product.company_id` en el resto del flujo (búsqueda de `meli_tokens`, etc.).
-- Mantener el `try/catch` global ya existente que devuelve 500 con `error.message` para errores inesperados.
+| # | Feature | Por qué entra al podio |
+|---|---|---|
+| 1 | **SLA tracking + escalation** | Mejor ratio impacto/esfuerzo. Convierte data ya existente en alertas accionables. Base necesaria para medir el éxito de las otras dos. |
+| 2 | **Mensajería post-venta** | Cierra el agujero principal del producto: hoy solo cubrimos un tercio del ciclo de atención del seller. |
+| 3 | **Gestión de reclamos** | Donde el seller pierde plata real. Apalanca lo construido en (1) y (2) — claims son el caso extremo de SLA + post-venta. |
 
-**2. CHANGELOG.md**
+Bulk actions y multi-cuenta quedan en backlog cercano: bulk se puede meter como mejora UX durante la fase 1, multi-cuenta amerita un proyecto propio post-podio.
 
-Agregar entrada:
-> Fix: enrich-product respeta multi-tenant — valida membership contra el company_id del producto (vía `user_belongs_to_company`) en vez de asumir la company default del usuario. Resuelve 404 "Product not found" para usuarios con membership en varias empresas.
+## 3. Plan de implementación
 
-## Restricciones
+### Fase 1 — SLA tracking + escalation (~1 sprint)
 
-- NO tocar el frontend (`EnrichButton.tsx`): el contrato `{ product_id, force_refresh }` se mantiene.
-- NO modificar el flujo de IA, cache de MeLi, ni `meli_tokens`.
-- NO crear migraciones (la RPC `user_belongs_to_company` ya existe).
-- NO tocar `config.toml`.
-- Verificar build limpio.
+**Objetivo:** que ninguna pregunta pase desapercibida después del umbral configurado.
 
-## Validación
+- **DB:** agregar `companies.sla_target_minutes` (default 60) y `companies.sla_escalation_enabled` (bool).
+- **Cálculo:** view o columna derivada `questions.sla_status` (`on_track` | `at_risk` | `breached`) usando `created_at` y `answered_at` / `now()`. Se materializa client-side para el listado y server-side para alertas.
+- **UI Inbox:** chip de tiempo con color (verde/ámbar/rojo) + ordenamiento por "más urgente". Filtro nuevo "Por vencer / Vencidas".
+- **UI Settings → Operación:** input de SLA target en minutos + toggle de alertas.
+- **Alertas:**
+  - Realtime en la UI cuando una pregunta cruza umbral (reusar canal `inbox-realtime`).
+  - Notificación browser push (ya existe la infra de `NotificationBell`).
+  - Email opcional al admin (edge function `notify` extendida).
+- **Analytics:** sumar tarjeta "Cumplimiento de SLA (%)" y serie diaria en `/analytics`.
 
-1. Reproducir el flujo: en /catalog (company Moderno), abrir un producto y clickear "Enriquecer con IA" → debe ejecutar el enriquecimiento sin 404.
-2. Probar con un usuario que NO sea miembro de la company del producto (vía curl con su JWT) → debe devolver 403, no 404.
-3. Probar con productId inexistente → 404.
+### Fase 2 — Mensajería post-venta (~2 sprints)
+
+**Objetivo:** unificar preguntas y mensajes post-venta en un solo inbox.
+
+- **OAuth scope:** verificar y, si falta, sumar `read messages` y `write messages` al PKCE (memoria `meli-oauth-pkce`).
+- **DB nueva:**
+  - `conversations` (id, company_id, meli_pack_id, buyer_id, order_id, last_message_at, sla_status, status).
+  - `messages` (id, conversation_id, direction, body, sent_at, meli_message_id, attachments jsonb, ai_draft, ai_confidence).
+  - RLS company-scoped + grants estándar.
+- **Sync:** nueva edge function `sync-meli-messages` (cron + webhook topic `messages`) reutilizando refresh-token resilience existente.
+- **UI:**
+  - Pestaña "Mensajes" en sidebar al lado de Inbox.
+  - Vista threaded estilo chat con drawer de detalle del pedido (item + envío) llamando a `meli-item-proxy` extendido.
+  - AI Copilot adaptado: prompt con contexto de orden (estado de envío, fecha de entrega, comprador frecuente).
+- **Templates:** soporte de variables nuevas `{numero_orden}`, `{tracking}`, `{estado_envio}`.
+- **SLA:** reutilizar el motor de fase 1 con target distinto (configurable separado).
+
+### Fase 3 — Gestión de reclamos (~2 sprints)
+
+**Objetivo:** evitar que se pierdan plazos de claims/mediaciones.
+
+- **Sync:** edge function `sync-meli-claims` (cron + webhook topic `claims`). Endpoint `/post-purchase/v1/claims/search`.
+- **DB:**
+  - `claims` (id, company_id, meli_claim_id, order_id, buyer_id, type, status, stage, reason_code, deadline_at, opened_at, last_action_at).
+  - `claim_messages` (interacciones del claim, mismo patrón que `messages`).
+- **UI:**
+  - Página `/claims` con tabs por estado (Abiertos / En mediación / Cerrados).
+  - Card con countdown grande al deadline (rojo si <24h).
+  - AI Copilot con prompt especializado para claims (tono empático, ofrecer solución concreta antes de mediación).
+  - Acciones: responder, ofrecer reembolso parcial, escalar a humano.
+- **Alertas:** dedicado, no se mezcla con inbox normal — push + email obligatorio para deadlines <24h.
+- **Analytics:** tasa de claims resueltos sin mediación, deadline cumplido (%).
+
+## 4. Detalles técnicos transversales
+
+- Cada fase termina con entrada en `CHANGELOG.md` y actualización de memoria relevante (`mem://features/*`).
+- Reusar patrones existentes: refresh de token MeLi con `refreshMeliToken.ts`, audit con `audit_logs`, autopilot con la decision engine ya documentada, embeddings KB para enriquecer drafts.
+- Webhook único `meli-webhook` ya recibe varios topics — extender el switch en vez de crear funciones nuevas de recepción.
+- Mantener restricción `h-screen` y diseño calmo del control center (memoria `layout-constraints` y `design-direction`).
+- Mantener 1 cuenta MeLi por empresa (no se toca en este podio).
+
+## 5. Secuencia y entregables
+
+```text
+Sprint 1: SLA tracking + escalation (Fase 1)         -> entrega valor inmediato
+Sprint 2-3: Mensajería post-venta (Fase 2)           -> cierra el ciclo de atención
+Sprint 4-5: Gestión de reclamos (Fase 3)             -> protege ingresos del seller
+```
+
+Después de aprobado, arranco por Fase 1 que es independiente y desbloquea métricas para validar el impacto real de las fases siguientes.

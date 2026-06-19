@@ -138,6 +138,8 @@ export type Database = {
           kb_similarity_threshold: number
           kb_top_k: number
           last_synced_at: string | null
+          sla_escalation_enabled: boolean
+          sla_target_minutes: number
           sync_interval_minutes: number
           updated_at: string
         }
@@ -158,6 +160,8 @@ export type Database = {
           kb_similarity_threshold?: number
           kb_top_k?: number
           last_synced_at?: string | null
+          sla_escalation_enabled?: boolean
+          sla_target_minutes?: number
           sync_interval_minutes?: number
           updated_at?: string
         }
@@ -178,6 +182,8 @@ export type Database = {
           kb_similarity_threshold?: number
           kb_top_k?: number
           last_synced_at?: string | null
+          sla_escalation_enabled?: boolean
+          sla_target_minutes?: number
           sync_interval_minutes?: number
           updated_at?: string
         }
