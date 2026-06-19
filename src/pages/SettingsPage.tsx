@@ -1773,6 +1773,7 @@ const SlaSection = () => {
   const [emailsText, setEmailsText] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (!currentCompanyId) { setLoading(false); return; }
