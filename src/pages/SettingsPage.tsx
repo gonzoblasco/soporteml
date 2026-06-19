@@ -1784,7 +1784,7 @@ const SlaSection = () => {
       if (data) {
         setTarget(data.sla_target_minutes ?? 60);
         setEnabled(data.sla_escalation_enabled ?? true);
-        setEmailsText(((data as any).sla_alert_emails ?? []).join(', '));
+        setEmailsText((data.sla_alert_emails ?? []).join(', '));
       }
       setLoading(false);
     })();
