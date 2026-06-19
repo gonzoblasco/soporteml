@@ -1763,6 +1763,115 @@ const DangerZoneSection = () => {
   );
 };
 
+// ─── SLA & Escalation Section ───
+const SlaSection = () => {
+  const { currentCompanyId } = useAuth();
+  const { toast } = useToast();
+  const [target, setTarget] = useState<number>(60);
+  const [enabled, setEnabled] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!currentCompanyId) { setLoading(false); return; }
+    (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('sla_target_minutes, sla_escalation_enabled')
+        .eq('company_id', currentCompanyId)
+        .maybeSingle();
+      if (data) {
+        setTarget(data.sla_target_minutes ?? 60);
+        setEnabled(data.sla_escalation_enabled ?? true);
+      }
+      setLoading(false);
+    })();
+  }, [currentCompanyId]);
+
+  const handleSave = async () => {
+    if (!currentCompanyId) return;
+    if (target < 5 || target > 1440) {
+      toast({ title: 'Valor inválido', description: 'El SLA debe estar entre 5 y 1440 minutos (24h).', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from('company_settings')
+      .upsert(
+        { company_id: currentCompanyId, sla_target_minutes: target, sla_escalation_enabled: enabled },
+        { onConflict: 'company_id' },
+      );
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'SLA actualizado', description: `Tiempo objetivo: ${target} min · Alertas ${enabled ? 'activas' : 'desactivadas'}` });
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-muted-foreground" />
+          <CardTitle className="text-sm">SLA y escalation</CardTitle>
+        </div>
+        <CardDescription>
+          Definí en cuántos minutos una pregunta debe estar respondida. Aparece como chip en el Inbox y dispara alertas si se vence.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {loading ? (
+          <div className="flex items-center text-xs text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> Cargando…</div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="sla-target" className="text-sm">Tiempo objetivo (minutos)</Label>
+              <div className="flex items-center gap-3 max-w-sm">
+                <Input
+                  id="sla-target"
+                  type="number"
+                  min={5}
+                  max={1440}
+                  step={5}
+                  value={target}
+                  onChange={(e) => setTarget(parseInt(e.target.value || '0', 10))}
+                  className="w-32"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {target >= 60 ? `${Math.floor(target / 60)}h ${target % 60 || ''}m` : `${target} min`}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Recomendado: 30–120 min. La zona de "por vencer" arranca cuando queda el 25% del tiempo (o los últimos 15 min, lo que sea más amplio).
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="sla-escalation" className="text-sm">Alertas de SLA vencido</Label>
+                <p className="text-xs text-muted-foreground">
+                  Toast y notificación push del navegador cuando una pregunta supera el tiempo objetivo.
+                </p>
+              </div>
+              <Switch id="sla-escalation" checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={handleSave} disabled={saving} size="sm">
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                Guardar
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ─── Settings Page (2-panel layout) ───
 type SectionKey =
   | 'autopilot'
