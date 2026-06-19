@@ -27,7 +27,6 @@ const ProfileSection = () => {
   const { toast } = useToast();
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [changingPw, setChangingPw] = useState(false);
 
