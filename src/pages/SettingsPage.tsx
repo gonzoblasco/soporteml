@@ -1769,6 +1769,7 @@ const SlaSection = () => {
   const { toast } = useToast();
   const [target, setTarget] = useState<number>(60);
   const [enabled, setEnabled] = useState<boolean>(true);
+  const [emailsText, setEmailsText] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -1777,12 +1778,13 @@ const SlaSection = () => {
     (async () => {
       const { data } = await supabase
         .from('company_settings')
-        .select('sla_target_minutes, sla_escalation_enabled')
+        .select('sla_target_minutes, sla_escalation_enabled, sla_alert_emails')
         .eq('company_id', currentCompanyId)
         .maybeSingle();
       if (data) {
         setTarget(data.sla_target_minutes ?? 60);
         setEnabled(data.sla_escalation_enabled ?? true);
+        setEmailsText(((data as any).sla_alert_emails ?? []).join(', '));
       }
       setLoading(false);
     })();
@@ -1794,11 +1796,20 @@ const SlaSection = () => {
       toast({ title: 'Valor inválido', description: 'El SLA debe estar entre 5 y 1440 minutos (24h).', variant: 'destructive' });
       return;
     }
+    const emails = emailsText
+      .split(/[,\n;]/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const invalid = emails.find((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (invalid) {
+      toast({ title: 'Email inválido', description: invalid, variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from('company_settings')
       .upsert(
-        { company_id: currentCompanyId, sla_target_minutes: target, sla_escalation_enabled: enabled },
+        { company_id: currentCompanyId, sla_target_minutes: target, sla_escalation_enabled: enabled, sla_alert_emails: emails },
         { onConflict: 'company_id' },
       );
     if (error) {
