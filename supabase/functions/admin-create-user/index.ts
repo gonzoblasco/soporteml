@@ -33,7 +33,15 @@ serve(async (req) => {
 
     logStep("Caller authenticated", { userId: userData.user.id });
 
-    if (userData.user.email !== "gonzoblasco@icloud.com") {
+    // Verify super-admin status via the canonical RPC, executed in the caller's auth context
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } }
+    );
+    const { data: isSuperAdmin, error: superErr } = await callerClient.rpc("is_super_admin");
+    if (superErr) throw new Error(`Super admin check failed: ${superErr.message}`);
+    if (!isSuperAdmin) {
       throw new Error("Unauthorized: super admin access required");
     }
     logStep("Super admin verified");

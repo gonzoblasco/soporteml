@@ -23,8 +23,9 @@ Deno.serve(async (req) => {
     const latencyMs = Date.now() - start;
 
     if (error) {
+      console.error("[HEALTH-CHECK] DB error:", error.message);
       return new Response(
-        JSON.stringify({ status: "degraded", error: error.message, latency_ms: latencyMs, timestamp: new Date().toISOString() }),
+        JSON.stringify({ status: "degraded", latency_ms: latencyMs, timestamp: new Date().toISOString() }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -34,8 +35,9 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
+    console.error("[HEALTH-CHECK] Exception:", e instanceof Error ? e.message : String(e));
     return new Response(
-      JSON.stringify({ status: "error", error: e.message, latency_ms: Date.now() - start, timestamp: new Date().toISOString() }),
+      JSON.stringify({ status: "error", latency_ms: Date.now() - start, timestamp: new Date().toISOString() }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

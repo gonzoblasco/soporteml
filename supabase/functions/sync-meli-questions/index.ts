@@ -205,21 +205,31 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const SUPABASE_PUBLISHABLE_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
     const MELI_APP_ID = Deno.env.get("MELI_APP_ID")!;
     const MELI_SECRET_KEY = Deno.env.get("MELI_SECRET_KEY")!;
 
-    // Authenticate: require valid JWT (user-triggered) or service role key (cron/webhook)
+    // Authenticate: require valid JWT (user-triggered), service role key, or CRON_SECRET (cron/webhook)
     let callerUserId: string | null = null;
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const cronSecretHeader = req.headers.get("X-Cron-Secret");
+
+    // Resolve expected cron secret from vault via SECURITY DEFINER RPC (service-role only)
+    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    let expectedCronSecret: string | null = null;
+    if (cronSecretHeader) {
+      const { data: secretData } = await adminClient.rpc("get_cron_secret");
+      expectedCronSecret = (secretData as string | null) ?? null;
+    }
+    const hasValidCronSecret = !!expectedCronSecret && cronSecretHeader === expectedCronSecret;
+
+    if (!authHeader?.startsWith("Bearer ") && !hasValidCronSecret) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "") : "";
 
     // Parse body early so we can validate cron calls
     let body: any = {};
@@ -227,12 +237,10 @@ Deno.serve(async (req) => {
 
     const isCronSource = body.source === "cron";
 
-    // Allow service role key OR anon key for cron-triggered calls (must include source: "cron")
+    // Allow service role key OR X-Cron-Secret for cron-triggered calls (must include source: "cron").
+    // The public anon/publishable key is NEVER accepted as a system credential.
     const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
-    const isAnonKey =
-      token === SUPABASE_ANON_KEY ||
-      (SUPABASE_PUBLISHABLE_KEY !== "" && token === SUPABASE_PUBLISHABLE_KEY);
-    const isSystemCall = isServiceRole || isAnonKey;
+    const isSystemCall = isServiceRole || hasValidCronSecret;
 
     if (isSystemCall) {
       if (!isCronSource) {
@@ -242,7 +250,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      console.log("[SYNC] Cron call accepted via", isServiceRole ? "service_role" : "anon_key");
+      console.log("[SYNC] Cron call accepted via", isServiceRole ? "service_role" : "cron_secret");
     } else {
       // Validate user JWT
       const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -260,7 +268,7 @@ Deno.serve(async (req) => {
       console.log("[SYNC] Manual call from user:", callerUserId);
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = adminClient;
 
     // Scope meli_tokens query: user-triggered calls are restricted to caller's company
     let query = supabase.from("meli_tokens").select("*");

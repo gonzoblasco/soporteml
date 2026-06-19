@@ -1124,6 +1124,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_cron_secret: { Args: never; Returns: string }
       get_meli_connection_status: {
         Args: { _company_id: string }
         Returns: {
