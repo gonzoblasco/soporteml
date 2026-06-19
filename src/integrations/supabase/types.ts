@@ -138,6 +138,7 @@ export type Database = {
           kb_similarity_threshold: number
           kb_top_k: number
           last_synced_at: string | null
+          sla_alert_emails: string[]
           sla_escalation_enabled: boolean
           sla_target_minutes: number
           sync_interval_minutes: number
@@ -160,6 +161,7 @@ export type Database = {
           kb_similarity_threshold?: number
           kb_top_k?: number
           last_synced_at?: string | null
+          sla_alert_emails?: string[]
           sla_escalation_enabled?: boolean
           sla_target_minutes?: number
           sync_interval_minutes?: number
@@ -182,6 +184,7 @@ export type Database = {
           kb_similarity_threshold?: number
           kb_top_k?: number
           last_synced_at?: string | null
+          sla_alert_emails?: string[]
           sla_escalation_enabled?: boolean
           sla_target_minutes?: number
           sync_interval_minutes?: number
@@ -865,6 +868,7 @@ export type Database = {
           question_text: string
           requires_human: boolean
           requires_human_reason: string | null
+          sla_alert_sent_at: string | null
           status: string
         }
         Insert: {
@@ -890,6 +894,7 @@ export type Database = {
           question_text: string
           requires_human?: boolean
           requires_human_reason?: string | null
+          sla_alert_sent_at?: string | null
           status?: string
         }
         Update: {
@@ -915,6 +920,7 @@ export type Database = {
           question_text?: string
           requires_human?: boolean
           requires_human_reason?: string | null
+          sla_alert_sent_at?: string | null
           status?: string
         }
         Relationships: [
