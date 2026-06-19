@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -16,6 +16,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  /** True once user + memberships fully loaded (or confirmed signed-out). Use this for routing guards. */
+  isReady: boolean;
   profileName: string | null;
   userRole: AppRole;
   /** @deprecated Use `currentCompanyId` en su lugar. Alias legacy que se eliminará en la próxima versión. */
@@ -41,11 +43,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<AppRole>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [currentCompanyId, setCurrentCompanyIdState] = useState<string | null>(null);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -54,6 +58,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
 
       if (session?.user) {
+        // Skip re-loading memberships on TOKEN_REFRESHED / repeat events for the same user.
+        // Re-fetching on every event causes a brief window where currentCompanyId is null,
+        // which makes ProtectedRoute bounce to /post-google and back (loop).
+        if (loadedUserIdRef.current === session.user.id) {
+          return;
+        }
+        loadedUserIdRef.current = session.user.id;
+
         setTimeout(async () => {
           const uid = session.user.id;
 
@@ -106,6 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .maybeSingle();
             setUserRole((roleData?.role as AppRole) ?? null);
           }
+          setIsReady(true);
         }, 0);
       } else {
         setProfileName(null);
@@ -113,6 +126,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setCompanyId(null);
         setCurrentCompanyIdState(null);
         setMemberships([]);
+        loadedUserIdRef.current = null;
+        setIsReady(true);
       }
     });
 
@@ -120,6 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      if (!session?.user) setIsReady(true);
     });
 
     return () => subscription.unsubscribe();
@@ -212,7 +228,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, session, isLoading, profileName, userRole,
+      user, session, isLoading, isReady, profileName, userRole,
       companyId,
       memberships, currentCompanyId, setCurrentCompanyId,
       refreshMemberships,
