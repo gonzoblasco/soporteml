@@ -1773,6 +1773,7 @@ type SectionKey =
   | 'plan'
   | 'meli'
   | 'notifications'
+  | 'sla'
   | 'trash'
   | 'danger';
 
@@ -1799,6 +1800,12 @@ const SettingsPage = () => {
         { key: 'autopilot', label: 'Autopilot', adminOnly: true },
         { key: 'ai-config', label: 'Prompt y tono', adminOnly: true },
         { key: 'model', label: 'Modelo', adminOnly: true },
+      ],
+    },
+    {
+      label: 'Operación',
+      items: [
+        { key: 'sla', label: 'SLA y escalation', adminOnly: true },
       ],
     },
     {
@@ -1842,6 +1849,7 @@ const SettingsPage = () => {
       case 'autopilot': return <AutoReplySection />;
       case 'ai-config': return <AiConfigSection />;
       case 'model': return <ModelSection />;
+      case 'sla': return <SlaSection />;
       case 'profile': return (
         <div className="space-y-4">
           <ProfileSection />
