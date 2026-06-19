@@ -29,12 +29,12 @@ import { useState, useEffect } from "react";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, companyId, userRole } = useAuth();
+  const { user, isLoading, isReady, companyId, userRole } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && user) {
+    if (isReady && user) {
       const done = localStorage.getItem('onboarding_complete');
       const isSuperAdmin = user.email === 'gonzoblasco@icloud.com';
       // Show onboarding only for new admin users in a company, never for super admin
@@ -42,12 +42,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         setShowOnboarding(true);
       }
       setChecked(true);
-    } else if (!isLoading) {
+    } else if (isReady) {
       setChecked(true);
     }
-  }, [isLoading, user, companyId, userRole]);
+  }, [isReady, user, companyId, userRole]);
 
-  if (isLoading || !checked) return (
+  if (isLoading || !isReady || !checked) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
     </div>

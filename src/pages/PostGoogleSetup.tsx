@@ -11,7 +11,7 @@ import { Loader2, MessageSquare, Building2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PostGoogleSetup = () => {
-  const { user, isLoading, currentCompanyId, refreshMemberships, logout } = useAuth();
+  const { user, isLoading, isReady, currentCompanyId, refreshMemberships, logout } = useAuth();
   const [tab, setTab] = useState<'create' | 'join'>('create');
   const [companyName, setCompanyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -25,7 +25,7 @@ const PostGoogleSetup = () => {
     }
   }, [user, companyName]);
 
-  if (isLoading) {
+  if (isLoading || !isReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
