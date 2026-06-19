@@ -1870,6 +1870,23 @@ const SlaSection = () => {
               <Switch id="sla-escalation" checked={enabled} onCheckedChange={setEnabled} />
             </div>
 
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="sla-emails" className="text-sm">Emails para alertas de vencimiento</Label>
+              <Input
+                id="sla-emails"
+                type="text"
+                placeholder="ventas@tuempresa.com, supervisor@tuempresa.com"
+                value={emailsText}
+                onChange={(e) => setEmailsText(e.target.value)}
+                disabled={!enabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                Separá con comas. Cada 5 minutos se envía un resumen con las preguntas vencidas que aún no fueron alertadas. Dejá vacío para no recibir emails.
+              </p>
+            </div>
+
             <div className="flex justify-end">
               <Button onClick={handleSave} disabled={saving} size="sm">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
