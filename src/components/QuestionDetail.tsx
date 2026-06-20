@@ -15,13 +15,16 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { timeAgoEs } from '@/lib/timeAgo';
+import ThreadSummary from './ThreadSummary';
 
 interface Props {
   question: QuestionRow | null;
+  /** All questions belonging to the same hilo (buyer+product), incl. the selected one. */
+  thread?: QuestionRow[];
   onUpdated?: () => void;
 }
 
-const QuestionDetail = ({ question, onUpdated }: Props) => {
+const QuestionDetail = ({ question, thread, onUpdated }: Props) => {
   const [answer, setAnswer] = useState('');
   const [key, setKey] = useState('');
   const [publishing, setPublishing] = useState(false);
@@ -145,6 +148,10 @@ const QuestionDetail = ({ question, onUpdated }: Props) => {
       >
         {/* Main content */}
         <div className={`flex-1 flex flex-col p-6 ${isMobile ? 'pb-24' : ''} overflow-y-auto space-y-4`}>
+          {/* Thread summary (2+ messages) */}
+          {thread && thread.length >= 2 && (
+            <ThreadSummary thread={thread} companyId={companyId} />
+          )}
           {/* Question Block — muted background */}
           <div className="rounded-lg bg-muted/50 p-4 border border-border/30">
             <div className="flex items-center gap-2 mb-2">
