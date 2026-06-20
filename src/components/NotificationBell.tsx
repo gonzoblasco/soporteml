@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef, KeyboardEvent } from 'react';
-import { Bell, Check, CheckCheck, ExternalLink } from 'lucide-react';
+import { Bell, Check, CheckCheck, ExternalLink, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { timeAgoEs } from '@/lib/timeAgo';
 
 interface Notification {
@@ -38,6 +40,8 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // When the popover opens, move focus to the first item (or the markAll button).
@@ -118,6 +122,21 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
     }
   };
 
+  const filteredNotifications = notifications.filter((n) => {
+    if (filterType !== 'all' && n.type !== filterType) return false;
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      const typeLabel = (typeLabelsEs[n.type] ?? '').toLowerCase();
+      const hay =
+        n.title.toLowerCase().includes(q) ||
+        (n.message ?? '').toLowerCase().includes(q) ||
+        typeLabel.includes(q);
+      if (!hay) return false;
+    }
+    return true;
+  });
+  const isFiltering = filterType !== 'all' || searchText.trim().length > 0;
+
   const ariaTriggerLabel =
     unreadCount > 0
       ? `Notificaciones, ${unreadCount} sin leer`
@@ -196,17 +215,49 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
             </Button>
           )}
         </div>
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+            <Input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Buscar..."
+              aria-label="Buscar notificaciones por texto"
+              className="h-8 text-xs pl-7"
+            />
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger
+              className="h-8 text-xs w-[130px]"
+              aria-label="Filtrar notificaciones por tipo"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Todos los tipos</SelectItem>
+              {Object.entries(typeLabelsEs).map(([value, label]) => (
+                <SelectItem key={value} value={value} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <ScrollArea className="max-h-80">
           {notifications.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8" role="status">
               Sin notificaciones
+            </p>
+          ) : filteredNotifications.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8" role="status">
+              Ninguna notificación coincide con tu búsqueda.
             </p>
           ) : (
             <ul
               aria-labelledby="notif-title"
               className="divide-y divide-border focus:outline-none"
             >
-              {notifications.map((n, i) => {
+              {filteredNotifications.map((n, i) => {
                 const typeLabel = typeLabelsEs[n.type] ?? 'Notificación';
                 const stateLabel = n.read ? 'Leída' : 'No leída';
                 const dateIso = new Date(n.created_at).toISOString();

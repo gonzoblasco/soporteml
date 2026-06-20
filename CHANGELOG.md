@@ -6,6 +6,9 @@
 - Panel de notificaciones: navegación por teclado (↑/↓/Home/End), foco visible (`focus-visible:ring`), roles ARIA (`dialog`, `menu`, `menuitem`), `aria-label` descriptivo en el trigger con el conteo de no leídas, foco inicial al primer item al abrir y cierre con Escape (Radix por defecto). Iconos y badges marcados como `aria-hidden`.
 - Panel de notificaciones (revisión SR): se reemplazó `role="menu"/"menuitem"` por semántica de lista (`<ul>/<li>`) — más apropiada para feeds que para comandos. Se quitó el `role="dialog"` redundante del `PopoverContent` (Radix ya provee semántica), agregando `aria-labelledby` al título. Se añadió región `aria-live="polite"` que anuncia cambios en el conteo de no leídas, etiqueta accesible enriquecida por item (estado + tipo + título + mensaje + tiempo), `aria-current="true"` para items no leídos y `<time dateTime>` semántico en los timestamps.
 
+### Agregado
+- Panel de notificaciones: buscador por texto (busca en título, mensaje y tipo) y filtro por tipo (Pregunta nueva, Pregunta prioritaria, Conexión por vencer, Respuesta publicada) en el header del popover. El contador de no leídas y "Marcar todas" siguen operando sobre el total real, no sobre lo visible. Mensaje específico cuando ningún resultado coincide con el filtro.
+
 Todos los cambios notables de SoporteML se documentan en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
