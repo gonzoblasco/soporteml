@@ -1003,6 +1003,57 @@ export type Database = {
           },
         ]
       }
+      thread_summaries: {
+        Row: {
+          buyer_id: string
+          company_id: string
+          created_at: string
+          id: string
+          model: string | null
+          product_id: string
+          questions_hash: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          buyer_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          product_id: string
+          questions_hash: string
+          summary: string
+          updated_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          product_id?: string
+          questions_hash?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_summaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_summaries_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
