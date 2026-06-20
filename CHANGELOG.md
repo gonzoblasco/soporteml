@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Accesibilidad
+- Panel de notificaciones: navegación por teclado (↑/↓/Home/End), foco visible (`focus-visible:ring`), roles ARIA (`dialog`, `menu`, `menuitem`), `aria-label` descriptivo en el trigger con el conteo de no leídas, foco inicial al primer item al abrir y cierre con Escape (Radix por defecto). Iconos y badges marcados como `aria-hidden`.
+
 Todos los cambios notables de SoporteML se documentan en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
