@@ -141,6 +141,9 @@ const Inbox = () => {
   const groups = useMemo(() => groupQuestions(filtered), [filtered]);
 
   const selected = questions.find((q) => q.id === selectedId) ?? null;
+  const selectedThread = selected
+    ? (groups.find((g) => g.questions.some((q) => q.id === selected.id))?.questions ?? [selected])
+    : undefined;
 
   // Mobile: show detail view or list view
   const showDetail = isMobile && selectedId;
@@ -247,6 +250,7 @@ const Inbox = () => {
           <div className="flex-1 overflow-y-auto">
             <QuestionDetail
               question={selected}
+              thread={selectedThread}
               onUpdated={() => {
                 setSelectedId(null);
                 fetchQuestions();
@@ -257,6 +261,7 @@ const Inbox = () => {
       ) : !isMobile ? (
         <QuestionDetail
           question={selected}
+          thread={selectedThread}
           onUpdated={() => {
             setSelectedId(null);
             fetchQuestions();
