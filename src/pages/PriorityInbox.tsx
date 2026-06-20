@@ -12,6 +12,7 @@ import MeliConnectionStatus from '@/components/MeliConnectionStatus';
 import { QuestionListSkeleton } from '@/components/SkeletonCards';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchPriorityThreadKeys, threadKey } from '@/lib/priorityThreads';
 
 const PriorityInbox = () => {
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
@@ -24,24 +25,64 @@ const PriorityInbox = () => {
   const fetchQuestions = useCallback(async () => {
     if (!currentCompanyId) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase
+
+    // 1) Threads (buyer+product) flagged priority for this company.
+    const priorityKeys = await fetchPriorityThreadKeys(currentCompanyId);
+
+    // 2) Buyers involved in those threads — used to bound the second query.
+    const buyerIds = Array.from(
+      new Set(
+        Array.from(priorityKeys).map((k) => k.split('::')[0]),
+      ),
+    );
+
+    // Always include lone priority questions (no product_id grouping possible).
+    let merged: any[] = [];
+
+    // Lone priority questions (no group key) — fetched directly.
+    const { data: loneData } = await supabase
       .from('questions')
       .select('*, products(title, meli_item_id, permalink, price)')
       .eq('company_id', currentCompanyId)
       .eq('requires_human', true)
       .in('status', ['pending', 'needs_human'])
       .order('created_at', { ascending: false });
+    if (loneData) merged = loneData;
 
-    if (!error && data) {
-      const mapped: QuestionRow[] = data.map((q: any) => ({
-        ...q,
-        product_title: q.products?.title ?? null,
-        product_meli_id: q.products?.meli_item_id ?? null,
-        product_permalink: q.products?.permalink ?? null,
-        product_price: q.products?.price ?? null,
-      }));
-      setQuestions(mapped);
+    // If there are groupable priority threads, pull every open question of
+    // those buyers and keep only the ones belonging to a priority thread.
+    if (buyerIds.length > 0) {
+      const { data: threadData } = await supabase
+        .from('questions')
+        .select('*, products(title, meli_item_id, permalink, price)')
+        .eq('company_id', currentCompanyId)
+        .in('status', ['pending', 'needs_human'])
+        .in('buyer_id', buyerIds)
+        .order('created_at', { ascending: false });
+      if (threadData) {
+        for (const q of threadData) {
+          const k = threadKey(q.buyer_id, q.product_id);
+          if (k && priorityKeys.has(k)) merged.push(q);
+        }
+      }
     }
+
+    // Deduplicate by id (lone + thread queries can overlap).
+    const seen = new Set<string>();
+    const unique = merged.filter((q) => {
+      if (seen.has(q.id)) return false;
+      seen.add(q.id);
+      return true;
+    });
+
+    const mapped: QuestionRow[] = unique.map((q: any) => ({
+      ...q,
+      product_title: q.products?.title ?? null,
+      product_meli_id: q.products?.meli_item_id ?? null,
+      product_permalink: q.products?.permalink ?? null,
+      product_price: q.products?.price ?? null,
+    }));
+    setQuestions(mapped);
     setLoading(false);
   }, [currentCompanyId]);
 
