@@ -19,6 +19,8 @@ interface Props {
 const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason, slaTargetMinutes }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const count = group.questions.length;
+  const urgentCount = group.questions.filter(q => q.requires_human).length;
+  const isMixed = urgentCount > 0 && urgentCount < count;
 
   // Single question → render normal card
   if (count === 1) {
@@ -86,7 +88,7 @@ const GroupedQuestionCard = ({ group, selectedId, onSelect, showHumanReason, sla
           )}
           <Badge variant="secondary" className="text-xs gap-1 font-normal shrink-0">
             <MessageSquare className="w-3 h-3" />
-            {count}
+            {isMixed ? `${count} (${urgentCount} urg.)` : count}
           </Badge>
           {expanded ? (
             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

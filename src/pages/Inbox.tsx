@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSlaSettings } from '@/hooks/useSlaSettings';
 import { computeSlaInfo } from '@/lib/sla';
+import { fetchPriorityThreadKeys, threadKey } from '@/lib/priorityThreads';
 
 type StatusFilter = 'pending' | 'sla' | 'published' | 'archived' | 'auto_published' | 'needs_human';
 
@@ -35,6 +36,7 @@ const Inbox = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+  const [priorityKeys, setPriorityKeys] = useState<Set<string>>(new Set());
   const isMobile = useIsMobile();
   const { currentCompanyId } = useAuth();
   const { targetMinutes: slaTargetMinutes } = useSlaSettings();
@@ -75,6 +77,14 @@ const Inbox = () => {
       }));
       setQuestions(mapped);
     }
+
+    // Pull priority thread keys so we can absorb same-thread inbox items.
+    if (dbStatus === 'pending') {
+      const keys = await fetchPriorityThreadKeys(currentCompanyId);
+      setPriorityKeys(keys);
+    } else {
+      setPriorityKeys(new Set());
+    }
     setLoading(false);
   }, [statusFilter, currentCompanyId]);
 
@@ -108,7 +118,12 @@ const Inbox = () => {
       (q.buyer_id ?? '').toLowerCase().includes(search.toLowerCase()) ||
       (q.ai_category ?? '').toLowerCase().includes(search.toLowerCase()) ||
       q.question_text.toLowerCase().includes(search.toLowerCase())
-  );
+  ).filter((q) => {
+    // Hide questions that belong to a priority thread — they live in Priority Inbox.
+    if (statusFilter !== 'pending' && statusFilter !== 'sla') return true;
+    const k = threadKey(q.buyer_id, q.product_id);
+    return !(k && priorityKeys.has(k));
+  });
 
   // "Por vencer" — keep only at_risk + breached, ordered by urgency
   const filtered = useMemo(() => {
@@ -126,6 +141,9 @@ const Inbox = () => {
   const groups = useMemo(() => groupQuestions(filtered), [filtered]);
 
   const selected = questions.find((q) => q.id === selectedId) ?? null;
+  const selectedThread = selected
+    ? (groups.find((g) => g.questions.some((q) => q.id === selected.id))?.questions ?? [selected])
+    : undefined;
 
   // Mobile: show detail view or list view
   const showDetail = isMobile && selectedId;
@@ -232,6 +250,7 @@ const Inbox = () => {
           <div className="flex-1 overflow-y-auto">
             <QuestionDetail
               question={selected}
+              thread={selectedThread}
               onUpdated={() => {
                 setSelectedId(null);
                 fetchQuestions();
@@ -242,6 +261,7 @@ const Inbox = () => {
       ) : !isMobile ? (
         <QuestionDetail
           question={selected}
+          thread={selectedThread}
           onUpdated={() => {
             setSelectedId(null);
             fetchQuestions();

@@ -8,6 +8,8 @@
 
 ### Agregado
 - Panel de notificaciones: buscador por texto (busca en título, mensaje y tipo) y filtro por tipo (Pregunta nueva, Pregunta prioritaria, Conexión por vencer, Respuesta publicada) en el header del popover. El contador de no leídas y "Marcar todas" siguen operando sobre el total real, no sobre lo visible. Mensaje específico cuando ningún resultado coincide con el filtro.
+- Priority Inbox absorbe hilos: cuando un mismo comprador tiene al menos una pregunta priority sobre un producto, todas sus preguntas abiertas de ese hilo (incluyendo las que no son priority) aparecen agrupadas en Priority Inbox y desaparecen del Inbox normal, sin duplicados. La card del grupo muestra "N (M urg.)" cuando el hilo es mixto.
+- Resumen IA del hilo: arriba del detalle de una conversación con 2+ mensajes se muestra un resumen breve (3-4 viñetas, ≤60 palabras) generado por Lovable AI (`google/gemini-2.5-flash-lite`), cacheado por hilo en la nueva tabla `thread_summaries` con hash de invalidación. Incluye botón para regenerar manualmente.
 
 Todos los cambios notables de SoporteML se documentan en este archivo.
 
