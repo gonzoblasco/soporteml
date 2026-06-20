@@ -25,6 +25,13 @@ const typeIcons: Record<string, string> = {
   answer_published: '✅',
 };
 
+const typeLabelsEs: Record<string, string> = {
+  new_question: 'Pregunta nueva',
+  priority_question: 'Pregunta prioritaria',
+  token_expiring: 'Conexión por vencer',
+  answer_published: 'Respuesta publicada',
+};
+
 export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; label?: string }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -164,13 +171,14 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
         side="right"
         align="start"
         className="w-80 p-0"
-        role="dialog"
-        aria-label="Panel de notificaciones"
-        onCloseAutoFocus={(e) => {
-          // Let Radix return focus to the trigger automatically.
-          // Keep default behavior; just ensure no preventDefault.
-        }}
+        aria-labelledby="notif-title"
       >
+        {/* Live region: announces changes to unread count without stealing focus */}
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
+          {unreadCount > 0
+            ? `${unreadCount} ${unreadCount === 1 ? 'notificación sin leer' : 'notificaciones sin leer'}`
+            : 'No hay notificaciones sin leer'}
+        </span>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h4 className="text-sm font-semibold text-foreground" id="notif-title">
             Notificaciones
@@ -183,7 +191,7 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
               className="text-xs h-7 gap-1 text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={`Marcar las ${unreadCount} notificaciones como leídas`}
             >
-              <CheckCheck className="w-3 h-3" />
+              <CheckCheck className="w-3 h-3" aria-hidden="true" />
               Marcar todas
             </Button>
           )}
@@ -194,39 +202,55 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
               Sin notificaciones
             </p>
           ) : (
-            <div
-              role="menu"
+            <ul
               aria-labelledby="notif-title"
               className="divide-y divide-border focus:outline-none"
             >
-              {notifications.map((n, i) => (
-                <button
-                  key={n.id}
-                  ref={(el) => { itemRefs.current[i] = el; }}
-                  role="menuitem"
-                  onClick={() => handleClick(n)}
-                  onKeyDown={(e) => handleListKeyDown(e, i)}
-                  aria-label={`${n.read ? '' : 'No leída. '}${n.title}${n.message ? '. ' + n.message : ''}`}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${!n.read ? 'bg-primary/5' : ''}`}
-                >
-                  <span aria-hidden="true" className="text-base mt-0.5">{typeIcons[n.type] || '🔔'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${!n.read ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-                      {n.title}
-                    </p>
-                    {n.message && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">{n.message}</p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">
-                      {timeAgoEs(n.created_at)}
-                    </p>
-                  </div>
-                  {!n.read && (
-                    <span aria-hidden="true" className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
+              {notifications.map((n, i) => {
+                const typeLabel = typeLabelsEs[n.type] ?? 'Notificación';
+                const stateLabel = n.read ? 'Leída' : 'No leída';
+                const dateIso = new Date(n.created_at).toISOString();
+                const ariaLabel = [
+                  stateLabel,
+                  typeLabel,
+                  n.title,
+                  n.message ?? '',
+                  timeAgoEs(n.created_at),
+                  n.link ? 'Abrir' : '',
+                ].filter(Boolean).join('. ');
+                return (
+                  <li key={n.id}>
+                    <button
+                      ref={(el) => { itemRefs.current[i] = el; }}
+                      onClick={() => handleClick(n)}
+                      onKeyDown={(e) => handleListKeyDown(e, i)}
+                      aria-label={ariaLabel}
+                      aria-current={!n.read ? 'true' : undefined}
+                      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${!n.read ? 'bg-primary/5' : ''}`}
+                    >
+                      <span aria-hidden="true" className="text-base mt-0.5">{typeIcons[n.type] || '🔔'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${!n.read ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                          {n.title}
+                        </p>
+                        {n.message && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{n.message}</p>
+                        )}
+                        <time
+                          dateTime={dateIso}
+                          className="block text-[10px] text-muted-foreground/70 mt-1"
+                        >
+                          {timeAgoEs(n.created_at)}
+                        </time>
+                      </div>
+                      {!n.read && (
+                        <span aria-hidden="true" className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </ScrollArea>
       </PopoverContent>
