@@ -91,7 +91,7 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
     }
   };
 
-  const handleListKeyDown = (e: KeyboardEvent<HTMLDivElement>, index: number) => {
+  const handleListKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const items = itemRefs.current.filter(Boolean) as HTMLButtonElement[];
     if (items.length === 0) return;
     if (e.key === 'ArrowDown') {
