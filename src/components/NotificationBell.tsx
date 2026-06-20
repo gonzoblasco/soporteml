@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, KeyboardEvent } from 'react';
 import { Bell, Check, CheckCheck, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +31,17 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // When the popover opens, move focus to the first item (or the markAll button).
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const first = itemRefs.current.find(Boolean);
+      first?.focus();
+    }, 50);
+    return () => clearTimeout(t);
+  }, [open, notifications.length]);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -80,6 +91,31 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
     }
   };
 
+  const handleListKeyDown = (e: KeyboardEvent<HTMLDivElement>, index: number) => {
+    const items = itemRefs.current.filter(Boolean) as HTMLButtonElement[];
+    if (items.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = items[(index + 1) % items.length];
+      next?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = items[(index - 1 + items.length) % items.length];
+      prev?.focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      items[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      items[items.length - 1]?.focus();
+    }
+  };
+
+  const ariaTriggerLabel =
+    unreadCount > 0
+      ? `Notificaciones, ${unreadCount} sin leer`
+      : 'Notificaciones, sin novedades';
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -88,10 +124,15 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
             variant="ghost"
             size="icon"
             className={`relative h-8 w-8 ${collapsed ? 'mx-auto' : ''}`}
+            aria-label={ariaTriggerLabel}
+            aria-haspopup="dialog"
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1">
+              <span
+                aria-hidden="true"
+                className="absolute -top-0.5 -right-0.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1"
+              >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
@@ -101,11 +142,16 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
             variant="ghost"
             size="sm"
             className="w-full justify-start gap-2 px-2 h-8 text-muted-foreground hover:text-foreground"
+            aria-label={ariaTriggerLabel}
+            aria-haspopup="dialog"
           >
             <span className="relative inline-flex items-center justify-center w-4 h-4 shrink-0">
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1">
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1.5 -right-1.5 min-w-4 h-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-semibold px-1"
+                >
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -114,11 +160,29 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent side="right" align="start" className="w-80 p-0">
+      <PopoverContent
+        side="right"
+        align="start"
+        className="w-80 p-0"
+        role="dialog"
+        aria-label="Panel de notificaciones"
+        onCloseAutoFocus={(e) => {
+          // Let Radix return focus to the trigger automatically.
+          // Keep default behavior; just ensure no preventDefault.
+        }}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h4 className="text-sm font-semibold text-foreground">Notificaciones</h4>
+          <h4 className="text-sm font-semibold text-foreground" id="notif-title">
+            Notificaciones
+          </h4>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllRead} className="text-xs h-7 gap-1 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={markAllRead}
+              className="text-xs h-7 gap-1 text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Marcar las ${unreadCount} notificaciones como leídas`}
+            >
               <CheckCheck className="w-3 h-3" />
               Marcar todas
             </Button>
@@ -126,16 +190,26 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
         </div>
         <ScrollArea className="max-h-80">
           {notifications.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">Sin notificaciones</p>
+            <p className="text-xs text-muted-foreground text-center py-8" role="status">
+              Sin notificaciones
+            </p>
           ) : (
-            <div className="divide-y divide-border">
-              {notifications.map((n) => (
+            <div
+              role="menu"
+              aria-labelledby="notif-title"
+              className="divide-y divide-border focus:outline-none"
+            >
+              {notifications.map((n, i) => (
                 <button
                   key={n.id}
+                  ref={(el) => { itemRefs.current[i] = el; }}
+                  role="menuitem"
                   onClick={() => handleClick(n)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+                  onKeyDown={(e) => handleListKeyDown(e, i)}
+                  aria-label={`${n.read ? '' : 'No leída. '}${n.title}${n.message ? '. ' + n.message : ''}`}
+                  className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${!n.read ? 'bg-primary/5' : ''}`}
                 >
-                  <span className="text-base mt-0.5">{typeIcons[n.type] || '🔔'}</span>
+                  <span aria-hidden="true" className="text-base mt-0.5">{typeIcons[n.type] || '🔔'}</span>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm ${!n.read ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
                       {n.title}
@@ -148,7 +222,7 @@ export const NotificationBell = ({ collapsed, label }: { collapsed?: boolean; la
                     </p>
                   </div>
                   {!n.read && (
-                    <span className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
+                    <span aria-hidden="true" className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
                   )}
                 </button>
               ))}
