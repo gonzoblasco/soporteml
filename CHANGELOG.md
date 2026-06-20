@@ -4,6 +4,7 @@
 
 ### Accesibilidad
 - Panel de notificaciones: navegación por teclado (↑/↓/Home/End), foco visible (`focus-visible:ring`), roles ARIA (`dialog`, `menu`, `menuitem`), `aria-label` descriptivo en el trigger con el conteo de no leídas, foco inicial al primer item al abrir y cierre con Escape (Radix por defecto). Iconos y badges marcados como `aria-hidden`.
+- Panel de notificaciones (revisión SR): se reemplazó `role="menu"/"menuitem"` por semántica de lista (`<ul>/<li>`) — más apropiada para feeds que para comandos. Se quitó el `role="dialog"` redundante del `PopoverContent` (Radix ya provee semántica), agregando `aria-labelledby` al título. Se añadió región `aria-live="polite"` que anuncia cambios en el conteo de no leídas, etiqueta accesible enriquecida por item (estado + tipo + título + mensaje + tiempo), `aria-current="true"` para items no leídos y `<time dateTime>` semántico en los timestamps.
 
 Todos los cambios notables de SoporteML se documentan en este archivo.
 
