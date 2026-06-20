@@ -121,6 +121,9 @@ const PriorityInbox = () => {
   const groups = useMemo(() => groupQuestions(filtered), [filtered]);
 
   const selected = questions.find((q) => q.id === selectedId) ?? null;
+  const selectedThread = selected
+    ? (groups.find((g) => g.questions.some((q) => q.id === selected.id))?.questions ?? [selected])
+    : undefined;
 
   const showDetail = isMobile && selectedId;
   const showList = !isMobile || !selectedId;
@@ -208,6 +211,7 @@ const PriorityInbox = () => {
           <div className="flex-1 overflow-y-auto">
             <QuestionDetail
               question={selected}
+              thread={selectedThread}
               onUpdated={() => {
                 setSelectedId(null);
                 fetchQuestions();
@@ -218,6 +222,7 @@ const PriorityInbox = () => {
       ) : !isMobile ? (
         <QuestionDetail
           question={selected}
+          thread={selectedThread}
           onUpdated={() => {
             setSelectedId(null);
             fetchQuestions();
