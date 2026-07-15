@@ -15,6 +15,7 @@ const Login = () => {
   const { login, signup, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const codeFromUrl = searchParams.get('code');
+  const nextFromUrl = searchParams.get('next');
   const isSignupRoute = window.location.pathname === '/signup';
 
   const [mode, setMode] = useState<'login' | 'signup'>(isSignupRoute ? 'signup' : 'login');
@@ -41,7 +42,11 @@ const Login = () => {
       }
     } else {
       const err = await login(email, password);
-      if (err) toast.error(err);
+      if (err) {
+        toast.error(err);
+      } else if (nextFromUrl && nextFromUrl.startsWith('/') && !nextFromUrl.startsWith('//')) {
+        window.location.href = nextFromUrl;
+      }
     }
     setSubmitting(false);
   };

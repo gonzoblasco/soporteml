@@ -22,6 +22,7 @@ import KnowledgeBasePage from "./pages/KnowledgeBasePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import CustomersPage from "./pages/CustomersPage";
 import PostGoogleSetup from "./pages/PostGoogleSetup";
+import OAuthConsent from "./pages/OAuthConsent";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -87,6 +88,7 @@ const AppRoutes = () => (
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/post-google" element={<PostGoogleSetup />} />
+    <Route path=".lovable/oauth/consent" element={<OAuthConsent />} />
     <Route path="/" element={<SmartHome />} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<ErrorBoundary fallbackTitle="Error en Dashboard"><Home /></ErrorBoundary>} />
