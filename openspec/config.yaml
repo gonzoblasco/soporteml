@@ -1,0 +1,22 @@
+schema: spec-driven
+
+context: |
+  Proyecto: SoporteML — CRM multi-tenant para vendedores Mercado Libre
+  Stack: React 18 + Vite + TypeScript + Tailwind + shadcn/ui + Supabase (PostgreSQL + Auth + Realtime + Edge Functions + RLS + pgvector)
+  IA: Edge Function ai-copilot + Lovable AI Gateway (Gemini) + OpenAI text-embedding-3-small (embeddings KB)
+  Billing: Mercado Pago Preapproval (código escrito, NUNCA operativo — secrets no configurados)
+  Backend: Supabase Cloud (ropbkdqhqdeiwrenrmjt.supabase.co) — no se puede correr local
+  Auth: Email/password + Google OAuth (Lovable managed via @lovable.dev/cloud-auth-js)
+  Convenciones: commits semánticos en español, CHANGELOG estilo Keep a Changelog
+  Multi-tenant: aislamiento por company_id via RLS en todas las tablas
+  Idioma: español rioplatense neutro en respuestas de IA y UI
+
+rules:
+  proposal:
+    - Keep proposals under 500 words
+    - Always include a "Non-goals" section
+    - Write in Spanish
+  specs:
+    - Write in Spanish
+    - Use "Requirement" blocks with scenarios (WHEN/THEN)
+    - Reference specific Edge Functions, tables, and RPCs by name
