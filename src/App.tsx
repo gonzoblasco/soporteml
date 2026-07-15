@@ -88,7 +88,7 @@ const AppRoutes = () => (
     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/signup" element={<PublicRoute><Login /></PublicRoute>} />
     <Route path="/post-google" element={<PostGoogleSetup />} />
-    <Route path=".lovable/oauth/consent" element={<OAuthConsent />} />
+    <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
     <Route path="/" element={<SmartHome />} />
     <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<ErrorBoundary fallbackTitle="Error en Dashboard"><Home /></ErrorBoundary>} />
