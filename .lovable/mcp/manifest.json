@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "sdk_version": "0.22.2",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://ropbkdqhqdeiwrenrmjt.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "soporteml-mcp",
+      "version": "0.1.0",
+      "title": "SoporteML"
+    },
+    "tools": [
+      {
+        "name": "list_my_companies",
+        "title": "Listar mis empresas",
+        "description": "Lista las empresas a las que pertenece el usuario autenticado, con su rol en cada una. Útil como paso previo para obtener el company_id que requieren otras herramientas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_pending_questions",
+        "title": "Listar preguntas pendientes",
+        "description": "Lista las preguntas de Mercado Libre pendientes de respuesta para las empresas del usuario autenticado. Devuelve id, texto, comprador, producto y borrador de IA si existe.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Máximo de preguntas a devolver (por defecto 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "company_id": {
+              "description": "Filtrar por empresa. Si se omite, incluye todas las empresas del usuario.",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_question",
+        "title": "Ver detalle de pregunta",
+        "description": "Devuelve el detalle completo de una pregunta por su ID, incluyendo respuesta sugerida por la IA y datos del producto.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID interno (uuid) de la pregunta."
+            }
+          },
+          "required": [
+            "question_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_knowledge_base",
+        "title": "Buscar en base de conocimiento",
+        "description": "Búsqueda semántica en la base de conocimiento (artículos indexados con embeddings) de la empresa del usuario. Devuelve los fragmentos más relevantes para la consulta.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 2,
+              "description": "Texto de búsqueda en lenguaje natural."
+            },
+            "company_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID de la empresa donde buscar."
+            },
+            "limit": {
+              "description": "Máximo de fragmentos a devolver (por defecto 5).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          },
+          "required": [
+            "query",
+            "company_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "answer_question",
+        "title": "Responder pregunta en Mercado Libre",
+        "description": "Publica una respuesta en Mercado Libre para la pregunta indicada, en nombre del usuario autenticado. Es una acción irreversible: la respuesta queda visible públicamente en la publicación.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID interno (uuid) de la pregunta a responder."
+            },
+            "answer_text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "description": "Texto de la respuesta (máx. 2000 caracteres). Debe ser claro y respetuoso."
+            }
+          },
+          "required": [
+            "question_id",
+            "answer_text"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

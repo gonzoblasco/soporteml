@@ -13,8 +13,16 @@ const GoogleSignInButton = ({ label = 'Continuar con Google' }: GoogleSignInButt
 
   const handleClick = async () => {
     setLoading(true);
+    // Preserve `?next=` (e.g. the OAuth consent URL) across the Google round-trip
+    // by sending Google's redirect back to the same URL that opened the login.
+    const currentUrl = window.location.pathname + window.location.search;
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next');
+    const redirectUri = next && next.startsWith('/') && !next.startsWith('//')
+      ? window.location.origin + currentUrl
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
 
     if (result.error) {
