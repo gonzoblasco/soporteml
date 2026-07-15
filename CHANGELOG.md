@@ -1,3 +1,10 @@
+## [Unreleased]
+
+### Added
+- Servidor MCP propio (`@lovable.dev/mcp-js`) desplegado como Edge Function `mcp`, protegido con OAuth 2.1 vía Supabase Auth. Herramientas expuestas: `list_my_companies`, `list_pending_questions`, `get_question`, `search_knowledge_base`, `answer_question`.
+- Ruta de consentimiento OAuth en `/.lovable/oauth/consent` (`src/pages/OAuthConsent.tsx`).
+- Login preserva `?next=` (email/password y Google) para volver a la pantalla de consentimiento tras iniciar sesión.
+
 # Changelog
 
 ## [Unreleased]
