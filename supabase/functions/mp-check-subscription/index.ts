@@ -15,7 +15,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
+    const MP_ACCESS_TOKEN = ***"MP_ACCESS_TOKEN");
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -48,8 +48,6 @@ serve(async (req) => {
       );
       if (userError || !userData.user) throw new Error("Authentication failed");
       userId = userData.user.id;
-      // Security: company_id derived server-side from the authenticated user (default company only).
-      // Client cannot inject a foreign company_id; membership is implicit via get_user_company_id.
       const { data: cid } = await supabase.rpc("get_user_company_id", {
         _user_id: userId,
       });
