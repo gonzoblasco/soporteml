@@ -36,17 +36,37 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Auth: JWT o X-Test-Secret
+    const testSecret = Deno.env.get("MP_TEST_SECRET");
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
+    const testHeader = req.headers.get("X-Test-Secret");
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-    if (userError || !userData.user) throw new Error("Authentication failed");
+    let userId: string;
+    let companyId: string;
 
-    const userId = userData.user.id;
-    const { data: companyId } = await supabase.rpc("get_user_company_id", { _user_id: userId });
-    if (!companyId) throw new Error("No company found");
+    if (testSecret && testHeader === testSecret) {
+      log("Test mode: using X-Test-Secret");
+      const { data: users } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", "gonzoblasco@gmail.com")
+        .single();
+      if (!users) throw new Error("Test user not found");
+      userId = users.id;
+      const { data: cid } = await supabase.rpc("get_user_company_id", { _user_id: userId });
+      if (!cid) throw new Error("No company found for test user");
+      companyId = cid;
+    } else {
+      if (!authHeader) throw new Error("No authorization header");
+      const { data: userData, error: userError } = await supabase.auth.getUser(
+        authHeader.replace("Bearer ", "")
+      );
+      if (userError || !userData.user) throw new Error("Authentication failed");
+      userId = userData.user.id;
+      const { data: cid } = await supabase.rpc("get_user_company_id", { _user_id: userId });
+      if (!cid) throw new Error("No company found");
+      companyId = cid;
+    }
 
     // Verify caller is admin of the company
     const { data: isAdmin } = await supabase.rpc("has_membership_role", {

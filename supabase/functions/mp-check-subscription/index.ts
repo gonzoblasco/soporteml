@@ -22,19 +22,39 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Auth: JWT o X-Test-Secret
+    const testSecret = Deno.env.get("MP_TEST_SECRET");
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
+    const testHeader = req.headers.get("X-Test-Secret");
 
-    const { data: userData, error: userError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-    if (userError || !userData.user) throw new Error("Authentication failed");
+    let userId: string;
+    let companyId: string | null;
 
-    // Security: company_id derived server-side from the authenticated user (default company only).
-    // Client cannot inject a foreign company_id; membership is implicit via get_user_company_id.
-    const { data: companyId } = await supabase.rpc("get_user_company_id", {
-      _user_id: userData.user.id,
-    });
+    if (testSecret && testHeader === testSecret) {
+      log("Test mode: using X-Test-Secret");
+      const { data: users } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", "gonzoblasco@gmail.com")
+        .single();
+      if (!users) throw new Error("Test user not found");
+      userId = users.id;
+      const { data: cid } = await supabase.rpc("get_user_company_id", { _user_id: userId });
+      companyId = cid;
+    } else {
+      if (!authHeader) throw new Error("No authorization header");
+      const { data: userData, error: userError } = await supabase.auth.getUser(
+        authHeader.replace("Bearer ", "")
+      );
+      if (userError || !userData.user) throw new Error("Authentication failed");
+      userId = userData.user.id;
+      // Security: company_id derived server-side from the authenticated user (default company only).
+      // Client cannot inject a foreign company_id; membership is implicit via get_user_company_id.
+      const { data: cid } = await supabase.rpc("get_user_company_id", {
+        _user_id: userId,
+      });
+      companyId = cid;
+    }
 
     if (!companyId) {
       return new Response(JSON.stringify({
