@@ -15,7 +15,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
+    const MP_ACCESS_TOKEN = ***"MP_ACCESS_TOKEN");
     const MP_PREAPPROVAL_PLAN_ID = Deno.env.get("MP_PREAPPROVAL_PLAN_ID");
     if (!MP_ACCESS_TOKEN || !MP_PREAPPROVAL_PLAN_ID) {
       throw new Error("MP credentials not configured");
@@ -36,7 +36,6 @@ serve(async (req) => {
     let companyId: string;
 
     if (testSecret && testHeader === testSecret) {
-      // Test mode: usar company de prueba (gonzoblasco@gmail.com)
       log("Test mode: using X-Test-Secret");
       const { data: users } = await supabase
         .from("profiles")
@@ -55,9 +54,6 @@ serve(async (req) => {
       );
       if (userError || !userData.user) throw new Error("Authentication failed");
       userId = userData.user.id;
-      // Security: company_id is derived server-side from the authenticated user's default company.
-      // The client never supplies company_id, so user_belongs_to_company is implicit (get_user_company_id
-      // only returns a company the user is an active member of). Safe for current single-company-per-action flow.
       const { data: cid } = await supabase.rpc("get_user_company_id", { _user_id: userId });
       if (!cid) throw new Error("No company found");
       companyId = cid;
